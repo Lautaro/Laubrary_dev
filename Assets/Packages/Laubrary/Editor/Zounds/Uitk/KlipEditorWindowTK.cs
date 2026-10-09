@@ -266,7 +266,7 @@ namespace Laubrary.Zounds.Uitk {
 
             // ── header row (ZoundInspector.DrawSimple) ──
             root.Add(VSpace(Gap4));
-            fields = new ZoundFieldsRowTK(klip, isLocalZound, () => titleContent = new GUIContent(TitleFor(klip)));
+            fields = new ZoundFieldsRowTK(klip, isLocalZound, () => titleContent = new GUIContent(TitleFor(klip)), beforeSoundEdit: GuardSoundEdit);
             root.Add(fields);
             // A Klip with no reference at all is a legitimate placeholder: say so, and let the Source field below take one.
             bool hasInternalSource = klip.audioClipRef != null && klip.audioClipRef.RuntimeKeyIsValid();

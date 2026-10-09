@@ -269,6 +269,7 @@ namespace Laubrary.Zounds.Uitk {
             // chance), in percent, honouring the browser's "Type+Values" / "Input Boxes" choices.
             var sliders = new List<VisualElement>();
             var toggles = new List<VisualElement>();
+            ZuiSkinSlider gainSlider = null;
             string OverTip(bool on) => on
                 ? "Override is on: this track's value replaces the shared sound's own. Click to multiply the sound's own value instead."
                 : "Override is off: this track's value multiplies the shared sound's own. Click to replace it instead.";
@@ -297,6 +298,12 @@ namespace Laubrary.Zounds.Uitk {
                 sliders.Add(Range("Pitch", "MinMaxPitch", z.minPitch, z.maxPitch, Zound.MinPitchRange, Zound.MaxPitchRange, (a, b) => win.Modify("change entry pitch", () => {
                     z.minPitch = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(a); z.maxPitch = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(b); }), () => (z.minPitch, z.maxPitch), "Pitch, in percent of the recorded speed (100 = as recorded): each play draws a value between the two limits. Drag an edge, or the middle to move both."));
                 sliders.Add(One("Chance", "Chance", z.chance, Zound.MinChanceRange, Zound.MaxChanceRange, v => win.Modify("change entry chance", () => z.chance = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(v)), () => z.chance, "Chance, in percent, that a trigger plays this track."));
+                // The local Klip's Gain, sharing Chance's row (a local sound is never shared, so no copy-on-edit guard).
+                if (z is Klip gk) {
+                    gainSlider = GainSliderTK.Create(() => gk, null, () => strip?.Sync(), sMode, -1f, -1f);
+                    win.refreshers.Add(() => GainSliderTK.Sync(gainSlider, gk));
+                    Add(gainSlider);
+                }
             }
             else {
                 sliders.Add(One("Volume", "MinMax", entry.volume, Zound.MinVolumeRange, Zound.MaxVolumeRange, v => win.Modify("change entry volume", () => entry.volume = v), () => entry.volume, "Volume on this track: multiplies the shared sound's own, or overrides it (O)."));
@@ -329,7 +336,7 @@ namespace Laubrary.Zounds.Uitk {
                     () => barKlip.trimEnabled, v => { if (GuardTrack(e => e.SetTrim(v))) SetTrim(v); else curveBar?.Sync(); },
                     () => (barKlip.trimEnabled ? "This track plays its sound's trimmed part. Click to play the whole recording." : "This track plays the whole recording. Click to play only its trimmed part (drag the piece's edges to set it).")
                           + (entry.local ? "" : "\n\n" + SharedBarTip),
-                    () => { int p = strip.EditingParam; return p == SourceStageParam.Speed ? 0 : p == SourceStageParam.Pitch ? 1 : p == SourceStageParam.Volume ? 2 : p == SourceStageParam.Gain ? 3 : -1; },
+                    () => { int p = strip.EditingParam; return p == SourceStageParam.Speed ? 0 : p == SourceStageParam.Pitch ? 1 : p == SourceStageParam.Volume ? 2 : -1; },
                     i => { if (i < 0 || GuardTrack(e => e.SelectCurve(i))) SelectCurve(i); else curveBar?.Sync(); },
                     es.trimHandleColor);
                 curveBar.AddToClassList("zs-zequence-entry__curve-bar");
@@ -363,7 +370,7 @@ namespace Laubrary.Zounds.Uitk {
                 Place(rem, new Rect(xr - Btn, y, Btn, HeaderH)); Place(dup, new Rect(xr - Btn * 2f, y, Btn, HeaderH)); xr -= Btn * 2f + 2f;
                 Place(solo, new Rect(xr - Btn, y, Btn, HeaderH)); Place(mute, new Rect(xr - Btn * 2f, y, Btn, HeaderH)); xr -= Btn * 2f + 6f;
                 if (curveBar != null) {
-                    float bw = CurveBarTK.TrimW + 4f + 4f * (CurveBarTK.NameW + CurveBarTK.IconW * 2f) + 3f * 4f + 14f;
+                    float bw = CurveBarTK.TrimW + 4f + 3f * (CurveBarTK.NameW + CurveBarTK.IconW * 2f) + 2f * 4f + 14f;
                     Place(curveBar, new Rect(xr - bw, y + 1f, bw, CurveBarTK.H)); xr -= bw + 6f;
                 }
                 Place(start, new Rect(xr - 56f, y, 56f, HeaderH)); xr -= 56f;
@@ -392,7 +399,12 @@ namespace Laubrary.Zounds.Uitk {
                 float bh = content.yMax - (waveGrip ? 0f : GripH) - by;
                 for (int i = 0; i < sliders.Count; i++) {
                     float sy = by + i * (LH + 3f);
-                    if (entry.local) Place(sliders[i], new Rect(content.x, sy, LeftW - 1f, LH));
+                    if (entry.local && gainSlider != null && i == sliders.Count - 1) {
+                        float half = (LeftW - 1f - 2f) * 0.5f;
+                        Place(sliders[i], new Rect(content.x, sy, half, LH));
+                        Place(gainSlider, new Rect(content.x + half + 2f, sy, half, LH));
+                    }
+                    else if (entry.local) Place(sliders[i], new Rect(content.x, sy, LeftW - 1f, LH));
                     else { Place(sliders[i], new Rect(content.x, sy, LeftW - 24f, LH)); Place(toggles[i], new Rect(content.x + LeftW - 22f, sy, 20f, LH)); }
                 }
                 var lane = new Rect(content.x + LeftW + 5f, by, content.width - LeftW - 5f, Mathf.Max(8f, bh));
@@ -434,14 +446,13 @@ namespace Laubrary.Zounds.Uitk {
                 setShown = v => { CurveView.SetVisible(Mod(curveOf), v); strip?.Sync(); },
                 warn = which == 1 ? (Func<bool>)(() => strip != null && strip.PitchOldScale) : null,
                 warnTip = which == 1 ? KlipChainEnvelopes.OldScaleTip : null,
-                onContext = a => WaveSurfaceTK.ShowCurveSettings(k, which == 0 ? AudioSpectrumView.Curve.Time : which == 1 ? AudioSpectrumView.Curve.Pitch : which == 3 ? AudioSpectrumView.Curve.Gain : AudioSpectrumView.Curve.Volume,
+                onContext = a => WaveSurfaceTK.ShowCurveSettings(k, which == 0 ? AudioSpectrumView.Curve.Time : which == 1 ? AudioSpectrumView.Curve.Pitch : AudioSpectrumView.Curve.Volume,
                                                                   a, () => GuardTrack(_ => { }), () => strip?.Sync()),
             };
             return new List<CurveBarTK.Curve> {
                 Make(0, "Time", AudioSpectrumView.TimeCurveColor, KlipChainEnvelopes.TimeCurve),
                 Make(1, "Pitch", es.pitchEnvelopeColor, KlipChainEnvelopes.PitchCurve),
                 Make(2, "Vol", es.volumeEnvelopeColor, KlipChainEnvelopes.VolumeCurve),
-                Make(3, "Gain", AudioSpectrumView.GainCurveColor, KlipChainEnvelopes.GainCurve),
             };
         }
 
@@ -456,18 +467,17 @@ namespace Laubrary.Zounds.Uitk {
 
         internal void SetCurveOn(int which, bool v) {
             if (!(zound is Klip k)) return;
-            string label = which == 0 ? "time" : which == 1 ? "pitch" : which == 3 ? "gain" : "vol";
+            string label = which == 0 ? "time" : which == 1 ? "pitch" : "vol";
             win.Modify("toggle klip " + label + " curve", () => {
                 if (which == 0) KlipChainEnvelopes.SetTimeEnabled(k, v);
                 else if (which == 1) KlipChainEnvelopes.SetPitchEnabled(k, v);
-                else if (which == 3) KlipChainEnvelopes.SetGainEnabled(k, v);
                 else KlipChainEnvelopes.SetVolumeEnabled(k, v);
             });
             strip?.Sync(); curveBar?.Sync();
         }
 
         internal void SelectCurve(int i) {
-            strip?.SetEditing(i == 0 ? SourceStageParam.Speed : i == 1 ? SourceStageParam.Pitch : i == 2 ? SourceStageParam.Volume : i == 3 ? SourceStageParam.Gain : -1);
+            strip?.SetEditing(i == 0 ? SourceStageParam.Speed : i == 1 ? SourceStageParam.Pitch : i == 2 ? SourceStageParam.Volume : -1);
             curveBar?.Sync();
         }
 

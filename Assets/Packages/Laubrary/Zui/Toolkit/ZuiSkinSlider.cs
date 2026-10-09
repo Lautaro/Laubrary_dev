@@ -67,9 +67,84 @@ namespace Laubrary.Zui
 
         public void SetValueWithoutNotify(float v) { _value = Mathf.Clamp(v, _min, _max); Refresh(); }
 
+        VisualElement _defaultMark;
+        TextField _typeIn;
+        Func<string, float?> _parseTyped;
+        Action<float> _onTyped;
+
+        /// <summary>
+        /// Draws a thin tick on the track where the default value sits (the value a double-click returns to), so a
+        /// changed value is visible at a glance. Needs the default given to the constructor.
+        /// </summary>
+        public ZuiSkinSlider WithDefaultMark()
+        {
+            if (!_default.HasValue || _defaultMark != null) return this;
+            _defaultMark = new VisualElement { pickingMode = PickingMode.Ignore };
+            _defaultMark.AddToClassList("zui-skinslider__default");
+            _defaultMark.style.position = Position.Absolute;
+            _defaultMark.style.width = 1f; _defaultMark.style.top = 2f; _defaultMark.style.bottom = 2f;
+            _defaultMark.style.backgroundColor = new Color(1f, 1f, 1f, 0.6f);
+            Insert(IndexOf(_label), _defaultMark);
+            Refresh();
+            return this;
+        }
+
+        /// <summary>
+        /// Lets the value be typed: Ctrl+click on the track opens a text box over it, holding the value as
+        /// <c>format</c> shows it; Enter (or leaving the box) hands the parsed SLIDER value to <paramref name="onTyped"/>,
+        /// Escape cancels. <paramref name="parse"/> turns the typed text into a slider value (null: not a number, ignored);
+        /// the result is clamped to the slider's range. The typed value is not passed to the drag callback, so the caller
+        /// can record it as one discrete edit.
+        /// </summary>
+        public ZuiSkinSlider WithTypeIn(Func<string, float?> parse, Action<float> onTyped)
+        {
+            _parseTyped = parse; _onTyped = onTyped;
+            return this;
+        }
+
+        void OpenTypeIn()
+        {
+            if (_typeIn == null)
+            {
+                _typeIn = new TextField { isDelayed = false };
+                _typeIn.AddToClassList("zui-skinslider__typein");
+                _typeIn.style.position = Position.Absolute;
+                _typeIn.style.left = 0f; _typeIn.style.right = 0f; _typeIn.style.top = 0f; _typeIn.style.bottom = 0f;
+                _typeIn.style.marginLeft = 0f; _typeIn.style.marginRight = 0f; _typeIn.style.marginTop = 0f; _typeIn.style.marginBottom = 0f;
+                _typeIn.RegisterCallback<KeyDownEvent>(e =>
+                {
+                    if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { CloseTypeIn(true); e.StopPropagation(); }
+                    else if (e.keyCode == KeyCode.Escape) { CloseTypeIn(false); e.StopPropagation(); }
+                }, TrickleDown.TrickleDown);
+                _typeIn.RegisterCallback<FocusOutEvent>(_ => CloseTypeIn(true));
+                _typeIn.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+                Add(_typeIn);
+            }
+            _typeIn.style.display = DisplayStyle.Flex;
+            _typeIn.SetValueWithoutNotify(_format(_value));
+            _typeIn.schedule.Execute(() => { _typeIn.Focus(); _typeIn.SelectAll(); });
+        }
+
+        void CloseTypeIn(bool commit)
+        {
+            if (_typeIn == null || _typeIn.style.display == DisplayStyle.None) return;
+            _typeIn.style.display = DisplayStyle.None;
+            if (!commit || _parseTyped == null) return;
+            float? v = _parseTyped(_typeIn.value);
+            if (!v.HasValue || float.IsNaN(v.Value)) return;
+            float nv = Mathf.Clamp(v.Value, _min, _max);
+            _value = nv; Refresh();
+            _onTyped?.Invoke(nv);
+        }
+
+        /// <summary>Types a value as if entered in the box (kept checks).</summary>
+        public void TypeForTest(string text) { OpenTypeIn(); _typeIn.SetValueWithoutNotify(text); CloseTypeIn(true); }
+
         void Refresh()
         {
             float t = _max > _min ? Mathf.InverseLerp(_min, _max, _value) : 0f;
+            if (_defaultMark != null)
+                _defaultMark.style.left = Length.Percent((_max > _min ? Mathf.InverseLerp(_min, _max, _default.Value) : 0f) * 100f);
             _fill.style.width = Length.Percent(t * 100f);
             _rest.style.width = Length.Percent((1f - t) * 100f);
             _fill.style.display = t > 0f ? DisplayStyle.Flex : DisplayStyle.None;
@@ -95,6 +170,12 @@ namespace Laubrary.Zui
         void OnDown(PointerDownEvent e)
         {
             if (e.button != 0) return;
+            if (_parseTyped != null && (e.ctrlKey || e.commandKey))
+            {
+                OpenTypeIn();
+                e.StopPropagation();
+                return;
+            }
             if (e.clickCount == 2 && _default.HasValue)
             {
                 _onBeforeMutate?.Invoke();

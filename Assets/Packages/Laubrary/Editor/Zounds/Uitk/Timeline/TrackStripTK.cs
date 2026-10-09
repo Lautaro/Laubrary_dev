@@ -16,7 +16,7 @@ namespace Laubrary.Zounds.Uitk {
     ///
     /// A Klip piece is drawn by the waveform surface (<see cref="WaveSurfaceTK"/>), the same component the Klip editor
     /// uses, so the sound looks and edits the same in both: its file (the parts the track does not play dimmed), its own
-    /// Volume, Pitch, Time and Gain curves (the one being edited with its points, the others as backdrops), the trim edges (a
+    /// Volume, Pitch and Time curves (the one being edited with its points, the others as backdrops), the trim edges (a
     /// right-drag on one moves both: the same part of the file, moved along), its playheads, a right-click playing only
     /// this track from the clicked second. This strip is that surface's host: it draws the file where it SOUNDS on the
     /// timeline (through the sound's pitch and time curves), and keeps the timeline's own: the move strip along the top,
@@ -183,7 +183,7 @@ namespace Laubrary.Zounds.Uitk {
 
         // ─────────────────────────── the sound's own curves (T-0566) ───────────────────────────
 
-        static int ParamOf(Curve which) => which == Curve.Volume ? SourceStageParam.Volume : which == Curve.Pitch ? SourceStageParam.Pitch : which == Curve.Gain ? SourceStageParam.Gain : SourceStageParam.Speed;
+        static int ParamOf(Curve which) => which == Curve.Volume ? SourceStageParam.Volume : which == Curve.Pitch ? SourceStageParam.Pitch : SourceStageParam.Speed;
 
         /// <summary>The sound's own curve on <paramref name="which"/>'s value when it follows the waveform, else null.</summary>
         static ZoundModifier OwnCurve(Klip k, Curve which) {
@@ -200,7 +200,7 @@ namespace Laubrary.Zounds.Uitk {
             get {
                 var ed = Editing; var k = P?.klip;
                 if (ed == null || k == null) return -1;
-                foreach (Curve c in new[] { Curve.Volume, Curve.Pitch, Curve.Time, Curve.Gain }) if (ReferenceEquals(OwnCurve(k, c), ed)) return ParamOf(c);
+                foreach (Curve c in new[] { Curve.Volume, Curve.Pitch, Curve.Time }) if (ReferenceEquals(OwnCurve(k, c), ed)) return ParamOf(c);
                 return -1;
             }
         }
@@ -208,7 +208,7 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>Select the curve bound to <paramref name="param"/> for editing on this track, or -1 for none.</summary>
         public void SetEditing(int param) {
             var k = P?.klip;
-            Curve which = param == SourceStageParam.Volume ? Curve.Volume : param == SourceStageParam.Pitch ? Curve.Pitch : param == SourceStageParam.Gain ? Curve.Gain : Curve.Time;
+            Curve which = param == SourceStageParam.Volume ? Curve.Volume : param == SourceStageParam.Pitch ? Curve.Pitch : Curve.Time;
             var mod = param < 0 ? null : OwnCurve(k, which);
             if (mod == null) TL.editingCurve.Remove(entry); else TL.editingCurve[entry] = mod;
             Sync();

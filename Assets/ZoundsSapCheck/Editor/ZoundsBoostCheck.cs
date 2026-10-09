@@ -37,11 +37,13 @@ public static class ZoundsBoostCheck {
         if (at >= 0) { int end = json.IndexOf(',', at); json = json.Remove(at, end - at + 1); }
         var old = JsonUtility.FromJson<Klip>(json);
         // The project loader does not run a Klip's field defaults, so a missing value arrives as 0; what the engine uses is
-        // the applied value, which is x1 for anything below 1.
-        Check(!json.Contains("\"boost\"") && old.BoostApplied == 1f, "1. a Klip saved without a boost plays at x1 (stored " + old.boost + ", applied " + old.BoostApplied + ")");
+        // the applied value, which is x1 for 0 (or anything at or below it).
+        Check(!json.Contains("\"boost\"") && old.BoostApplied == 1f, "1. a Klip saved without a gain plays at x1 (stored " + old.boost + ", applied " + old.BoostApplied + ")");
         var clampK = new Klip(-9901);
         clampK.boost = 0.4f; float a1 = clampK.BoostApplied; clampK.boost = 14f; float a2 = clampK.BoostApplied; clampK.boost = float.NaN; float a3 = clampK.BoostApplied;
-        Check(a1 == 1f && a2 == 10f && a3 == 1f, "1. held to 1..10 (0.4 -> " + a1 + ", 14 -> " + a2 + ", NaN -> " + a3 + ")");
+        clampK.boost = 0f; float a4 = clampK.BoostApplied; clampK.boost = 0.75f; float a5 = clampK.BoostApplied;
+        Check(a1 == 0.5f && a2 == 8f && a3 == 1f && a4 == 1f && a5 == 0.75f,
+              "1. held to 0.5..8, unset reads 1 (0.4 -> " + a1 + ", 14 -> " + a2 + ", NaN -> " + a3 + ", 0 -> " + a4 + ", 0.75 -> " + a5 + ")");
 
         // An in-memory Klip with one Gain effect at x1, so the level through the chain is exactly the level into it.
         // Built fresh, sharing the library Klip's own audio reference (read only): a copied reference does not resolve

@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
-    /// The one curve toolbar (owner's request 2026-10-08): a small strip of [Trim] [Time ✎ 👁] [Pitch ✎ 👁] [Vol ✎ 👁] [Gain ✎ 👁], used
+    /// The one curve toolbar (owner's request 2026-10-08): a small strip of [Trim] [Time ✎ 👁] [Pitch ✎ 👁] [Vol ✎ 👁], used
     /// unchanged by the Klip editor over its waveform and by every local track in the Zequence editor. Per curve: the
     /// name latches the curve ON (it plays), the pencil selects it for editing (one at a time; the others step back as
     /// backdrops), the eye shows or hides its drawing. Each curve's three chips wear the colour the curve is drawn in
@@ -154,7 +154,6 @@ namespace Laubrary.Zounds.Uitk {
                 c.enable.tooltip = (on ? "The " + what + " curve is on: it shapes every play. Click to bypass it."
                                        : "The " + what + " curve is off. Click to switch it on.")
                                  + (c.onContext != null ? "\n\nRight-click: its settings (the extra time it keeps going after the audio; for the volume curve, its range)." : "");
-                if (what == "gain") c.enable.tooltip += "\n\nGain is the sound's level going INTO its effects (Volume is after them): the middle of its curve is the level as recorded, the top +12 dB, the bottom -12 dB. The waveform is drawn through it, so you see what the effects receive.";
                 c.edit.tooltip = !on ? "Switch the " + what + " curve on first."
                                : editing ? "Editing the " + what + " curve: drag its points, click its line (or double-click anywhere) to add one, double-click a point to remove it, right-click a point for its random range. The other curves step back behind it. Click to stop editing."
                                          : "Edit the " + what + " curve here: shows its points and puts the other curves behind it.";

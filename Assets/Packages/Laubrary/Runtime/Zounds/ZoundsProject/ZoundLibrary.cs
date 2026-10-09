@@ -389,14 +389,17 @@ namespace Laubrary.Zounds
         public bool IsLooper => loop != null && loop.enabled;
 
         /// <summary>
-        /// A fixed boost of how loud the sound goes into its effects (T-0521), from 1 (as recorded) to 10, in tenths: it
-        /// multiplies Drive, whatever moves Drive, so the heard level into the chain is boost x Drive. Kept apart from Drive
-        /// itself so Drive's range (0 to 4) and every binding, curve and game-code value on it stay exactly as they were;
-        /// a sound saved before it existed reads 1 and sounds the same. Set in the Klip editor's top row.
+        /// The sound's Gain (shown as a percent): one fixed factor on how loud the sound goes into its effects, from
+        /// <see cref="MinGain"/> (50 %) to <see cref="MaxGain"/> (800 %), 1 = as recorded. It multiplies Drive, whatever
+        /// moves Drive, so the level into the chain is gain x Drive; kept apart from Drive so Drive's range and every
+        /// binding, curve and game-code value on it stay as they were. Stored under its first name, boost, so sounds saved
+        /// with a boost keep it; 0 (a sound saved before it existed) reads as 1. Set in the Klip editor's top row and on a
+        /// local track's left column.
         /// </summary>
         public float boost = 1f;
-        /// <summary>The boost as the engine applies it: clamped to 1..10, and 1 for anything unset or invalid.</summary>
-        public float BoostApplied => float.IsNaN(boost) || boost < 1f ? 1f : (boost > 10f ? 10f : boost);
+        public const float MinGain = 0.5f, MaxGain = 8f;
+        /// <summary>The gain as the engine applies it: clamped to 0.5..8, and 1 for anything unset (0 or less) or invalid.</summary>
+        public float BoostApplied => float.IsNaN(boost) || boost <= 0f ? 1f : (boost < MinGain ? MinGain : boost > MaxGain ? MaxGain : boost);
 
         public float gain = 1f;
         public bool gainEnabled = false;

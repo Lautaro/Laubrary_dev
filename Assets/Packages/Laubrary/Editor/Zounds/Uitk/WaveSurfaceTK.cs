@@ -72,7 +72,7 @@ namespace Laubrary.Zounds.Uitk {
     /// <summary>
     /// The waveform surface (2026-10-09): ONE component, used by the Klip editor and by every Klip track of the Zequence
     /// editor, so everything about the sound looks and behaves the same in both. It draws the file (bright, the parts the
-    /// sound does not play dimmed), a Looper's crossmix, the sound's own Volume, Pitch, Time and Gain curves (the one selected
+    /// sound does not play dimmed), a Looper's crossmix, the sound's own Volume, Pitch and Time curves (the one selected
     /// for editing with its points, the others as backdrops: half transparent and twice as wide) with their axes and the
     /// combined result of everything moving them, the trim edges, one playhead per read head of each play of this sound,
     /// what the newest play hears, and the height grip. Its gestures: a press on a point or on the line of the curve being
@@ -95,8 +95,8 @@ namespace Laubrary.Zounds.Uitk {
         readonly VisualElement[] xmix = new VisualElement[4];
         readonly Label pitchTop, pitchMid, pitchBottom, timeTop, timeMid, timeBottom, live;
         readonly VisualElement pitchLine, timeLine;
-        /// <summary>The sound's own curves: Volume, Pitch, Time and Gain (in <see cref="Curve"/>'s order).</summary>
-        internal const int CurveCount = 4;
+        /// <summary>The sound's own curves: Volume, Pitch and Time (in <see cref="Curve"/>'s order).</summary>
+        internal const int CurveCount = 3;
         readonly ZuiSkinEnvelope[] envs = new ZuiSkinEnvelope[CurveCount];
         readonly ZUIEnvelopeRuntime[] runtimes = new ZUIEnvelopeRuntime[CurveCount];
         readonly List<VisualElement> headPool = new List<VisualElement>();
@@ -240,11 +240,11 @@ namespace Laubrary.Zounds.Uitk {
         static ZoundsProject.ProjectSettings.EditorStyle Es => ZoundsProject.Instance.projectSettings.editorStyle;
 
         internal static Color ColourOf(Curve which) =>
-            which == Curve.Volume ? Es.volumeEnvelopeColor : which == Curve.Pitch ? Es.pitchEnvelopeColor : which == Curve.Gain ? AudioSpectrumView.GainCurveColor : AudioSpectrumView.TimeCurveColor;
+            which == Curve.Volume ? Es.volumeEnvelopeColor : which == Curve.Pitch ? Es.pitchEnvelopeColor : AudioSpectrumView.TimeCurveColor;
 
-        static string UndoName(Curve which) => which == Curve.Volume ? "edit volume envelope" : which == Curve.Pitch ? "edit pitch envelope" : which == Curve.Gain ? "edit gain curve" : "edit time curve";
+        static string UndoName(Curve which) => which == Curve.Volume ? "edit volume envelope" : which == Curve.Pitch ? "edit pitch envelope" : "edit time curve";
 
-        internal static string NameOf(int which) => which == 0 ? "volume" : which == 1 ? "pitch" : which == 3 ? "gain" : "time";
+        internal static string NameOf(int which) => which == 0 ? "volume" : which == 1 ? "pitch" : "time";
 
         /// <summary>The curve selected for editing, when it is drawn and editable, else null.</summary>
         ZuiSkinEnvelope SelectedEnv(out Curve which) {
@@ -534,8 +534,8 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>
         /// The file: its background where the file is, and one lowest-to-highest stroke per pixel column, read from the
         /// file's in-memory summary at the seconds the host draws that column at (so a track's piece, stretched unevenly by
-        /// its curves, is drawn where it sounds). Full scale reaches the edge (see <see cref="WaveHeightPerUnit"/>); what the
-        /// Gain curve lifts past it is cut at the edge. The parts the sound does not play are drawn too, clearly but dimmer: their background takes the
+        /// its curves, is drawn where it sounds), scaled by the sound's Gain (what its effects receive). Full scale reaches the
+        /// edge (see <see cref="WaveHeightPerUnit"/>); what the Gain lifts past it is cut at the edge and marked red. The parts the sound does not play are drawn too, clearly but dimmer: their background takes the
         /// Settings tab's trim colour and their waveform is drawn at half strength, so the played part stands out without
         /// hiding what is around it.
         /// </summary>
@@ -560,7 +560,7 @@ namespace Laubrary.Zounds.Uitk {
             }
             var sum = WaveSummary.For(clip);
             if (sum == null) return;
-            gainAxisValid = KlipChainEnvelopes.TryAxis(Sound, out gainAxis);
+            float g = GainOf(Sound);
             float mid = r.height * 0.5f, amp = r.height * WaveHeightPerUnit;
             var full = Es.waveformColor;
             var faint = new Color(full.r, full.g, full.b, full.a * 0.5f);
@@ -574,7 +574,6 @@ namespace Laubrary.Zounds.Uitk {
                     if (inside != (pass == 0)) continue;
                     float sa = host.SourceAt(x, r), sb = host.SourceAt(x + 1f, r);
                     if (!sum.Range(sa, sb, out float mn, out float mx)) continue;
-                    float g = GainAt(0.5f * (sa + sb));
                     if (pass == 0 && (mx * g > 1f || mn * g < -1f)) clipped.Add(x + 0.5f);
                     float y0 = Mathf.Max(0f, mid - mx * g * amp), y1 = Mathf.Min(r.height, mid - mn * g * amp);
                     if (y1 - y0 < 1f) { y0 -= 0.5f; y1 += 0.5f; }
@@ -582,7 +581,7 @@ namespace Laubrary.Zounds.Uitk {
                 }
                 p2.Stroke();
             }
-            // Where the Gain curve lifts the audio past full scale, a red mark along both edges (what the effects receive
+            // Where the Gain lifts the audio past full scale, a red mark along both edges (what the effects receive
             // is louder than the file can hold).
             if (clipped.Count > 0) {
                 p2.strokeColor = new Color(1f, 0.25f, 0.2f, 0.95f); p2.lineWidth = 1f;
@@ -595,16 +594,14 @@ namespace Laubrary.Zounds.Uitk {
 
         /// <summary>A sample's height on the waveform, as a share of the area's height per unit of amplitude: full scale
         /// reaches (just inside) the edge. The old waveform picture drew 0.75, so anything above two thirds of full scale
-        /// was cut flat at the edge; with the Gain curve drawn into the waveform that hid exactly what it should show (a
-        /// loud file looked the same at 0 dB and +12 dB), so full scale is the edge now. Never scaled to the file's own
+        /// was cut flat at the edge; with the Gain drawn into the waveform that hid exactly what it should show (a loud file
+        /// looked the same at 100 % and 400 %), so full scale is the edge now. Never scaled to the file's own
         /// peak: a quiet file looks quiet.</summary>
         internal const float WaveHeightPerUnit = 0.48f;
 
-        /// <summary>The factor the sound's own Gain curve applies at a second of its file (1 without one, or with it off): the
-        /// waveform is drawn as the effects receive it (owner, 2026-10-09). The axis is read once per drawing.</summary>
-        float GainAt(float sourceSeconds) => gainAxisValid ? KlipChainEnvelopes.GainAt(Sound, sourceSeconds, gainAxis) : 1f;
-        Dsp.CurveAnchor.Axis gainAxis;
-        bool gainAxisValid;
+        /// <summary>The sound's Gain as the engine applies it (1 for anything but a Klip): the waveform is drawn as the
+        /// effects receive it.</summary>
+        internal static float GainOf(Zound sound) => sound is Klip k ? k.BoostApplied : 1f;
 
         /// <summary>
         /// Draws each combined result in its curve's colour, lighter and thinner than the curve's own editable line, in the
@@ -821,7 +818,7 @@ namespace Laubrary.Zounds.Uitk {
         /// </summary>
         internal static void ShowCurveSettings(Klip klip, Curve which, VisualElement anchor, Func<bool> guard, Action refresh) {
             Envelope Env() => which == Curve.Volume ? KlipChainEnvelopes.VolumeCurve(klip, false) : which == Curve.Pitch ? KlipChainEnvelopes.PitchCurve(klip, false)
-                            : which == Curve.Gain ? KlipChainEnvelopes.GainCurve(klip, false) : KlipChainEnvelopes.TimeCurve(klip, false);
+                            : KlipChainEnvelopes.TimeCurve(klip, false);
             var env0 = Env();
             if (env0 == null || !env0.enabled || KlipChainEnvelopes.ModifierOf(klip, env0) == null) return;
             // Its settings are an edit of the sound: a shared one goes to a copy first, and the curves are re-read.

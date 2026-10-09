@@ -20,17 +20,16 @@ namespace Laubrary.Zounds.Uitk {
         readonly TextField nameField;
         readonly ZuiSkinMinMax volume, pitch;
         readonly ZuiSkinSlider chance;
-        // The fixed boost into the effects (T-0521, Klips only): a number you drag, backed by a whole-number field in
-        // tenths (10..100) so ZUI's drag gives one step per few pixels and the value always has exactly one decimal.
-        readonly Label boost;
-        readonly IntegerField boostTenths;
-        const float BoostW = 80f;
+        // The sound's Gain into its effects (Klips only): a slider, 50 % to 800 % (see GainSliderTK).
+        readonly ZuiSkinSlider gain;
+        const float GainW = 110f;
         readonly Button tags;
         readonly System.Action onRenamed;
 
         static readonly Color MuteOn = new Color(.70f, .42f, .08f, 1f), SoloOnFallback = new Color(.14f, .34f, .14f, 1f);
 
-        public ZoundFieldsRowTK(Zound zound, bool isLocal, System.Action onRenamed = null, bool drawName = true, bool drawTags = true) {
+        public ZoundFieldsRowTK(Zound zound, bool isLocal, System.Action onRenamed = null, bool drawName = true, bool drawTags = true,
+                                System.Func<bool> beforeSoundEdit = null) {
             this.zound = zound; this.isLocal = isLocal; this.drawName = drawName; this.drawTags = drawTags; this.onRenamed = onRenamed;
             style.height = UnityEditor.EditorGUIUtility.singleLineHeight;
             AddToClassList("zs-zound-fields-row__root");
@@ -66,26 +65,8 @@ namespace Laubrary.Zounds.Uitk {
                                bs.vpcShowSliderType ? ZuiSkinSlider.LabelMode.LabelAndValue : ZuiSkinSlider.LabelMode.ValueOnly, null, "Chance");
             Add(Abs(volume)); Add(Abs(pitch)); Add(Abs(chance));
             if (zound is Klip klip) {
-                boostTenths = new IntegerField { value = Tenths(klip.BoostApplied) };
-                boostTenths.style.display = DisplayStyle.None;   // never shown: the label is the control
-                Add(boostTenths);
-                boost = new Label(BoostText(klip.BoostApplied)) {
-                    tooltip = "Boost: how much louder the sound goes into its effects, from x1 (as recorded) to x10, in tenths. " +
-                              "It multiplies Drive, whatever moves Drive. Drag left or right to change it (Shift for fine, Ctrl for coarse). " +
-                              "Plays already under way follow it at once.",
-                };
-                boost.AddToClassList("zs-boost");
-                Add(Abs(boost));
-                ZuiScrub.AttachToLabel(boost, boostTenths, 10, 100);
-                boostTenths.RegisterValueChangedCallback(e => {
-                    int t = Mathf.Clamp(e.newValue, 10, 100);
-                    if (t != e.newValue) boostTenths.SetValueWithoutNotify(t);
-                    float v = t / 10f;
-                    boost.text = BoostText(v);
-                    if (Mathf.Approximately(klip.boost, v)) return;
-                    ZoundsWindow.ModifyZoundsProject("change zound boost", () => klip.boost = v);
-                    Dsp.SapVoiceRegistry.SetBoostLive(klip);
-                });
+                gain = GainSliderTK.Create(() => klip, beforeSoundEdit, null, bs.vpcShowSliderType ? ZuiSkinSlider.LabelMode.LabelAndValue : ZuiSkinSlider.LabelMode.ValueOnly, GainW, -1f);
+                Add(Abs(gain));
             }
             if (drawTags) {
                 tags = new Button(() => TagsEditorWindow.OpenWindow(zound)) { text = BrowserTab.GetZoundTagsString(zound), tooltip = "Open the tag editor to organise and filter this sound." };
@@ -96,17 +77,13 @@ namespace Laubrary.Zounds.Uitk {
             RegisterCallback<GeometryChangedEvent>(_ => Layout());
         }
 
-        static int Tenths(float v) => Mathf.Clamp(Mathf.RoundToInt(v * 10f), 10, 100);
-        /// <summary>Always one decimal ("Boost ×1.0" .. "Boost ×10.0"); the label's width is fixed, so no length ever moves anything.</summary>
-        static string BoostText(float v) => "Boost ×" + v.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
-
         static VisualElement Abs(VisualElement e) { e.AddToClassList("zs-zound-fields-row__positioned-control"); return e; }
 
         void Place(VisualElement e, float x, float w) { if (e == null) return; e.style.left = x; e.style.width = Mathf.Max(0f, w); }
 
         // Every control has a width of its own (owner's review 2026-10-08: the stretched bars read as crowded); the tags,
         // being text, take what is left. In a narrow window the fixed widths shrink together, never below a readable size.
-        // The three value bars are the same width and the boost is a bar of its own (PM, 2026-10-08: one consistent strip).
+        // The three value bars are the same width; the Gain sits beside Volume, the other level.
         const float NameW = 220f, RangeW = 150f, ChanceW = 150f, ColGap = 6f, MinTagsW = 60f;
 
         void Layout() {
@@ -119,15 +96,15 @@ namespace Laubrary.Zounds.Uitk {
                 Place(mute, 0f, half);
                 Place(solo, half + gap, muteSoloWidth - half - gap);
             }
-            float boostW = boost != null ? BoostW + ColGap : 0f;
-            float wanted = (drawName ? NameW + ColGap : 0f) + RangeW * 2f + boostW + ChanceW + ColGap * 2f + (drawTags ? MinTagsW + ColGap : 0f);
+            float gainW = gain != null ? GainW + ColGap : 0f;
+            float wanted = (drawName ? NameW + ColGap : 0f) + RangeW * 2f + gainW + ChanceW + ColGap * 2f + (drawTags ? MinTagsW + ColGap : 0f);
             float room = width - muteSoloWidth - (isLocal ? 0f : ColGap);
             float k = room < wanted ? Mathf.Max(0.5f, room / wanted) : 1f;
             float x = muteSoloWidth + (isLocal ? 0f : ColGap);
             if (drawName) { Place(nameField, x, NameW * k); x += NameW * k + ColGap; }
             float rw = RangeW * k;
             Place(volume, x, rw); x += rw + ColGap;
-            if (boost != null) { Place(boost, x, BoostW * k); x += BoostW * k + ColGap; }
+            if (gain != null) { Place(gain, x, GainW * k); x += GainW * k + ColGap; }
             Place(pitch, x, rw); x += rw + ColGap;
             Place(chance, x, ChanceW * k); x += ChanceW * k + ColGap;
             if (drawTags) Place(tags, x, Mathf.Max(MinTagsW * k, width - x));
@@ -141,7 +118,7 @@ namespace Laubrary.Zounds.Uitk {
             volume.SetValuesWithoutNotify(zound.minVolume * 100f, zound.maxVolume * 100f);
             pitch.SetValuesWithoutNotify(zound.minPitch * 100f, zound.maxPitch * 100f);
             chance.SetValueWithoutNotify(zound.chance * 100f);
-            if (boost != null && zound is Klip bk) { boostTenths.SetValueWithoutNotify(Tenths(bk.BoostApplied)); boost.text = BoostText(bk.BoostApplied); }
+            if (gain != null) GainSliderTK.Sync(gain, zound as Klip);
             if (tags != null) tags.text = BrowserTab.GetZoundTagsString(zound);
         }
 

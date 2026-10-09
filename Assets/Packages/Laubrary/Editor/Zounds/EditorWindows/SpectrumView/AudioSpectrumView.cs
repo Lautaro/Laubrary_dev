@@ -172,8 +172,6 @@ namespace Laubrary.Zounds {
 
         /// <summary>The time curve's colour: its own, distinct from volume (green) and pitch (red).</summary>
         internal static readonly Color TimeCurveColor = new Color(0.30f, 0.85f, 1f, 1f);
-        /// <summary>The Gain curve's colour (violet: not the volume green, the pitch red, the time cyan, or the amber game code wears).</summary>
-        internal static readonly Color GainCurveColor = new Color(0.78f, 0.55f, 1f, 1f);
         private int volumeStateKey;
         private int pitchStateKey;
 
@@ -755,8 +753,7 @@ namespace Laubrary.Zounds {
         }
         private static List<System.Func<float, float>> s_live;
 
-        /// <summary>The sound's own curves on the waveform. Gain is drawn only by the UI Toolkit editors' waveform surface.</summary>
-        internal enum Curve { Volume, Pitch, Time, Gain }
+        internal enum Curve { Volume, Pitch, Time }
 
         /// <summary>The modifier of <paramref name="env"/> when it is anchored to source seconds and the file is the real source.</summary>
         internal ZoundModifier SourceAnchoredModifier(Envelope env) {

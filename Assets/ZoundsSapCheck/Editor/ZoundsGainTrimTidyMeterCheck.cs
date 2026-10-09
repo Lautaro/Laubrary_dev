@@ -2,16 +2,21 @@
 // the curves-behind setting). Everything runs on in-memory sounds; the windows it opens are closed, the Undo steps
 // reverted, the Settings and EditorPrefs values it touches put back, and the project file written back byte for byte.
 //
-//   1. Gain: a sound saved before the Gain curve existed, the same sound with an empty Gain slot, with a Gain curve
-//      switched off, and with a flat (0 dB) Gain curve all render bit-identically; a Gain curve held at x2 doubles what
-//      the effects receive (a sound with no effects comes out exactly twice as loud); GainAt (the waveform's drawing)
-//      says x2 too.
+//   1. Gain (a fixed per-sound factor, 50 % to 800 %, stored as the Klip's boost): held to 0.5..8 with 0/unset/NaN read
+//      as 1; at 100 % (set, or unset) a sound renders bit-identically to one rendered without a sound at all; 50 %, 200 %
+//      and 800 % scale a sound with no effects exactly; it acts at the start of the chain (before a distortion it drives
+//      it: the same as a x2 Gain effect first in the chain, not last); the slider's mapping puts 100 % a quarter of the
+//      way along and types 1000 % as 800 % and 10 % as 50 %; the waveform is drawn with the factor; a sound saved with a
+//      Gain-curve slot (an earlier build of this branch) loads without error and the slot is dropped.
 //   2. Random trim edges: with no range set the region is exactly the trim; with a range, every draw stays within it,
 //      plays differ, the same play's seed draws the same edges, and a real voice start (no sound played) lasts the drawn
 //      length. A cut into the range narrows it, an insert at the edge leaves it, and a destructive edit ripples it.
 //   3. The level meter's arithmetic: decibels, the two-second hold then the fall, the loudest peak kept until a click or
 //      until nothing has been triggered for the idle time.
-//   4. Windows, real pointer events: the Gain chip switches a Klip's Gain curve on (Klip editor); a right-click on a trim
+//   4. Windows, real pointer events: the curve bar has no Gain chip; the Gain slider in the Klip editor's top row is
+//      dragged to 200 %, 800 % and 50 % and the sound follows, one Undo step per drag; the waveform draws red marks at
+//      800 %; on a local track the slider sits beside Chance and edits that sound; on a shared sound the first drag goes
+//      to a copy (the original keeps 100 %); a right-click on a trim
 //      edge without dragging asks for that edge's random range (both hosts); right-clicks on an eye cycle solo / none /
 //      as before; the curves-behind setting reaches a backdrop curve; a click on Tidy fits the timeline exactly to the
 //      end of the last piece (not to the longer authored length); a right-click on Tidy switches auto-tidy on, which
@@ -55,13 +60,13 @@ public static class ZoundsGainTrimTidyMeterCheck {
         Send(target, EventType.MouseUp, c, button);
     }
 
-    static float[] Render(ZoundEffectChain chain) {
+    static float[] Render(ZoundEffectChain chain, Zound zound = null) {
         var L = chain != null && !chain.IsEmpty ? ChainLayout.Build(chain, SR) : ChainLayout.Empty;
         int frames = SR / 4;
         var data = new float[frames * 2];
         for (int i = 0; i < frames; i++) { float s = 0.3f * Mathf.Sin(i * 0.031f) + 0.1f * Mathf.Sin(i * 0.2f); data[i * 2] = s; data[i * 2 + 1] = s * 0.9f; }
         var pcm = new PcmClip { channels = 2, frequency = SR, frames = frames, samples = data, valid = true, peak = 0.4f };
-        var v = SapRealtimeVoice.Create(pcm, L, SR, 0d, frames, 1f, 1f, (float)frames / SR, false, 3, true, Allocator.Persistent);
+        var v = SapRealtimeVoice.Create(pcm, L, SR, 0d, frames, 1f, 1f, (float)frames / SR, false, 3, true, Allocator.Persistent, zound);
         var outp = new float[frames * 2];
         try {
             int w = 0;
@@ -88,38 +93,79 @@ public static class ZoundsGainTrimTidyMeterCheck {
         var sb = new StringBuilder();
         int fail = 0;
         void Check(bool ok, string what) { sb.Append(ok ? "  ok   " : "  FAIL ").Append(what).Append('\n'); if (!ok) fail++; }
+        // The project file and the Undo history as they are now: everything below is put back to them at the end.
+        string projectJson = ZoundsProjectInitialization.GetZoundsProjectPath();
+        byte[] projectBytes = !string.IsNullOrEmpty(projectJson) && File.Exists(ZoundsProtection.Absolute(projectJson)) ? File.ReadAllBytes(ZoundsProtection.Absolute(projectJson)) : null;
+        Undo.IncrementCurrentGroup();
+        int startGroup = Undo.GetCurrentGroup();
+        void PutBack() {
+            try { Undo.RevertAllDownToGroup(startGroup); } catch (Exception e) { Debug.LogException(e); }
+            if (projectBytes != null) {
+                ZoundsWindow.isSavingJSON = true;
+                try { File.WriteAllBytes(ZoundsProtection.Absolute(projectJson), projectBytes); AssetDatabase.ImportAsset(projectJson); }
+                finally { ZoundsWindow.isSavingJSON = false; }
+            }
+        }
 
         // ─────────── 1: Gain ───────────
         try {
-            var old = Plain(-9850);
-            var lp = new ZoundEffectNode(ZoundEffectType.LowPass); lp.p[0] = 2500f; old.effectChain.nodes.Add(lp);
-            old.ownCurves = null;   // saved before own curves existed at all
-            var reference = Render(ZoundDspPlayback.PlayChain(old));
-            var withSlot = Plain(-9851); withSlot.effectChain.nodes.Add(lp); withSlot.ownCurves = new ZoundOwnCurves();
-            Check(Diff(reference, Render(ZoundDspPlayback.PlayChain(withSlot))) == 0, "1. a sound with an empty Gain slot renders bit-identically to one saved before it existed");
-            var off = Plain(-9852); off.effectChain.nodes.Add(lp);
-            KlipChainEnvelopes.SetGainEnabled(off, true); KlipChainEnvelopes.SetGainEnabled(off, false);
-            Check(off.ownCurves.gain.Has && !off.ownCurves.gain.modifier.enabled && Diff(reference, Render(ZoundDspPlayback.PlayChain(off))) == 0,
-                  "1. with a Gain curve switched off it renders bit-identically");
-            var flat = Plain(-9853); flat.effectChain.nodes.Add(lp);
-            KlipChainEnvelopes.SetGainEnabled(flat, true);
-            int d0 = Diff(reference, Render(ZoundDspPlayback.PlayChain(flat)));
-            Check(d0 == 0, "1. with a flat (0 dB, middle) Gain curve on it renders bit-identically (" + d0 + " samples differ)");
-            // x2: on the Ratio scale the curve's 0..1 spans x1/4..x4 evenly in ratio, so x2 sits three quarters of the way up.
-            var two = Plain(-9854);
-            KlipChainEnvelopes.SetGainEnabled(two, true);
-            var plainRef = Render(ZoundDspPlayback.PlayChain(Plain(-9855)));
-            SetFlat(KlipChainEnvelopes.GainCurve(two, false), 0.75f);
-            KlipChainEnvelopes.Touch(two);
-            var twice = Render(ZoundDspPlayback.PlayChain(two));
-            float worst = 0f;
-            for (int i = SR / 50; i < plainRef.Length; i++) worst = Mathf.Max(worst, Mathf.Abs(twice[i] - 2f * plainRef[i]));
-            Check(worst < 1e-4f, "1. a Gain curve held at x2 makes a sound with no effects exactly twice as loud (worst error " + worst.ToString("0.0e0") + ")");
-            var axis = new CurveAnchor.Axis { trimStart = 0f, trimEnd = 1f, sourceLength = 1f };
-            float g = KlipChainEnvelopes.GainAt(two, 0.5f, axis);
-            Check(Mathf.Abs(g - 2f) < 1e-3f, "1. the waveform is drawn through it: x" + g.ToString("0.000") + " at the middle");
-            Check(KlipChainEnvelopes.GainAt(off, 0.5f, axis) == 1f && KlipChainEnvelopes.GainAt(old, 0.5f, axis) == 1f, "1. a switched-off or missing Gain curve draws the waveform as recorded (x1)");
-            Check(KlipChainEnvelopes.IsOwnCurve(two, two.ownCurves.gain.modifier), "1. the Gain curve is one of the sound's own curves (not a row of its modifier list)");
+            var k = new Klip(-9849);
+            k.boost = 0.4f; float a1 = k.BoostApplied; k.boost = 14f; float a2 = k.BoostApplied; k.boost = 0f; float a3 = k.BoostApplied; k.boost = float.NaN; float a4 = k.BoostApplied;
+            Check(a1 == 0.5f && a2 == 8f && a3 == 1f && a4 == 1f, "1. the gain is held to 50 % .. 800 %; 0 (saved before it existed) and NaN read 100 % (" + a1 + ", " + a2 + ", " + a3 + ", " + a4 + ")");
+
+            var none = Render(new ZoundEffectChain());
+            var unity = Plain(-9850); unity.boost = 1f;
+            var unset = Plain(-9851); unset.boost = 0f;
+            int d1 = Diff(none, Render(ZoundDspPlayback.PlayChain(unity), unity)), d2 = Diff(none, Render(ZoundDspPlayback.PlayChain(unset), unset));
+            Check(d1 == 0 && d2 == 0, "1. at 100 % (set or unset) a sound renders bit-identically to one with no gain at all (" + d1 + ", " + d2 + " samples differ)");
+            foreach (float g in new[] { 0.5f, 2f, 8f }) {
+                var kg = Plain(-9852); kg.boost = g;
+                var outp = Render(ZoundDspPlayback.PlayChain(kg), kg);
+                float worst = 0f;
+                for (int i = 0; i < none.Length; i++) worst = Mathf.Max(worst, Mathf.Abs(outp[i] - g * none[i]));
+                Check(worst < 1e-6f, "1. at " + GainSliderTK.Percent(g) + " a sound with no effects comes out exactly x" + g + " (worst error " + worst.ToString("0.0e0") + ")");
+            }
+            // Before the effects: x2 into a distortion is a x2 Gain effect FIRST in the chain, not one after it.
+            ZoundEffectChain DistChain(int gainAt) {
+                var c = new ZoundEffectChain();
+                var dist = new ZoundEffectNode(ZoundEffectType.Distortion);
+                var two = new ZoundEffectNode(ZoundEffectType.Gain); two.p[0] = 2f;
+                if (gainAt == 0) c.nodes.Add(two);
+                c.nodes.Add(dist);
+                if (gainAt == 1) c.nodes.Add(two);
+                return c;
+            }
+            var kd = Plain(-9853); kd.boost = 2f; kd.effectChain = DistChain(-1);
+            var viaGain = Render(DistChain(-1), kd);
+            var first = Render(DistChain(0)); var last = Render(DistChain(1));
+            float eFirst = 0f, eLast = 0f;
+            for (int i = 0; i < viaGain.Length; i++) { eFirst = Mathf.Max(eFirst, Mathf.Abs(viaGain[i] - first[i])); eLast = Mathf.Max(eLast, Mathf.Abs(viaGain[i] - last[i])); }
+            Check(eFirst < 1e-5f && eLast > 1e-3f, "1. the gain acts before the effects: x2 into a distortion matches a x2 Gain effect first in the chain (" + eFirst.ToString("0.0e0") + ") and not one last (" + eLast.ToString("0.000") + ")");
+
+            // The slider: logarithmic, 100 % a quarter of the way along, whole percents, typed values clamped.
+            float t100 = Mathf.InverseLerp(GainSliderTK.ToSlider(0.5f), GainSliderTK.ToSlider(8f), GainSliderTK.ToSlider(1f));
+            Check(Mathf.Abs(t100 - 0.25f) < 1e-5f && GainSliderTK.ToGain(GainSliderTK.ToSlider(2f)) == 2f && GainSliderTK.ToGain(-5f) == 0.5f && GainSliderTK.ToGain(9f) == 8f && GainSliderTK.Percent(1.234f) == "123%",
+                  "1. the slider: 100 % sits at " + (t100 * 100f).ToString("0") + " % of its track, its ends are 50 % and 800 %, values read as whole percents");
+            var probe = Plain(-9854); probe.boost = 1f;
+            var slider = GainSliderTK.Create(() => probe, null, null, ZuiSkinSlider.LabelMode.LabelAndValue, 110f, 18f);
+            // In memory: the typed edits are recorded (Undo) but the project file is put back at the end of the check.
+            slider.TypeForTest("1000%"); float t1 = probe.boost;
+            slider.TypeForTest("10"); float t2 = probe.boost;
+            slider.TypeForTest("250"); float t3 = probe.boost;
+            slider.TypeForTest("abc"); float t4 = probe.boost;
+            Check(t1 == 8f && t2 == 0.5f && t3 == 2.5f && t4 == 2.5f, "1. typed: 1000 % -> " + GainSliderTK.Percent(t1) + ", 10 -> " + GainSliderTK.Percent(t2) + ", 250 -> " + GainSliderTK.Percent(t3) + ", text ignored -> " + GainSliderTK.Percent(t4));
+            Check(WaveSurfaceTK.GainOf(kd) == 2f && WaveSurfaceTK.GainOf(unset) == 1f && WaveSurfaceTK.GainOf(new Zequence(-9855)) == 1f, "1. the waveform is drawn with the gain (x2 at 200 %, x1 unset, x1 for a Zequence)");
+
+            // A sound saved by the earlier build of this branch, which had a Gain-curve slot: loads, slot dropped, plays as before.
+            var withCurves = Plain(-9856); KlipChainEnvelopes.SetVolumeEnabled(withCurves, true);
+            string json = JsonUtility.ToJson(withCurves);
+            const string Key = "\"ownCurves\":{";
+            int at = json.IndexOf(Key, StringComparison.Ordinal);
+            string legacy = at < 0 ? json : json.Insert(at + Key.Length, "\"gain\":{\"has\":true,\"modifier\":{\"type\":0,\"enabled\":true},\"binding\":{\"nodeIndex\":-1,\"paramIndex\":1}},");
+            Klip loaded = null; string err = null;
+            try { loaded = JsonUtility.FromJson<Klip>(legacy); } catch (Exception e) { err = e.Message; }
+            Check(at >= 0 && err == null && loaded != null && loaded.ownCurves != null && loaded.ownCurves.volume.Has && !JsonUtility.ToJson(loaded).Contains("\"gain\":{"),
+                  "1. a sound saved with a Gain-curve slot loads without error, keeps its other curves and drops the slot" + (err != null ? " (threw " + err + ")" : ""));
         }
         catch (Exception e) { Check(false, "1 threw: " + e.Message); }
 
@@ -212,18 +258,16 @@ public static class ZoundsGainTrimTidyMeterCheck {
         }
 
         // ─────────── 4: the windows ───────────
-        if (src == null) { done(LastReport = (fail == 0 ? "PASS" : "FAIL (" + fail + ")") + " - gain, trim randomness, Tidy, level meter (windows skipped: no playable Klip)\n" + sb); return; }
+        if (src == null) { PutBack(); done(LastReport = (fail == 0 ? "PASS" : "FAIL (" + fail + ")") + " - gain, trim randomness, Tidy, level meter (windows skipped: no playable Klip)\n" + sb); return; }
         var sclip = ZoundSapPlayback.LoadSourceClip(src);
         float S = sclip.length;
-        string projectJson = ZoundsProjectInitialization.GetZoundsProjectPath();
-        byte[] projectBytes = !string.IsNullOrEmpty(projectJson) && File.Exists(ZoundsProtection.Absolute(projectJson)) ? File.ReadAllBytes(ZoundsProtection.Absolute(projectJson)) : null;
         var es = ZoundsProject.Instance.projectSettings.editorStyle;
         bool keepDotted = es.backdropDotted, keepClear = es.backdropTransparent; float keepBonus = es.backdropWidthBonus;
         const string AutoTidyKey = "Laubrary.Zounds.Zequence.AutoTidy";
         bool keepAutoTidy = EditorPrefs.GetBool(AutoTidyKey, false);
         EditorPrefs.SetBool(AutoTidyKey, false);
-        Undo.IncrementCurrentGroup();
-        int startGroup = Undo.GetCurrentGroup();
+        var keepPrompt = ZoundsProject.Instance.projectSettings.protectedEditPrompt;
+        ZoundsProject.Instance.projectSettings.protectedEditPrompt = ZoundsProject.ProjectSettings.ProtectedEditPrompt.Notice;
         var lib = ZoundsProject.Instance.zoundLibrary;
 
         var zeq = new Zequence(-9870) { name = "check 35 zequence (in memory)", mode = CompositeZound.Mode.Parallel, minPitch = 1f, maxPitch = 1f };
@@ -240,6 +284,14 @@ public static class ZoundsGainTrimTidyMeterCheck {
         zeq.localKlips.Add(piece);
         zeq.zoundEntries.Add(new CompositeZound.ZoundEntry { zoundId = piece.id, local = true, overridePitch = false, pitch = 1f, overrideVolume = true, volume = 1f });
         lib.zequences.Add(zeq);
+        // A shared sound (in the library, played by a second in-memory Zequence): its Gain edit goes to a copy.
+        var shared = JsonUtility.FromJson<Klip>(JsonUtility.ToJson(src));
+        typeof(Zound).GetField("id").SetValue(shared, -9880);
+        shared.name = "check 35 shared"; shared.effectChain = new ZoundEffectChain(); shared.chainPresetId = 0; shared.ownCurves = null; shared.parentId = 0; shared.boost = 1f;
+        lib.klips.Add(shared);
+        var user = new Zequence(-9872) { name = "check 35 user (in memory)", mode = CompositeZound.Mode.Parallel };
+        user.zoundEntries.Add(new CompositeZound.ZoundEntry { zoundId = shared.id, local = false });
+        lib.zequences.Add(user);
         ZoundEngine.InvalidateLookups();
         CompositeZoundEditing.AutoApplyDuration(zeq);
 
@@ -254,16 +306,70 @@ public static class ZoundsGainTrimTidyMeterCheck {
         CurveBarTK KBar() => kw.Waveform?.Q<CurveBarTK>();
         List<CurveBarTK.Curve> Curves(CurveBarTK b) => (List<CurveBarTK.Curve>)typeof(CurveBarTK).GetField("curves", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(b);
 
+        ZuiSkinSlider GainIn(VisualElement root) => root.Q<ZuiSkinSlider>(className: "zs-gain");
+        // A real drag on a slider: press in its middle, move to a share of its width, release.
+        void Drag(VisualElement sl, float frac) {
+            float w = sl.layout.width, y = sl.layout.height * 0.5f;
+            Send(sl, EventType.MouseDown, new Vector2(w * 0.5f, y), 0);
+            Send(sl, EventType.MouseDrag, new Vector2(w * frac, y), 0);
+            Send(sl, EventType.MouseUp, new Vector2(w * frac, y), 0);
+        }
+        int Clipped(WaveSurfaceTK sf) => ((List<float>)typeof(WaveSurfaceTK).GetField("clipped", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(sf)).Count;
+        int clippedAt200 = -1;
+        KlipEditorWindowTK kw2 = null;
+
         var steps = new List<Action>();
         steps.Add(() => {
-            // ── the Gain chip ──
-            var bar = KBar(); var cs = Curves(bar); var gain = cs[3];
-            Check(gain.label == "Gain" && !gain.enabled(), "4. the Klip editor's curve bar has a Gain chip, off for a sound without one");
-            Click(gain.enable, 0);
+            // ── no Gain chip; the Gain slider on a local track, beside Chance ──
+            var cs = Curves(KBar());
+            bool noChip = cs.Count == 3; foreach (var c in cs) if (c.label == "Gain") noChip = false;
+            Check(noChip, "4. the curve bar has Time, Pitch and Vol only (" + cs.Count + " chips)");
+            var ts = GainIn(zw.rootVisualElement);
+            var chance = ts?.parent.Query<ZuiSkinSlider>(className: "zs-slider-chance").ToList().Find(x => Mathf.Abs(x.layout.y - ts.layout.y) < 1f);
+            Check(ts != null && chance != null && ts.layout.width > 40f && ts.layout.x > chance.layout.xMax - 1f && !string.IsNullOrEmpty(ts.tooltip),
+                  "4. a local track shows its sound's Gain slider beside Chance, on the same row, with a tooltip (" + (ts != null ? ts.layout.width.ToString("0") : "-") + " px)");
+            Drag(ts, 0.5f);
         });
         steps.Add(() => {
-            var g = C().ownCurves != null ? C().ownCurves.gain : null;
-            Check(g != null && g.Has && g.modifier.enabled && CurveAnchor.FollowsWaveform(g.modifier), "4. a click on the Gain chip gives the sound its own Gain curve, on, following the waveform");
+            Check(Mathf.Approximately(C().boost, 2f), "4. dragging the track's slider to its middle sets the sound to 200 % (" + GainSliderTK.Percent(C().boost) + ")");
+            // ── the Klip editor's top row ──
+            var ks = GainIn(kw.rootVisualElement);
+            Check(ks != null && ks.parent is ZoundFieldsRowTK && ks.layout.width > 60f, "4. the Klip editor's top row has the Gain slider (" + (ks != null ? ks.layout.width.ToString("0") : "-") + " px)");
+            Drag(ks, 0.5f);
+        });
+        steps.Add(() => {
+            Check(Mathf.Approximately(C().boost, 2f) && WaveSurfaceTK.GainOf(C()) == 2f, "4. Klip editor: a drag to the middle reads 200 %, and the waveform is drawn x2");
+            clippedAt200 = Clipped(kw.Waveform.surface);
+            Drag(GainIn(kw.rootVisualElement), 1f);
+        });
+        steps.Add(() => {
+            int c8 = Clipped(kw.Waveform.surface);
+            Check(Mathf.Approximately(C().boost, 8f) && c8 > 0 && c8 >= clippedAt200, "4. a drag to the right end reads 800 %, and the waveform marks where it clips (" + c8 + " columns, " + clippedAt200 + " at 200 %)");
+            Drag(GainIn(kw.rootVisualElement), 0f);
+        });
+        steps.Add(() => {
+            Check(Mathf.Approximately(C().boost, 0.5f) && Clipped(kw.Waveform.surface) == 0, "4. a drag to the left end reads 50 %, no clip marks");
+            // ── Undo: each Gain drag is one step (50 % -> 800 % -> 200 %) ──
+            Undo.PerformUndo();
+        });
+        float afterOne = 0f;
+        steps.Add(() => { afterOne = C().boost; Undo.PerformUndo(); });
+        steps.Add(() => {
+            float afterTwo = C().boost;
+            Check(Mathf.Approximately(afterOne, 8f) && Mathf.Approximately(afterTwo, 2f), "4. Undo takes the Gain back one drag at a time (" + GainSliderTK.Percent(afterOne) + ", then " + GainSliderTK.Percent(afterTwo) + ")");
+            // ── a shared sound: the first drag goes to a copy ──
+            kw2 = KlipEditorWindowTK.Open(shared, false);
+            kw2.position = new Rect(220, 220, 1000, 760);
+        });
+        steps.Add(() => {
+            Drag(GainIn(kw2.rootVisualElement), 0.5f);
+        });
+        steps.Add(() => {
+            var original = KlipEditorWindowTK.FindKlip(-9880);
+            Check(original != null && !ReferenceEquals(original, shared) && Mathf.Approximately(original.BoostApplied, 1f) && shared.id != -9880 && shared.name.EndsWith("(copy)") && Mathf.Approximately(shared.boost, 2f),
+                  "4. on a shared sound the Gain edit goes to a copy ('" + shared.name + "' at " + GainSliderTK.Percent(shared.boost) + "); the original keeps " + (original != null ? GainSliderTK.Percent(original.BoostApplied) : "-"));
+            try { kw2.Close(); } catch (Exception e) { Debug.LogException(e); }
+            kw2 = null;
             // ── a right-click on a trim edge, without dragging, asks for that edge's random range ──
             foreach (var s in new[] { kw.Waveform.surface, Strip().Surface }) {
                 s.Refresh();
@@ -290,8 +396,8 @@ public static class ZoundsGainTrimTidyMeterCheck {
             Click(pit.eye, 1);
             var back = Shown();
             // Only curves that exist have a drawing to show or hide (the time curve is off here).
-            bool soloOk = solo[1] && !solo[2] && !solo[3];
-            bool noneOk = !none[1] && !none[2] && !none[3];
+            bool soloOk = solo[1] && !solo[2];
+            bool noneOk = !none[1] && !none[2];
             bool backOk = true; for (int i = 0; i < before.Length; i++) if (back[i] != before[i]) backOk = false;
             Check(soloOk && noneOk && backOk && bar.EyeStep == 0, "4. right-clicks on the pitch eye: only pitch shown, then none, then every eye as before");
             // ── the curves-behind setting reaches a backdrop ──
@@ -339,11 +445,11 @@ public static class ZoundsGainTrimTidyMeterCheck {
         EditorApplication.CallbackFunction tick = null;
         tick = () => {
             frame++;
-            zw.Repaint(); kw.Repaint();
+            zw.Repaint(); kw.Repaint(); kw2?.Repaint();
             if (frame < 40 || frame % 12 != 0) return;
             bool stop = false;
             try { steps[step](); }
-            catch (Exception e) { Check(false, "window step " + (step + 1) + " threw: " + e.Message); stop = true; }
+            catch (Exception e) { Check(false, "window step " + (step + 1) + " threw: " + e); stop = true; }
             step++;
             if (!stop && step < steps.Count) return;
             EditorApplication.update -= tick;
@@ -352,14 +458,14 @@ public static class ZoundsGainTrimTidyMeterCheck {
             EditorPrefs.SetBool(AutoTidyKey, keepAutoTidy);
             try { if (zw != null) zw.Close(); } catch (Exception e) { Debug.LogException(e); }
             try { if (kw != null) kw.Close(); } catch (Exception e) { Debug.LogException(e); }
-            try { Undo.RevertAllDownToGroup(startGroup); } catch (Exception e) { Debug.LogException(e); }
-            ZoundsProject.Instance.zoundLibrary.zequences.RemoveAll(z => z.id == -9870);
+            try { if (kw2 != null) kw2.Close(); } catch (Exception e) { Debug.LogException(e); }
+            ZoundsProject.Instance.projectSettings.protectedEditPrompt = keepPrompt;
+            ZoundsEditGuard.ForgetAllowed(-9880);
+            PutBack();
+            var l2 = ZoundsProject.Instance.zoundLibrary;
+            l2.zequences.RemoveAll(z => z.id == -9870 || z.id == -9872);
+            l2.klips.RemoveAll(k => k.id == -9880 || (k.name != null && k.name.StartsWith("check 35 shared")));
             ZoundEngine.InvalidateLookups();
-            if (projectBytes != null) {
-                ZoundsWindow.isSavingJSON = true;
-                try { File.WriteAllBytes(ZoundsProtection.Absolute(projectJson), projectBytes); AssetDatabase.ImportAsset(projectJson); }
-                finally { ZoundsWindow.isSavingJSON = false; }
-            }
             done(LastReport = (fail == 0 ? "PASS" : "FAIL (" + fail + ")") + " - gain, trim randomness, Tidy, level meter\n" + sb);
         };
         EditorApplication.update += tick;

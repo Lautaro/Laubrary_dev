@@ -364,12 +364,6 @@
 .zs-root .zs-snapchip--target { border-color: rgba(115,191,255,0.9); }
 .zs-root .zs-snapchip__fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: rgba(115,191,255,0.3); }
 .zs-root .zs-snapchip__text { position: absolute; left: 0; right: 0; top: 0; bottom: 0; font-size: 10px; color: rgb(215,215,222); -unity-text-align: middle-center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* The Klip's fixed boost into its effects (T-0521): a plain number you drag, fixed width, centred, so x1.0 and x10.0
-   take the same space. */
-.zs-root .zs-boost { font-size: 15px; -unity-font-style: bold; color: rgb(199,199,209); -unity-text-align: middle-center; background-color: rgba(36,36,46,1);
-    border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; border-color: rgba(255,255,255,0.12);
-    border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0; cursor: resize-horizontal; }
-.zs-root .zs-boost:hover { color: rgb(240,240,240); background-color: rgba(56,56,66,1); }
 
 /* Dense Zounds surfaces: fixed layout roles. Playback, authored colour and measured coordinates remain in C#. */
 .zs-root.zs-audition-popup__row, .zs-root .zs-audition-popup__row { flex-direction: row; height: 20px; flex-shrink: 0; }

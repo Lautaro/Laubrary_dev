@@ -204,7 +204,7 @@ namespace Laubrary.Zounds.Uitk {
             return e;
         }
 
-        static void Size(VisualElement e, float width, float height) {
+        internal static void Size(VisualElement e, float width, float height) {
             if (width > 0f) e.style.width = width;
             if (height > 0f) e.style.height = height;
             e.AddToClassList("zs-control__fixed");
