@@ -11,7 +11,7 @@ namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
     /// The Klip editor's waveform block (T-0468): the curve bar (the one shared with the Zequence tracks: Trim, then Time /
-    /// Pitch / Vol each with on, edit and eye), Clamp and Keep length, the length, the audio edit bar, and the waveform
+    /// Pitch / Vol / Gain each with on, edit and eye), Clamp and Keep length, the length, the audio edit bar, and the waveform
     /// surface -- the same <see cref="WaveSurfaceTK"/> every Klip track of the Zequence editor uses, so the sound is drawn
     /// and edited the same way in both. This block is that surface's Klip-editor host: the axis is the old view object's
     /// (its view window and wheel zoom, its trim geometry and drags), a left click places the edit cursor or selects audio

@@ -253,10 +253,11 @@ namespace Laubrary.Zounds.Uitk {
                 darker = !darker;
             }
             scroll.Add(MasterSection());
-            // The Zequence's own effect chain (owner, 2026-10-09): heard on every track, after the track's own effects.
+            // The add buttons right under the tracks, then the Zequence's own effect chain (owner, 2026-10-09): heard on
+            // every track, after the track's own effects.
+            scroll.Add(AddRow(zeq, true));
             scroll.Add(Space(6f));
             scroll.Add(new ChainEditorTK(new ZequenceChainEditorHost(zeq, this)));
-            box.Add(AddRow(zeq, true));
             if (keepScroll > 0f) scroll.schedule.Execute(() => scroll.scrollOffset = new Vector2(0f, keepScroll));
 
             // The level meter along the window's bottom edge (owner, 2026-10-09).

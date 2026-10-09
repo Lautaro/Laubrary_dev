@@ -16,7 +16,7 @@ namespace Laubrary.Zounds.Uitk {
     ///
     /// A Klip piece is drawn by the waveform surface (<see cref="WaveSurfaceTK"/>), the same component the Klip editor
     /// uses, so the sound looks and edits the same in both: its file (the parts the track does not play dimmed), its own
-    /// Volume, Pitch and Time curves (the one being edited with its points, the others as backdrops), the trim edges (a
+    /// Volume, Pitch, Time and Gain curves (the one being edited with its points, the others as backdrops), the trim edges (a
     /// right-drag on one moves both: the same part of the file, moved along), its playheads, a right-click playing only
     /// this track from the clicked second. This strip is that surface's host: it draws the file where it SOUNDS on the
     /// timeline (through the sound's pitch and time curves), and keeps the timeline's own: the move strip along the top,
