@@ -715,8 +715,11 @@ namespace Laubrary.Zounds.Uitk {
                 }
                 return t;
             }
-            foreach (var kv in auditionTokens)
+            foreach (var kv in auditionTokens) {
+                // A track played on its own (a click on its waveform) draws only its own playhead, never the shared cursor.
+                if (soloTracks.Contains(kv.Key)) continue;
                 foreach (var t in kv.Value) if (t != null && t.state != ZoundToken.State.Killed) return auditionFrom + t.time;
+            }
             if (currentToken != null && currentToken.state != ZoundToken.State.Killed) return currentToken.time;
             return -1f;
         }
@@ -736,12 +739,14 @@ namespace Laubrary.Zounds.Uitk {
             return s_tokens;
         }
         static readonly List<ZoundToken> s_tokens = new List<ZoundToken>();
+        /// <summary>Tracks whose current play is a click-to-play of that one track (see PlayTrackFrom).</summary>
+        readonly HashSet<CompositeZound.ZoundEntry> soloTracks = new HashSet<CompositeZound.ZoundEntry>();
 
         void StopTimelinePlays() {
             try { if (hereToken != null && hereToken.state != ZoundToken.State.Killed) hereToken.Kill(); } catch (Exception e) { Debug.LogException(e); }
             try { if (auditionWhole != null && auditionWhole.state != ZoundToken.State.Killed) auditionWhole.Kill(); } catch (Exception e) { Debug.LogException(e); }
             foreach (var kv in auditionTokens) foreach (var t in kv.Value) { try { if (t != null && t.state != ZoundToken.State.Killed) t.Kill(); } catch (Exception e) { Debug.LogException(e); } }
-            auditionTokens.Clear();
+            auditionTokens.Clear(); soloTracks.Clear();
             hereToken = null; auditionWhole = null;
         }
 
@@ -770,7 +775,7 @@ namespace Laubrary.Zounds.Uitk {
             if (timeline == null || !timeline.byEntry.TryGetValue(entry, out var p) || !p.found) return;
             if (auditionTokens.TryGetValue(entry, out var live) && live.Exists(t => t != null && t.state != ZoundToken.State.Killed)) {
                 foreach (var t in live) { try { if (t != null && t.state != ZoundToken.State.Killed) t.Kill(0.03f); } catch (Exception e) { Debug.LogException(e); } }
-                auditionTokens.Remove(entry);
+                auditionTokens.Remove(entry); soloTracks.Remove(entry);
                 return;
             }
             if (p.klip == null) { CompositeZoundEditing.ToggleEntryPlay(zeq, ref entryTokens, entry, this); return; }
@@ -779,12 +784,14 @@ namespace Laubrary.Zounds.Uitk {
             if (token == null) return;
             auditionFrom = p.SourceToTime(a);
             auditionTokens[entry] = new List<ZoundToken> { token };
+            soloTracks.Add(entry);
         }
 
         /// <summary>Play only the selection (Space). Pressed again while it sounds: stop.</summary>
         internal void AuditionSelection() {
             if (TimelinePlaying()) { StopTimelinePlays(); return; }
             if (!timeline.hasSel || timeline.selB <= timeline.selA) { Say("Select a time range to audition."); return; }
+            soloTracks.Clear();
             auditionFrom = timeline.selA;
             var tracks = TimelineEdits.Selected(timeline);
             if (tracks.Count == 0) { auditionWhole = TimelineEdits.PlayFrom(zeq, timeline.selA, isLocalZound, this); return; }
