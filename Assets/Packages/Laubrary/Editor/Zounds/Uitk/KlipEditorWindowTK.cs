@@ -30,6 +30,8 @@ namespace Laubrary.Zounds.Uitk {
         IVisualElementScheduledItem syncTick;
         Button playButton;
         ZuiToggleButton retriggerButton;
+        System.Action retriggerSync;
+        bool pinnedRetrigger;
 
         // Every play this window starts (Play, Play on change, Burst, Loop) goes through its audition session and dies
         // with the window (T-0486). The session itself is never serialized, so a reload or a restored layout always
@@ -347,12 +349,12 @@ namespace Laubrary.Zounds.Uitk {
             // Retrigger, Delete, Play at the right, in the Zequence toolbar's order (Delete used to sit alone at the left, 2026-10-08).
             r.Add(Flex());
             retriggerButton = ZS.Toggle("Retrigger", "When enabled, every trigger starts this Klip several times. Right-click to set plays, gap and timing.", klip.retriggerEnabled,
-                value => { ZoundsWindow.ModifyZoundsProject("toggle klip retrigger", () => { if (value) klip.EnableRetrigger(); else klip.retriggerEnabled = false; }); SyncRetriggerButton(); },
+                value => { ZoundsWindow.ModifyZoundsProject("toggle klip retrigger", () => { if (value) klip.EnableRetrigger(); else klip.retriggerEnabled = false; }); SyncRetriggerButton(); SyncPinned(); },
                 "RichToggle", ZUICornerMask.All, 88f, h);
             retriggerButton.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 1) return;
                 e.StopPropagation();
-                RetriggerPopupTK.Show(retriggerButton, klip, Sync);
+                if (!klip.retriggerEnabled) RetriggerPopupTK.Show(retriggerButton, klip, Sync);
             });
             r.Add(retriggerButton);
             r.Add(Gap(6f));
@@ -381,6 +383,13 @@ namespace Laubrary.Zounds.Uitk {
         void SyncPinned() {
             if (pinnedSlot == null) return;
             pinnedSlot.Clear();
+            retriggerSync = null;
+            pinnedRetrigger = klip != null && klip.retriggerEnabled;
+            // While Retrigger is on, its options sit on the left of the row under the action row (owner, 2026-10-09); the
+            // pinned audition card sits on the right.
+            if (pinnedRetrigger) pinnedSlot.Add(RetriggerPopupTK.Inline(klip, Sync, out retriggerSync));
+            pinnedSlot.Add(Flex());
+            pinnedSlot.style.display = pinnedRetrigger || AuditionPinned ? DisplayStyle.Flex : DisplayStyle.None;
             if (!AuditionPinned) return;
             EnsureAudition();
             var card = new AuditionCardTK(audition, true, v => { AuditionPinned = v; SyncPinned(); SyncPlayButton(); });
@@ -405,9 +414,10 @@ namespace Laubrary.Zounds.Uitk {
             if (retriggerButton == null || klip == null) return;
             retriggerButton.SetValueWithoutNotify(klip.retriggerEnabled);
             retriggerButton.text = klip.retriggerEnabled ? "Retrigger " + RetriggerPopupTK.Summary(klip) : "Retrigger";
+            retriggerButton.style.width = klip.retriggerEnabled ? 126f : 88f;   // room for its summary
             retriggerButton.tooltip = klip.retriggerEnabled
-                ? "Every trigger starts this Klip " + klip.retriggerCount + " times. Right-click to change plays, gap and timing."
-                : "Enable several plays for every trigger. Right-click to set plays, gap and timing.";
+                ? "Every trigger starts this Klip " + klip.retriggerCount + " times; its plays, gap and timing are on the row below. Click to switch it off."
+                : "Enable several plays for every trigger (its options then show on the row below). Right-click to set plays, gap and timing first.";
         }
 
         static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-klip-editor__gap"); return e; }
@@ -580,6 +590,8 @@ namespace Laubrary.Zounds.Uitk {
             fields?.Sync();
             SyncPlayButton();
             SyncRetriggerButton();
+            if (klip.retriggerEnabled != pinnedRetrigger) SyncPinned();
+            retriggerSync?.Invoke();
             SettingsTabTK.ApplyEditorBackground(box);   // the Settings tab's colour, live (and after an undo)
         }
     }

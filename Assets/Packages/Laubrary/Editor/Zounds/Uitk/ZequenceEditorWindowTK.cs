@@ -42,6 +42,8 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement box;
         Button playButton;
         ZuiToggleButton retriggerButton, editToolsButton;
+        Action retriggerSync;
+        bool pinnedRetrigger;
         ScrollView scroll;
         VisualElement pinnedSlot, pinnedInline;
         [NonSerialized] bool suppressRebuild;
@@ -211,7 +213,8 @@ namespace Laubrary.Zounds.Uitk {
 
             fields = new ZoundFieldsRowTK(zeq, isLocalZound, () => titleContent = new GUIContent("Zequence: " + zeq.name));
             root.Add(fields);
-            root.Add(Space(4f));
+            // Air between the top bar's rows (owner, 2026-10-09): the name row, the toolbar, the ruler, the first track.
+            root.Add(Space(8f));
 
             box = new VisualElement();
             box.AddToClassList("zs-box-default");
@@ -224,11 +227,11 @@ namespace Laubrary.Zounds.Uitk {
             pinnedSlot.AddToClassList("zs-zequence-editor__pinned");
             box.Add(pinnedSlot);
             SyncPinned();
-            box.Add(Space(4f));
+            box.Add(Space(8f));
             header = new TimelineHeaderTK(this);
             header.SetEditToolsVisible(EditTools);
             box.Add(header);
-            box.Add(Space(3f));
+            box.Add(Space(7f));
             if (zeq.zoundEntries.Count == 0) {
                 var none = new Label("No tracks yet: add one below.");
                 none.AddToClassList("zs-lbl"); none.AddToClassList("zs-greymini");
@@ -294,6 +297,8 @@ namespace Laubrary.Zounds.Uitk {
             fields?.Sync();
             SyncPlayButton();
             SyncRetriggerButton();
+            if (zeq.retriggerEnabled != pinnedRetrigger) SyncPinned();
+            retriggerSync?.Invoke();
             SettingsTabTK.ApplyEditorBackground(box);   // the Settings tab's colour, live (and after an undo)
             timeline?.Rebuild();
             foreach (var r in refreshers) r();
@@ -389,12 +394,12 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(ZS.Button("Tidy", "Show everything in the least space: fit the whole Zequence into view, every track at its default height, and clear the selection.", "RichButton", Tidy, ZUICornerMask.Right, 44f, ToolH));
             r.Add(Flex());
             retriggerButton = ZS.Toggle("Retrigger", "When enabled, every trigger starts this Zequence several times. Right-click to set plays, gap and timing.", zeq.retriggerEnabled,
-                value => { Modify("toggle zequence retrigger", () => { if (value) zeq.EnableRetrigger(); else zeq.retriggerEnabled = false; }); SyncRetriggerButton(); },
+                value => { Modify("toggle zequence retrigger", () => { if (value) zeq.EnableRetrigger(); else zeq.retriggerEnabled = false; }); SyncRetriggerButton(); SyncPinned(); },
                 "RichToggle", ZUICornerMask.All, 88f, ToolH);
             retriggerButton.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 1) return;
                 e.StopPropagation();
-                RetriggerPopupTK.Show(retriggerButton, zeq, Tick);
+                if (!zeq.retriggerEnabled) RetriggerPopupTK.Show(retriggerButton, zeq, Tick);
             });
             r.Add(retriggerButton);
             r.Add(Gap(6f));
@@ -433,6 +438,13 @@ namespace Laubrary.Zounds.Uitk {
             if (pinnedSlot == null) return;
             pinnedSlot.Clear();
             pinnedInline?.Clear();
+            retriggerSync = null;
+            pinnedRetrigger = zeq != null && zeq.retriggerEnabled;
+            // While Retrigger is on, its options sit on the left of the row under the toolbar (owner, 2026-10-09); the pinned
+            // audition card's second row sits on the right of the same row.
+            if (pinnedRetrigger) pinnedSlot.Add(RetriggerPopupTK.Inline(zeq, Tick, out retriggerSync));
+            pinnedSlot.Add(Flex());
+            pinnedSlot.style.display = pinnedRetrigger || AuditionPinned ? DisplayStyle.Flex : DisplayStyle.None;
             if (!AuditionPinned) { SyncPlayButton(); return; }
             EnsureAudition();
             var card = new AuditionCardTK(audition, true, v => { AuditionPinned = v; SyncPinned(); Tick(); }, pinnedInline);
@@ -467,9 +479,10 @@ namespace Laubrary.Zounds.Uitk {
             if (retriggerButton == null || zeq == null) return;
             retriggerButton.SetValueWithoutNotify(zeq.retriggerEnabled);
             retriggerButton.text = zeq.retriggerEnabled ? "Retrigger " + RetriggerPopupTK.Summary(zeq) : "Retrigger";
+            retriggerButton.style.width = zeq.retriggerEnabled ? 126f : 88f;   // room for its summary
             retriggerButton.tooltip = zeq.retriggerEnabled
-                ? "Every trigger starts this Zequence " + zeq.retriggerCount + " times. Right-click to change plays, gap and timing."
-                : "Enable several plays for every trigger. Right-click to set plays, gap and timing.";
+                ? "Every trigger starts this Zequence " + zeq.retriggerCount + " times; its plays, gap and timing are on the row below. Click to switch it off."
+                : "Enable several plays for every trigger (its options then show on the row below). Right-click to set plays, gap and timing first.";
         }
 
         void RemoveZound() {

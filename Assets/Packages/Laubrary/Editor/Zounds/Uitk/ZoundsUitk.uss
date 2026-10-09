@@ -215,6 +215,12 @@
 .zs-root .zs-searchvolume { margin-top: 1.8px; margin-bottom: -1.8px; }
 .zs-root .zs-searchvolume > .zs-slider-bigslider { margin-top: -4.7px; margin-bottom: 4.7px; }
 .zs-root .zs-searchrow > .zs-imgui-button { margin-left: 2px; }
+/* The Chance bar's text: the skin draws it dark navy, which vanished over the bar's dark rest. Light text with a dark
+   outline reads on the orange fill and on the dark rest alike (browser, Zequence header and track, Klip header). */
+.zs-root .zs-slider-chance .zui-skinslider__label {
+    color: rgb(244,238,226);
+    text-shadow: 1px 1px 0px rgba(0,0,0,0.9);
+}
 /* The master volume's label sits 6 pt into its half (measured) */
 .zs-root .zs-searchvolume > .zs-slider-bigslider .zui-skinslider__label { padding-left: 4px; }
 /* A button whose face is only an icon: no text padding, so the old narrow widths are kept */
@@ -681,7 +687,7 @@
 .zs-root.zs-zequence-editor__space, .zs-root .zs-zequence-editor__space { flex-shrink: 0; }
 .zs-root.zs-zequence-editor__gap, .zs-root .zs-zequence-editor__gap { flex-shrink: 0; }
 .zs-root.zs-zequence-editor__spacer, .zs-root .zs-zequence-editor__spacer { flex-grow: 1; }
-.zs-root.zs-zequence-editor__toolbar-row, .zs-root .zs-zequence-editor__toolbar-row { flex-direction: row; flex-shrink: 0; align-items: flex-start; }
+.zs-root.zs-zequence-editor__toolbar-row, .zs-root .zs-zequence-editor__toolbar-row { flex-direction: row; flex-shrink: 0; align-items: flex-start; margin-top: 3px; }
 .zs-root.zs-zequence-editor__master-section-rect, .zs-root .zs-zequence-editor__master-section-rect { flex-shrink: 0; }
 .zs-root.zs-zequence-editor__master-section-label, .zs-root .zs-zequence-editor__master-section-label { -unity-text-align: upper-left; }
 .zs-root.zs-zequence-editor__master-section-bg, .zs-root .zs-zequence-editor__master-section-bg { position: absolute; }
@@ -806,7 +812,10 @@
 .zs-root .zs-lbl.zs-curve-settings__unit { width: 12px; padding-left: 3px; }
 /* The Klip waveform's bottom grip: drag to set the area's height. */
 /* The audition card pinned into a window, under the toolbar. */
-.zs-root .zs-klip-editor__pinned, .zs-root .zs-zequence-editor__pinned { flex-shrink: 0; }
+.zs-root .zs-klip-editor__pinned, .zs-root .zs-zequence-editor__pinned { flex-shrink: 0; flex-direction: row; align-items: flex-start; }
+/* The retrigger options pinned on the left of the row under the Retrigger toggle; the audition card keeps the right. */
+.zs-root .zs-retrigger-inline { flex-shrink: 0; margin: 4px 0 2px 0; }
+.zs-root .zs-klip-editor__pinned > .zs-klip-editor__spacer, .zs-root .zs-zequence-editor__pinned > .zs-zequence-editor__spacer { flex-grow: 1; }
 .zs-root .zs-audition-card--pinned { margin: 4px 0 2px 0; flex-shrink: 0; }
 /* Pinned in the Zequence editor: the helpers join the Play button's row, the second row sits right-aligned underneath. */
 .zs-root .zs-zequence-editor__pinned-inline { flex-direction: row; flex-shrink: 0; height: 20px; }

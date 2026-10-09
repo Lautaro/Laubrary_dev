@@ -88,7 +88,7 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>The drawing area; a host adds its own marks to <see cref="marks"/> and its overlays to <see cref="overlay"/>.</summary>
         internal readonly VisualElement area;
         internal readonly VisualElement marks, overlay;
-        readonly VisualElement waveLayer, dimLayer, heads, handleStart, handleEnd, combined, grip;
+        readonly VisualElement waveLayer, heads, handleStart, handleEnd, combined, grip;
         readonly Image fallback;
         readonly VisualElement[] xmix = new VisualElement[4];
         readonly Label pitchTop, pitchMid, pitchBottom, timeTop, timeMid, timeBottom, live;
@@ -124,7 +124,6 @@ namespace Laubrary.Zounds.Uitk {
             fallback = new Image { scaleMode = ScaleMode.StretchToFill, pickingMode = PickingMode.Ignore };
             fallback.AddToClassList("zs-wave-surface__layer"); fallback.style.display = DisplayStyle.None;
             area.Add(fallback);
-            dimLayer = Layer(); dimLayer.generateVisualContent += PaintDims; area.Add(dimLayer);
             // A Looper's crossmix spans (T-0476): the longest possible span, and the part every loop uses, at both ends.
             for (int i = 0; i < 4; i++) {
                 xmix[i] = Abs(); xmix[i].AddToClassList("zs-xmix");
@@ -298,7 +297,6 @@ namespace Laubrary.Zounds.Uitk {
                 fallback.uv = uv;
             }
             waveLayer.MarkDirtyRepaint();
-            dimLayer.MarkDirtyRepaint();
 
             // The trim edges, brighter and wider under the pointer.
             host.TrimHandlesLive(out bool sl, out bool el);
@@ -504,7 +502,11 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>
         /// The file: its background where the file is, and one lowest-to-highest stroke per pixel column, read from the
         /// file's in-memory summary at the seconds the host draws that column at (so a track's piece, stretched unevenly by
-        /// its curves, is drawn where it sounds).
+        /// its curves, is drawn where it sounds). Heights follow the editor's long-standing convention (a sample of 2/3 of
+        /// full scale reaches the edge; louder is clipped at the edge), never scaled to the file's own peak, so a quiet file
+        /// looks quiet. The parts the sound does not play are drawn too, clearly but dimmer: their background takes the
+        /// Settings tab's trim colour and their waveform is drawn at half strength, so the played part stands out without
+        /// hiding what is around it.
         /// </summary>
         void PaintWave(MeshGenerationContext ctx) {
             var clip = host.Source;
@@ -514,33 +516,46 @@ namespace Laubrary.Zounds.Uitk {
             float len = host.FileLength;
             float x0 = Mathf.Max(0f, host.XOf(0f, r)), x1 = Mathf.Min(r.width, host.XOf(len, r));
             if (x1 <= x0) return;
-            Fill(p2, x0, 0f, x1 - x0, r.height, Es.klipWaveformBGColor);
+            var bg = Es.klipWaveformBGColor;
+            Fill(p2, x0, 0f, x1 - x0, r.height, bg);
+            // The unplayed parts: the trim colour over the background.
+            float xa = x0, xb = x1;
+            bool heard = host.Heard(out float ha, out float hb);
+            if (heard) {
+                xa = Mathf.Clamp(host.XOf(ha, r), x0, x1); xb = Mathf.Clamp(host.XOf(hb, r), x0, x1);
+                var dim = Es.trimAreaColor;
+                Fill(p2, x0, 0f, xa - x0, r.height, dim);
+                Fill(p2, xb, 0f, x1 - xb, r.height, dim);
+            }
             var sum = WaveSummary.For(clip);
             if (sum == null) return;
-            float peak = Mathf.Max(sum.Peak, 1e-4f), mid = r.height * 0.5f, amp = r.height * 0.48f / peak;
-            p2.strokeColor = Es.waveformColor; p2.lineWidth = 1f;
-            p2.BeginPath();
-            for (float x = Mathf.Floor(x0); x < x1; x += 1f) {
-                float sa = host.SourceAt(x, r), sb = host.SourceAt(x + 1f, r);
-                if (!sum.Range(sa, sb, out float mn, out float mx)) continue;
-                float y0 = mid - mx * amp, y1 = mid - mn * amp;
-                if (y1 - y0 < 1f) { y0 -= 0.5f; y1 += 0.5f; }
-                p2.MoveTo(new Vector2(x + 0.5f, y0)); p2.LineTo(new Vector2(x + 0.5f, y1));
+            float mid = r.height * 0.5f, amp = r.height * WaveHeightPerUnit;
+            var full = Es.waveformColor;
+            var faint = new Color(full.r, full.g, full.b, full.a * 0.5f);
+            // Two passes, so each colour is one path: the played part, then the unplayed parts.
+            for (int pass = 0; pass < (heard ? 2 : 1); pass++) {
+                p2.strokeColor = pass == 0 ? full : faint; p2.lineWidth = 1f;
+                p2.BeginPath();
+                for (float x = Mathf.Floor(x0); x < x1; x += 1f) {
+                    bool inside = !heard || (x + 0.5f >= xa && x + 0.5f <= xb);
+                    if (inside != (pass == 0)) continue;
+                    float sa = host.SourceAt(x, r), sb = host.SourceAt(x + 1f, r);
+                    if (!sum.Range(sa, sb, out float mn, out float mx)) continue;
+                    float g = GainAt(0.5f * (sa + sb));
+                    float y0 = Mathf.Max(0f, mid - mx * g * amp), y1 = Mathf.Min(r.height, mid - mn * g * amp);
+                    if (y1 - y0 < 1f) { y0 -= 0.5f; y1 += 0.5f; }
+                    p2.MoveTo(new Vector2(x + 0.5f, y0)); p2.LineTo(new Vector2(x + 0.5f, y1));
+                }
+                p2.Stroke();
             }
-            p2.Stroke();
         }
 
-        /// <summary>The parts of the file the sound does not play, dimmed (the Settings tab's trim colour).</summary>
-        void PaintDims(MeshGenerationContext ctx) {
-            var r = AreaRect;
-            if (host.Source == null || r.width < 2f || !host.Heard(out float a, out float b)) return;
-            var p2 = ctx.painter2D;
-            float x0 = Mathf.Max(0f, host.XOf(0f, r)), x1 = Mathf.Min(r.width, host.XOf(host.FileLength, r));
-            float xa = Mathf.Clamp(host.XOf(a, r), x0, x1), xb = Mathf.Clamp(host.XOf(b, r), x0, x1);
-            var c = Es.trimAreaColor;
-            Fill(p2, x0, 0f, xa - x0, r.height, c);
-            Fill(p2, xb, 0f, x1 - xb, r.height, c);
-        }
+        /// <summary>A sample's height on the waveform, as a share of the area's height per unit of amplitude (the old
+        /// waveform picture's 0.75: full scale reaches past the edge, two thirds of it reaches the edge).</summary>
+        internal const float WaveHeightPerUnit = 0.75f;
+
+        /// <summary>The factor the sound's own Gain applies at a second of its file (1 without one).</summary>
+        float GainAt(float sourceSeconds) => 1f;
 
         /// <summary>
         /// Draws each combined result in its curve's colour, lighter and thinner than the curve's own editable line, in the
