@@ -428,11 +428,16 @@ namespace Laubrary.Zounds {
             return PlayZound(zound, ZoundArgs.Default);
         }
 
+        /// <summary>When the latest sound was triggered (real time, seconds): the editors' level meter clears its held peak
+        /// once nothing has been triggered for a while.</summary>
+        public static double LastTriggerTime { get; private set; } = -1d;
+
         public static ZoundToken PlayZound(Zound zound, ZoundArgs zoundArgs) {
 #if UNITY_EDITOR
             if (zoundArgs.editorPreviewAlive != null && !zoundArgs.editorPreviewAlive()) return null;
 #endif
             if (zound == null) return null;
+            LastTriggerTime = Time.realtimeSinceStartupAsDouble;
             if (!zoundArgs.ignoreCooldown && IsCoolingDownAtTime(zound, Time.realtimeSinceStartup + zoundArgs.delay)) {
                 return null;
             }

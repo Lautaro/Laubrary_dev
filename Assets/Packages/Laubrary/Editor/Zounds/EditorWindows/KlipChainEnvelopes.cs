@@ -66,6 +66,8 @@ namespace Laubrary.Zounds {
             Settle(zound);
             var slot = zound.ownCurves?.Of(sourceParam);
             if (slot != null && slot.Has) return new Own { mod = slot.modifier, bind = slot.binding };
+            // The Gain curve only ever lives in its slot: an envelope on Drive in a chain is that chain's modifier.
+            if (sourceParam == SourceStageParam.Gain) return default;
             var chain = Stored(zound);
             if (chain == null) return default;
             // The forms a sound saved before the slots existed can still carry: the first envelope on the value, or, for
@@ -107,7 +109,7 @@ namespace Laubrary.Zounds {
             bool any = false;
             if (k.effectChain != null) foreach (var m in k.effectChain.modifiers) any |= CurveAnchor.ConvertToSource(m, axis);
             if (k.ownCurves != null)
-                foreach (int p in new[] { SourceStageParam.Volume, SourceStageParam.Pitch, SourceStageParam.Speed }) {
+                foreach (int p in ZoundOwnCurves.Params) {
                     var slot = k.ownCurves.Of(p);
                     if (slot.Has) any |= CurveAnchor.ConvertToSource(slot.modifier, axis);
                 }
@@ -148,7 +150,8 @@ namespace Laubrary.Zounds {
         /// </summary>
         public static bool IsOwnCurve(Zound zound, ZoundModifier m) {
             if (zound == null || m == null || m.type != ZoundModifierType.Envelope) return false;
-            return Find(zound, SourceStageParam.Volume).mod == m || Find(zound, SourceStageParam.Pitch).mod == m || Find(zound, SourceStageParam.Speed).mod == m;
+            return Find(zound, SourceStageParam.Volume).mod == m || Find(zound, SourceStageParam.Pitch).mod == m || Find(zound, SourceStageParam.Speed).mod == m
+                || Find(zound, SourceStageParam.Gain).mod == m;
         }
 
         public static Envelope VolumeCurve(Zound zound, bool create) {
@@ -195,6 +198,40 @@ namespace Laubrary.Zounds {
             }
             if (o.mod.curve == null) o.mod.curve = NewRatioCurve();
             return o.mod.curve;
+        }
+
+        // ── the gain curve (owner, 2026-10-09): an Envelope driving the source's Drive (its level INTO the effects) on the
+        // Ratio scale, following the waveform; the waveform is drawn through it ──
+
+        /// <summary>The sound's own Gain curve, created flat (x1, 0 dB) when asked.</summary>
+        public static Envelope GainCurve(Zound zound, bool create) {
+            var o = Find(zound, SourceStageParam.Gain);
+            if (!o.Valid) {
+                if (!create || !(zound is Klip)) return null;
+                o = Create(zound, SourceStageParam.Gain, "Gain", NewRatioCurve(), ModulationCombine.Ratio);
+                // A new curve is on the file's own seconds from the start when the file is known (as every edited curve is).
+                if (TryAxis(zound, out var axis) && zound.chainPresetId == 0) CurveAnchor.ConvertToSource(o.mod, axis);
+            }
+            if (o.mod.curve == null) o.mod.curve = NewRatioCurve();
+            return o.mod.curve;
+        }
+
+        public static void SetGainEnabled(Zound zound, bool enabled) => SetEnabled(zound, SourceStageParam.Gain, enabled, GainCurve);
+
+        /// <summary>
+        /// The factor the sound's own Gain curve gives at <paramref name="sourceSeconds"/> into its file, combined exactly as
+        /// the voice combines it (1 without a Gain curve, or with it off). For drawing the waveform as the effects receive it.
+        /// <paramref name="axis"/> is the sound's axis (<see cref="TryAxis"/>), read once per drawing by the caller.
+        /// </summary>
+        public static float GainAt(Zound zound, float sourceSeconds, in CurveAnchor.Axis axis) {
+            var slot = zound?.ownCurves?.gain;
+            if (slot == null || !slot.Has || !slot.modifier.enabled || slot.modifier.curve == null || !axis.Valid) return 1f;
+            var pd = ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Gain];
+            bool ratio = ModulationMath.IsRatioSpaced(pd.curve);
+            float x = CurveAnchor.XAtSourceSeconds(slot.modifier, sourceSeconds, axis);
+            float v = slot.modifier.curve.Evaluate(x);
+            return Mathf.Clamp(ModulationMath.Apply(ChainModulationCompat.CombineOf(slot.binding), pd.def, v,
+                                                    ChainModulationCompat.DepthOf(slot.binding, pd.min, pd.max, ratio), pd.min, pd.max, ratio), pd.min, pd.max);
         }
 
         static void SetEnabled(Zound zound, int sourceParam, bool enabled, System.Func<Zound, bool, Envelope> curveOf) {
@@ -339,10 +376,13 @@ namespace Laubrary.Zounds {
             return true;
         }
 
-        /// <summary>The neutral value of a Klip's volume (0), pitch (1) or time (2) curve (see <see cref="NeutralValue"/>).</summary>
+        /// <summary>The source-stage value of a waveform curve by its number: volume 0, pitch 1, time 2, gain 3.</summary>
+        public static int ParamOfWhich(int which) => which == 0 ? SourceStageParam.Volume : which == 1 ? SourceStageParam.Pitch : which == 3 ? SourceStageParam.Gain : SourceStageParam.Speed;
+
+        /// <summary>The neutral value of a Klip's volume (0), pitch (1), time (2) or gain (3) curve (see <see cref="NeutralValue"/>).</summary>
         public static bool WaveformCurveNeutral(Zound zound, int which, out float value) {
             value = 0f;
-            var o = Find(zound, which == 0 ? SourceStageParam.Volume : which == 1 ? SourceStageParam.Pitch : SourceStageParam.Speed);
+            var o = Find(zound, ParamOfWhich(which));
             return o.Valid && NeutralValue(ChainOf(zound, o), o.mod, out value);
         }
 
@@ -435,7 +475,7 @@ namespace Laubrary.Zounds {
         }
 
         /// <summary>
-        /// The start of an edit of one of the sound's own waveform curves (volume 0, pitch 1, time 2), inside that edit's Undo
+        /// The start of an edit of one of the sound's own waveform curves (volume 0, pitch 1, time 2, gain 3), inside that edit's Undo
         /// step: the conversions that keep the sound as it was (curves onto the source's own seconds; a volume curve off an
         /// inserted Gain; a pitch curve off its old scale). The one start for every place that edits these curves.
         /// </summary>
@@ -469,6 +509,7 @@ namespace Laubrary.Zounds {
             Part(SourceStageParam.Volume, "Vol", v => v.ToString("0.00"));
             Part(SourceStageParam.Pitch, "Pitch", v => (12f * Mathf.Log(Mathf.Max(v, 1e-4f), 2f)).ToString("+0.0;-0.0;0") + " st");
             Part(SourceStageParam.Speed, "Time", v => "×" + v.ToString("0.00"));
+            Part(SourceStageParam.Gain, "Gain", v => (20f * Mathf.Log10(Mathf.Max(v, 1e-5f))).ToString("+0.0;-0.0;0") + " dB");
             return sb.ToString();
         }
     }

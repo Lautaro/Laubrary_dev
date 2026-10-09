@@ -107,6 +107,8 @@ namespace Laubrary.Zounds.Uitk {
             content.AddToClassList("zs-window__content");
             box.Add(content);
             ShowTab();
+            // The level meter along the window's bottom edge (owner, 2026-10-09).
+            root.Add(new LevelMeterTK());
 
             tick = root.schedule.Execute(Tick).Every(200);
             live = root.schedule.Execute(Live).Every(33);

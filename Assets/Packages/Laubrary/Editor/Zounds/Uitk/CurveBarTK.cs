@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
-    /// The one curve toolbar (owner's request 2026-10-08): a small strip of [Trim] [Time ✎ 👁] [Pitch ✎ 👁] [Vol ✎ 👁], used
+    /// The one curve toolbar (owner's request 2026-10-08): a small strip of [Trim] [Time ✎ 👁] [Pitch ✎ 👁] [Vol ✎ 👁] [Gain ✎ 👁], used
     /// unchanged by the Klip editor over its waveform and by every local track in the Zequence editor. Per curve: the
     /// name latches the curve ON (it plays), the pencil selects it for editing (one at a time; the others step back as
     /// backdrops), the eye shows or hides its drawing. Each curve's three chips wear the colour the curve is drawn in
@@ -72,7 +72,9 @@ namespace Laubrary.Zounds.Uitk {
                 c.pencil = new Image { image = AudioSpectrumView.editIcon, scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
                 c.pencil.AddToClassList("zs-curvebar__pencil");
                 c.edit.Add(c.pencil);
-                c.eye = ZS.Eye(c.shown(), v => "", v => c.setShown(v), ZUICornerMask.Right, IconW, H, 11f);
+                c.eye = ZS.Eye(c.shown(), v => "", v => { eyeStep = 0; c.setShown(v); }, ZUICornerMask.Right, IconW, H, 11f);
+                // Right-click an eye: show only this curve, then hide every curve, then back to how they were (owner, 2026-10-09).
+                c.eye.RegisterCallback<PointerDownEvent>(e => { if (e.button != 1) return; e.StopPropagation(); CycleEyes(index); });
                 foreach (var t in new[] { c.enable, c.edit, c.eye }) { t.AddToClassList("zs-curvebar__toggle"); t.AddToClassList("zs-curvebar__toggle--curve"); }
                 Add(c.enable); Add(c.edit); Add(c.eye);
                 if (c.warn != null) {
@@ -86,6 +88,31 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         static VisualElement Gap(float w) { var g = new VisualElement(); g.style.width = w; g.AddToClassList("zs-curvebar__gap"); return g; }
+
+        /// <summary>Where the eyes' right-click cycle is: 0 as you left them, 1 one curve shown alone, 2 every curve hidden.</summary>
+        int eyeStep;
+        bool[] eyesBefore;
+
+        /// <summary>
+        /// One right-click on an eye moves the cycle on: solo that curve's drawing, then hide every curve's drawing, then put
+        /// every eye back as it was before the first right-click. A left click on any eye ends the cycle where it is. View
+        /// state only (nothing saved, no Undo), the same as a left click on an eye.
+        /// </summary>
+        internal void CycleEyes(int index) {
+            if (eyeStep == 0) {
+                eyesBefore = new bool[curves.Count];
+                for (int k = 0; k < curves.Count; k++) eyesBefore[k] = curves[k].shown();
+            }
+            eyeStep = (eyeStep + 1) % 3;
+            for (int k = 0; k < curves.Count; k++) {
+                bool want = eyeStep == 1 ? k == index : eyeStep == 2 ? false : eyesBefore != null && eyesBefore[k];
+                if (curves[k].shown() != want) curves[k].setShown(want);
+            }
+            Sync();
+        }
+
+        /// <summary>The step the eyes' right-click cycle is at (kept checks).</summary>
+        internal int EyeStep => eyeStep;
 
         /// <summary>
         /// One look for every chip, in its curve's colour: off = the colour as outline and text on the skin's dark face;
@@ -127,12 +154,16 @@ namespace Laubrary.Zounds.Uitk {
                 c.enable.tooltip = (on ? "The " + what + " curve is on: it shapes every play. Click to bypass it."
                                        : "The " + what + " curve is off. Click to switch it on.")
                                  + (c.onContext != null ? "\n\nRight-click: its settings (the extra time it keeps going after the audio; for the volume curve, its range)." : "");
+                if (what == "gain") c.enable.tooltip += "\n\nGain is the sound's level going INTO its effects (Volume is after them): the middle of its curve is the level as recorded, the top +12 dB, the bottom -12 dB. The waveform is drawn through it, so you see what the effects receive.";
                 c.edit.tooltip = !on ? "Switch the " + what + " curve on first."
                                : editing ? "Editing the " + what + " curve: drag its points, click its line (or double-click anywhere) to add one, double-click a point to remove it, right-click a point for its random range. The other curves step back behind it. Click to stop editing."
                                          : "Edit the " + what + " curve here: shows its points and puts the other curves behind it.";
-                c.eye.tooltip = !on ? "Switch the " + what + " curve on first."
+                string cycle = eyeStep == 0 ? "\nRight-click: show only this curve (again: hide every curve; a third time: back to how they were)."
+                             : eyeStep == 1 ? "\nRight-click: hide every curve (again: back to how they were)."
+                                            : "\nRight-click: every curve back to how it was before.";
+                c.eye.tooltip = (!on ? "Switch the " + what + " curve on first."
                               : shown ? "The " + what + " curve is drawn. Click to hide its drawing (it still plays)."
-                                      : "The " + what + " curve is hidden. Click to draw it.";
+                                      : "The " + what + " curve is hidden. Click to draw it.") + (on ? cycle : "");
                 if (c.warnMark != null) c.warnMark.style.visibility = c.warn() ? Visibility.Visible : Visibility.Hidden;
             }
         }

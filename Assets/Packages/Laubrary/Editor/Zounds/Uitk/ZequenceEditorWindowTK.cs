@@ -83,6 +83,10 @@ namespace Laubrary.Zounds.Uitk {
         const string EditToolsKey = "Laubrary.Zounds.Zequence.EditTools", PinKey = "Laubrary.Zounds.AuditionPinned.Zequence";
         static bool EditTools { get => EditorPrefs.GetBool(EditToolsKey, false); set => EditorPrefs.SetBool(EditToolsKey, value); }
         static bool AuditionPinned { get => EditorPrefs.GetBool(PinKey, false); set => EditorPrefs.SetBool(PinKey, value); }
+        // Per machine: auto-tidy (a right-click on Tidy) holds the view fitted and stops zooming and dragging it.
+        const string AutoTidyKey = "Laubrary.Zounds.Zequence.AutoTidy";
+        static bool AutoTidy { get => EditorPrefs.GetBool(AutoTidyKey, false); set => EditorPrefs.SetBool(AutoTidyKey, value); }
+        ZuiToggleButton tidyButton;
 
         /// <summary>
         /// Opens this Zequence's editor — the main one since 2026-09-28. One that is already open is brought forward
@@ -252,6 +256,9 @@ namespace Laubrary.Zounds.Uitk {
             box.Add(AddRow(zeq, true));
             if (keepScroll > 0f) scroll.schedule.Execute(() => scroll.scrollOffset = new Vector2(0f, keepScroll));
 
+            // The level meter along the window's bottom edge (owner, 2026-10-09).
+            root.Add(new LevelMeterTK());
+
             // The "Tell me" notice of destructive editing floats along the bottom of the window (never moves anything).
             notice = new SwapNoticeTK();
             notice.AddToClassList("zs-zequence-editor__notice");
@@ -300,6 +307,7 @@ namespace Laubrary.Zounds.Uitk {
             if (zeq.retriggerEnabled != pinnedRetrigger) SyncPinned();
             retriggerSync?.Invoke();
             SettingsTabTK.ApplyEditorBackground(box);   // the Settings tab's colour, live (and after an undo)
+            if (timeline != null) { timeline.autoLength = autoDuration; timeline.autoTidy = AutoTidy; }
             timeline?.Rebuild();
             foreach (var r in refreshers) r();
             header?.Sync();
@@ -391,7 +399,16 @@ namespace Laubrary.Zounds.Uitk {
             refreshers.Add(() => editToolsButton.tooltip = EditTools ? "The timeline's edit tools (zoom, follow, ripple, trim, split, delete, copy and paste, and the overview strip) are shown. Click to hide them and keep the window lean."
                                                                      : "Show the timeline's edit tools: zoom, follow, ripple, trim, split, delete, copy and paste, and the overview strip.");
             r.Add(editToolsButton);
-            r.Add(ZS.Button("Tidy", "Show everything in the least space: fit the whole Zequence into view, every track at its default height, and clear the selection.", "RichButton", Tidy, ZUICornerMask.Right, 44f, ToolH));
+            // Tidy: a click tidies once; a right-click switches auto-tidy on or off, and the button stays lit while it is on.
+            tidyButton = ZS.Toggle("Tidy", "", AutoTidy, _ => { tidyButton.SetValueWithoutNotify(AutoTidy); Tidy(); }, "RichToggle", ZUICornerMask.Right, 44f, ToolH);
+            tidyButton.RegisterCallback<PointerDownEvent>(e => {
+                if (e.button != 1) return;
+                e.StopPropagation();
+                AutoTidy = !AutoTidy;
+                if (AutoTidy) Tidy(); else Tick();
+            });
+            refreshers.Add(SyncTidyButton);
+            r.Add(tidyButton);
             r.Add(Flex());
             retriggerButton = ZS.Toggle("Retrigger", "When enabled, every trigger starts this Zequence several times. Right-click to set plays, gap and timing.", zeq.retriggerEnabled,
                 value => { Modify("toggle zequence retrigger", () => { if (value) zeq.EnableRetrigger(); else zeq.retriggerEnabled = false; }); SyncRetriggerButton(); SyncPinned(); },
@@ -473,6 +490,17 @@ namespace Laubrary.Zounds.Uitk {
             timeline?.Fit();
             if (scroll != null) scroll.scrollOffset = Vector2.zero;
             Tick();
+        }
+
+        void SyncTidyButton() {
+            if (tidyButton == null) return;
+            bool on = AutoTidy;
+            tidyButton.SetValueWithoutNotify(on);
+            tidyButton.text = on ? "Tidy •" : "Tidy";
+            tidyButton.style.width = on ? 54f : 44f;
+            tidyButton.tooltip = on
+                ? "Auto-tidy is on: the timeline always shows the whole Zequence, fitted exactly from its start to the end of its last piece, and cannot be zoomed or dragged. Click to also put every track back at its default height and clear the selection. Right-click: switch auto-tidy off."
+                : "Show everything in the least space: fit the whole Zequence into view (exactly to the end of its last piece), every track at its default height, and clear the selection. Right-click: auto-tidy, which keeps it fitted and stops zooming and dragging.";
         }
 
         void SyncRetriggerButton() {
@@ -664,6 +692,8 @@ namespace Laubrary.Zounds.Uitk {
                 timeline.changed += () => { foreach (var s in strips) s.MarkDirtyRepaint(); header?.Repaint(); header?.Sync(); };
             }
             if (!ReferenceEquals(timeline.zeq, zeq)) { timeline.zeq = zeq; timeline.ClearSelection(); timeline.editingCurve.Clear(); }
+            timeline.autoLength = autoDuration;
+            timeline.autoTidy = AutoTidy;
             timeline.Rebuild();
         }
 

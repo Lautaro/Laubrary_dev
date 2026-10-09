@@ -34,20 +34,31 @@ namespace Laubrary.Zounds {
         public ZoundOwnCurve volume = new ZoundOwnCurve();
         public ZoundOwnCurve pitch = new ZoundOwnCurve();
         public ZoundOwnCurve time = new ZoundOwnCurve();
+        /// <summary>
+        /// The sound's own Gain curve (owner, 2026-10-09): its level going INTO the effects (the source stage's Drive),
+        /// drawn over the waveform and shaping how the waveform looks. A sound saved before it existed has none, and plays
+        /// exactly as it did: an empty slot adds nothing to the played chain.
+        /// </summary>
+        public ZoundOwnCurve gain = new ZoundOwnCurve();
+
+        /// <summary>Every source-stage value a sound can have an own curve on, in the order they are laid out with the
+        /// chain (an appended value keeps every older sound's layout as it was).</summary>
+        public static readonly int[] Params = { SourceStageParam.Volume, SourceStageParam.Pitch, SourceStageParam.Speed, SourceStageParam.Gain };
 
         /// <summary>Bumped on any edit of a curve, so the laid-out chain and the layouts built from it are rebuilt.</summary>
         [System.NonSerialized] public int version;
 
-        public bool Any => volume.Has || pitch.Has || time.Has;
+        public bool Any => volume.Has || pitch.Has || time.Has || (gain != null && gain.Has);
 
         public void Touch() { version++; }
 
-        /// <summary>The slot for a source-stage value, or null for one that has no own curve (Gain).</summary>
+        /// <summary>The slot for a source-stage value.</summary>
         public ZoundOwnCurve Of(int sourceParam) {
             switch (sourceParam) {
                 case SourceStageParam.Volume: return volume;
                 case SourceStageParam.Pitch: return pitch;
                 case SourceStageParam.Speed: return time;
+                case SourceStageParam.Gain: return gain ?? (gain = new ZoundOwnCurve());
                 default: return null;
             }
         }
@@ -67,7 +78,7 @@ namespace Laubrary.Zounds {
             version++;
         }
 
-        public ZoundOwnCurves DeepCopy() => new ZoundOwnCurves { volume = volume.DeepCopy(), pitch = pitch.DeepCopy(), time = time.DeepCopy() };
+        public ZoundOwnCurves DeepCopy() => new ZoundOwnCurves { volume = volume.DeepCopy(), pitch = pitch.DeepCopy(), time = time.DeepCopy(), gain = gain != null ? gain.DeepCopy() : new ZoundOwnCurve() };
 
         /// <summary>
         /// The chain the engine plays: the stored chain's effects, modifiers and bindings, with the own curves laid out as
@@ -84,7 +95,7 @@ namespace Laubrary.Zounds {
                 merged.nodes.AddRange(stored.nodes);
                 merged.modifiers.AddRange(stored.modifiers);
             }
-            foreach (int p in new[] { SourceStageParam.Volume, SourceStageParam.Pitch, SourceStageParam.Speed }) {
+            foreach (int p in Params) {
                 var slot = own.Of(p);
                 if (!slot.Has) continue;
                 slot.binding.modifierIndex = merged.modifiers.Count;
@@ -147,7 +158,8 @@ namespace Laubrary.Zounds {
             bool added = false;
             var seen = new HashSet<string>();
             if (stored != null) foreach (var m in stored.modifiers) if (!string.IsNullOrEmpty(m.uid)) seen.Add(m.uid);
-            foreach (var slot in new[] { volume, pitch, time }) {
+            foreach (var slot in new[] { volume, pitch, time, gain }) {
+                if (slot == null) continue;
                 if (!slot.Has) continue;
                 if (string.IsNullOrEmpty(slot.modifier.uid) || !seen.Add(slot.modifier.uid)) {
                     slot.modifier.uid = System.Guid.NewGuid().ToString("N").Substring(0, 12); seen.Add(slot.modifier.uid); added = true;

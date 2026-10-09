@@ -96,8 +96,16 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>The visible window, in Zequence seconds. While <see cref="fitted"/>, it follows the content.</summary>
         public float t0, t1 = 1f;
         public bool fitted = true;
-        /// <summary>Where the content ends (the last piece's end, with its tail), and the authored duration.</summary>
-        public float contentEnd, authored;
+        /// <summary>Where the content ends (the last piece's end, with its tail), where the last piece's audio ends (no tail),
+        /// and the authored duration.</summary>
+        public float contentEnd, piecesEnd, authored;
+        /// <summary>The Zequence's length follows its tracks (Auto length): the authored duration then plays no part in the fit.</summary>
+        public bool autoLength = true;
+        /// <summary>Auto-tidy (a right-click on Tidy): the view always shows the whole Zequence, fitted exactly, and cannot be
+        /// zoomed or dragged.</summary>
+        public bool autoTidy;
+        /// <summary>The view may be zoomed or moved (false while auto-tidy holds it).</summary>
+        public bool CanMoveView => !autoTidy;
 
         public bool hasSel;
         public float selA, selB;
@@ -127,7 +135,13 @@ namespace Laubrary.Zounds.Uitk {
         public float LaneXToTime(float x) => t0 + x / Mathf.Max(1f, laneWorld.width) * Span;
         public float SecondsPerPixel => Span / Mathf.Max(1f, laneWorld.width);
 
-        public float FitEnd => Mathf.Max(0.05f, Mathf.Max(contentEnd, authored));
+        /// <summary>
+        /// Where a fitted view ends: exactly where the last piece's audio ends. The authored duration counts only when the
+        /// length is set by hand (Auto length off); with Auto length it is worked out at the SLOWEST pitch of every range
+        /// (the longest a play can last), while the pieces are drawn at the middle of their range, so fitting to it left a
+        /// gap after the last trim. A chain's tail is not part of the fit either (it rings after the trim end).
+        /// </summary>
+        public float FitEnd => Mathf.Max(0.05f, autoLength ? (piecesEnd > 0f ? piecesEnd : contentEnd) : Mathf.Max(piecesEnd, authored));
 
         public static float Mid(Zound z) => z == null ? 1f : 0.5f * (z.minPitch + z.maxPitch);
         static float Factor(CompositeZound.ZoundEntry e, Zound z) => e.overridePitch ? e.pitch : e.pitch * Mid(z);
@@ -135,11 +149,12 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>Works out every track's placement (5 Hz, and after every edit).</summary>
         public void Rebuild() {
             tracks.Clear(); byEntry.Clear();
-            contentEnd = 0f;
+            contentEnd = 0f; piecesEnd = 0f;
             if (zeq == null) return;
             float zp = Mid(zeq);
             authored = zeq.editor_maxDuration / Mathf.Max(zeq.minPitch, 0.01f);
             Add(zeq, 0f, zp, 0);
+            if (autoTidy) fitted = true;
             if (fitted) { t0 = 0f; t1 = FitEnd; }
         }
 
@@ -166,6 +181,7 @@ namespace Laubrary.Zounds.Uitk {
                     var chain = ZoundSapPlayback.ResolveChainForPlayback(k);
                     p.tail = chain != null && !chain.IsEmpty ? TailOf(k, chain) : 0f;
                     end = Mathf.Max(end, p.EndWithTail);
+                    piecesEnd = Mathf.Max(piecesEnd, p.End);
                 }
                 else if (p.zound is CompositeZound cz && !ZoundHandlerRecursion(cz, parent)) {
                     int before = tracks.Count;
@@ -190,15 +206,17 @@ namespace Laubrary.Zounds.Uitk {
         // ─────────────────────────── the window ───────────────────────────
 
         public void ZoomAround(float t, float factor) {
+            if (!CanMoveView) return;
             float span = Mathf.Clamp(Span * factor, 0.005f, Mathf.Max(FitEnd * 4f, 1f));
             float w = Mathf.Clamp01((t - t0) / Span);
             t0 = t - w * span; t1 = t0 + span;
             Clamp(); fitted = false; Changed();
         }
 
-        public void Pan(float seconds) { t0 += seconds; t1 += seconds; Clamp(); fitted = false; Changed(); }
+        public void Pan(float seconds) { if (!CanMoveView) return; t0 += seconds; t1 += seconds; Clamp(); fitted = false; Changed(); }
 
         public void Show(float a, float b) {
+            if (!CanMoveView) return;
             if (b - a < 0.005f) { float m = 0.5f * (a + b); a = m - 0.0025f; b = m + 0.0025f; }
             float pad = (b - a) * 0.04f;
             t0 = a - pad; t1 = b + pad; Clamp(); fitted = false; Changed();

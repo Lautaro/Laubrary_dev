@@ -592,6 +592,7 @@
 .zs-root .zs-settings__status { margin: 0; height: 18px; -unity-text-align: middle-left; }
 .zs-root .zs-settings__theme-none { height: 18px; -unity-text-align: middle-left; margin: 0; }
 .zs-root .zs-settings__theme-dropdown { margin: 0; }
+.zs-root .zs-settings__unit { flex-shrink: 0; margin: 0 4px; -unity-text-align: middle-left; color: rgb(190,190,200); }
 .zs-root .zs-settings__alpha { width: 80px; flex-shrink: 0; font-size: 10px; color: rgb(190,190,200); margin-left: 6px; -unity-text-align: middle-left; }
 .zs-root .zs-settings__row > .zs-settingsfield { margin-bottom: 0; }
 .zs-root .zs-chain-editor__empty { margin-left: 4px; }
@@ -865,6 +866,8 @@
 .zs-root .zs-wave-surface--framed > .zs-wave-surface__area { left: 4px; right: 4px; top: 4px; bottom: 4px; }
 .zs-root .zs-wave-surface__layer { position: absolute; left: 0px; right: 0px; top: 0px; bottom: 0px; }
 .zs-root .zs-wave-surface__positioned { position: absolute; }
+/* A random trim edge's range: a shaded band with thin ends (colours set in code from the trim handle colour). */
+.zs-root .zs-wave-surface__trim-random { border-left-width: 1px; border-right-width: 1px; }
 .zs-root .zs-wave-surface__envelope { position: absolute; }
 .zs-root .zs-lbl.zs-wave-surface__axis-label { position: absolute; left: 3px; width: 44px; height: 13px; padding-left: 2px; padding-right: 2px; background-color: rgba(0, 0, 0, 0.55); border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; }
 .zs-root .zs-lbl.zs-wave-surface__time-axis-label { -unity-text-align: upper-right; width: 26px; }
@@ -877,3 +880,8 @@
 .zs-root .zs-wave-surface__grip:hover { background-color: rgba(255,255,255,0.2); }
 .zs-root .zs-wave-surface__notice { left: 6px; right: 6px; top: 6px; }
 .zs-root .zs-wave-surface--trim-hot { cursor: resize-horizontal; }
+/* The level meter along the bottom edge of the Klip editor, the Zequence editor and the Zounds window (2026-10-09). */
+.zs-root .zs-level-meter { flex-direction: row; flex-shrink: 0; height: 12px; margin: 2px 4px 2px 4px; align-items: center; }
+.zs-root .zs-level-meter__bar { flex-grow: 1; height: 8px; }
+.zs-root .zs-level-meter__readout { width: 84px; flex-shrink: 0; font-size: 10px; -unity-text-align: middle-right; color: rgb(190,190,200); padding: 0; margin: 0; }
+.zs-root .zs-level-meter__readout--hot { color: rgb(255,95,80); }

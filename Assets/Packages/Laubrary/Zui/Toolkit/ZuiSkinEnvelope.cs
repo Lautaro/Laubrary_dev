@@ -44,6 +44,10 @@ namespace Laubrary.Zui
         /// input, so it reads as context behind the curve under the pointer rather than competing with it.
         /// </summary>
         public bool backdrop;
+        /// <summary>How a backdrop is drawn (a host's setting): dotted, half transparent, and how many pixels wider than the
+        /// curve's own line. The defaults are solid, half transparent, twice as wide (a negative bonus).</summary>
+        public bool backdropDotted, backdropTransparent = true;
+        public float backdropWidthBonus = -1f;
         /// <summary>Whether the points are drawn at all. Off: just the line (no handles, no ghost, no value tag), as a curve
         /// that is not selected for editing is shown. Input is still refused when the runtime says the curve is not editable.</summary>
         public bool showHandles = true;
@@ -611,11 +615,16 @@ namespace Laubrary.Zui
             // Curve.
             if (points.Count > 0)
             {
-                int n = Mathf.Max(2, (int)(r.width / 3f));
+                int n = Mathf.Max(2, (int)(r.width / (backdrop && backdropDotted ? 1f : 3f)));
                 var lineColor = style.curveColor;
-                if (backdrop) lineColor.a *= 0.5f;
-                p2.strokeColor = lineColor; p2.lineWidth = StrokeWidth(backdrop ? style.curveThickness * 2f : style.curveThickness);
-                p2.lineJoin = LineJoin.Round; p2.lineCap = LineCap.Round;
+                if (backdrop && backdropTransparent) lineColor.a *= 0.5f;
+                float lineW = !backdrop ? style.curveThickness : backdropWidthBonus < 0f ? style.curveThickness * 2f : style.curveThickness + backdropWidthBonus;
+                p2.strokeColor = lineColor; p2.lineWidth = StrokeWidth(lineW);
+                // A dotted backdrop: short pieces with gaps a little longer than the line is wide, so it reads as dots.
+                bool broken = dashed || (backdrop && backdropDotted);
+                float on = dashed ? 6f : Mathf.Max(1.5f, lineW * 0.6f), off = dashed ? 4f : Mathf.Max(3f, lineW + 2f);
+                if (backdrop && backdropDotted) p2.lineCap = LineCap.Butt;
+                p2.lineJoin = LineJoin.Round; if (!(backdrop && backdropDotted)) p2.lineCap = LineCap.Round;
                 p2.BeginPath();
                 Vector2 prevPt = default; float dashRun = 0f; bool dashOn = true;
                 for (int i = 0; i <= n; i++)
@@ -623,12 +632,12 @@ namespace Laubrary.Zui
                     float t = rt.xMin + (rt.xMax - rt.xMin) * i / n;
                     var pt = new Vector2(TimeToX(t, r), ValueToY(Evaluate(points, t, rt.yMax), r));
                     if (i == 0) p2.MoveTo(pt);
-                    else if (dashed)
+                    else if (broken)
                     {
-                        // 6 px drawn, 4 px gap, along the curve.
+                        // Dashed: 6 px drawn, 4 px gap; dotted: short pieces, along the curve.
                         dashRun += Vector2.Distance(prevPt, pt);
                         if (dashOn) p2.LineTo(pt); else p2.MoveTo(pt);
-                        if (dashRun >= (dashOn ? 6f : 4f)) { dashRun = 0f; dashOn = !dashOn; }
+                        if (dashRun >= (dashOn ? on : off)) { dashRun = 0f; dashOn = !dashOn; }
                     }
                     else p2.LineTo(pt);
                     prevPt = pt;

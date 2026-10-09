@@ -334,6 +334,8 @@ namespace Laubrary.Zounds.Uitk {
             scroll.Add(new TimeStretchTK(klip));
             scroll.Add(VSpace(Band));
             scroll.Add(new ChainEditorTK(klip, this));
+            // The level meter along the window's bottom edge (owner, 2026-10-09).
+            root.Add(new LevelMeterTK());
 
             syncTick = root.schedule.Execute(Sync).Every(200);
         }

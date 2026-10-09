@@ -329,7 +329,7 @@ namespace Laubrary.Zounds.Uitk {
                     () => barKlip.trimEnabled, v => { if (GuardTrack(e => e.SetTrim(v))) SetTrim(v); else curveBar?.Sync(); },
                     () => (barKlip.trimEnabled ? "This track plays its sound's trimmed part. Click to play the whole recording." : "This track plays the whole recording. Click to play only its trimmed part (drag the piece's edges to set it).")
                           + (entry.local ? "" : "\n\n" + SharedBarTip),
-                    () => { int p = strip.EditingParam; return p == SourceStageParam.Speed ? 0 : p == SourceStageParam.Pitch ? 1 : p == SourceStageParam.Volume ? 2 : -1; },
+                    () => { int p = strip.EditingParam; return p == SourceStageParam.Speed ? 0 : p == SourceStageParam.Pitch ? 1 : p == SourceStageParam.Volume ? 2 : p == SourceStageParam.Gain ? 3 : -1; },
                     i => { if (i < 0 || GuardTrack(e => e.SelectCurve(i))) SelectCurve(i); else curveBar?.Sync(); },
                     es.trimHandleColor);
                 curveBar.AddToClassList("zs-zequence-entry__curve-bar");
@@ -363,7 +363,7 @@ namespace Laubrary.Zounds.Uitk {
                 Place(rem, new Rect(xr - Btn, y, Btn, HeaderH)); Place(dup, new Rect(xr - Btn * 2f, y, Btn, HeaderH)); xr -= Btn * 2f + 2f;
                 Place(solo, new Rect(xr - Btn, y, Btn, HeaderH)); Place(mute, new Rect(xr - Btn * 2f, y, Btn, HeaderH)); xr -= Btn * 2f + 6f;
                 if (curveBar != null) {
-                    float bw = CurveBarTK.TrimW + 4f + 3f * (CurveBarTK.NameW + CurveBarTK.IconW * 2f) + 2f * 4f + 14f;
+                    float bw = CurveBarTK.TrimW + 4f + 4f * (CurveBarTK.NameW + CurveBarTK.IconW * 2f) + 3f * 4f + 14f;
                     Place(curveBar, new Rect(xr - bw, y + 1f, bw, CurveBarTK.H)); xr -= bw + 6f;
                 }
                 Place(start, new Rect(xr - 56f, y, 56f, HeaderH)); xr -= 56f;
@@ -434,13 +434,14 @@ namespace Laubrary.Zounds.Uitk {
                 setShown = v => { CurveView.SetVisible(Mod(curveOf), v); strip?.Sync(); },
                 warn = which == 1 ? (Func<bool>)(() => strip != null && strip.PitchOldScale) : null,
                 warnTip = which == 1 ? KlipChainEnvelopes.OldScaleTip : null,
-                onContext = a => WaveSurfaceTK.ShowCurveSettings(k, which == 0 ? AudioSpectrumView.Curve.Time : which == 1 ? AudioSpectrumView.Curve.Pitch : AudioSpectrumView.Curve.Volume,
+                onContext = a => WaveSurfaceTK.ShowCurveSettings(k, which == 0 ? AudioSpectrumView.Curve.Time : which == 1 ? AudioSpectrumView.Curve.Pitch : which == 3 ? AudioSpectrumView.Curve.Gain : AudioSpectrumView.Curve.Volume,
                                                                   a, () => GuardTrack(_ => { }), () => strip?.Sync()),
             };
             return new List<CurveBarTK.Curve> {
                 Make(0, "Time", AudioSpectrumView.TimeCurveColor, KlipChainEnvelopes.TimeCurve),
                 Make(1, "Pitch", es.pitchEnvelopeColor, KlipChainEnvelopes.PitchCurve),
                 Make(2, "Vol", es.volumeEnvelopeColor, KlipChainEnvelopes.VolumeCurve),
+                Make(3, "Gain", AudioSpectrumView.GainCurveColor, KlipChainEnvelopes.GainCurve),
             };
         }
 
@@ -455,17 +456,18 @@ namespace Laubrary.Zounds.Uitk {
 
         internal void SetCurveOn(int which, bool v) {
             if (!(zound is Klip k)) return;
-            string label = which == 0 ? "time" : which == 1 ? "pitch" : "vol";
+            string label = which == 0 ? "time" : which == 1 ? "pitch" : which == 3 ? "gain" : "vol";
             win.Modify("toggle klip " + label + " curve", () => {
                 if (which == 0) KlipChainEnvelopes.SetTimeEnabled(k, v);
                 else if (which == 1) KlipChainEnvelopes.SetPitchEnabled(k, v);
+                else if (which == 3) KlipChainEnvelopes.SetGainEnabled(k, v);
                 else KlipChainEnvelopes.SetVolumeEnabled(k, v);
             });
             strip?.Sync(); curveBar?.Sync();
         }
 
         internal void SelectCurve(int i) {
-            strip?.SetEditing(i == 0 ? SourceStageParam.Speed : i == 1 ? SourceStageParam.Pitch : i == 2 ? SourceStageParam.Volume : -1);
+            strip?.SetEditing(i == 0 ? SourceStageParam.Speed : i == 1 ? SourceStageParam.Pitch : i == 2 ? SourceStageParam.Volume : i == 3 ? SourceStageParam.Gain : -1);
             curveBar?.Sync();
         }
 

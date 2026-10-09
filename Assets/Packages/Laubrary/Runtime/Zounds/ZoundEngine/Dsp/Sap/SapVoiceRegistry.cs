@@ -390,6 +390,25 @@ namespace Laubrary.Zounds.Dsp {
         /// number and the newest is the one whose start the listener just heard. It is a display aid, so "one of them,
         /// predictably chosen" is the right trade rather than refusing to answer.
         /// </summary>
+        /// <summary>
+        /// How hot everything Zounds plays has been since the last call (the editors' level meter, 2026-10-09): every voice's
+        /// loudest sample since then, times its audio source's volume, summed. A sum of peaks is an upper bound for the mix
+        /// (two voices peak together at worst), which is the safe side for a meter that warns of clipping. Before the
+        /// mixer's group volumes and 3D distance, which the editors' plays do not use. Main thread; allocation-free.
+        /// </summary>
+        public static float ReadOutputPeak() {
+            float sum = 0f;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) { live.RemoveAt(i); continue; }
+                float p = g.TakePeak();
+                if (p <= 0f) continue;
+                var src = g.Carrier;
+                sum += p * (src != null ? src.volume : 1f);
+            }
+            return sum;
+        }
+
         public static bool TryReadLiveParam(Zound zound, int nodeIndex, int paramIndex, out float value) {
             value = 0f;
             if (zound == null) return false;

@@ -27,6 +27,8 @@ namespace Laubrary.Zounds.Uitk {
         /// to drag at all (false: the whole file plays, no handles, no dimmed parts).</summary>
         bool Heard(out float from, out float to);
         void TrimHandlesLive(out bool start, out bool end);
+        /// <summary>The trim edges are the sound's own trim (not a track's excerpt), so they can be made random.</summary>
+        bool TrimRandomEditable { get; }
         /// <summary>A trim drag begins (the host's guard and Undo step); false cancels it.</summary>
         bool BeginTrim(TrimDrag which, float x, Rect area);
         void DragTrim(float x, Rect area);
@@ -88,13 +90,15 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>The drawing area; a host adds its own marks to <see cref="marks"/> and its overlays to <see cref="overlay"/>.</summary>
         internal readonly VisualElement area;
         internal readonly VisualElement marks, overlay;
-        readonly VisualElement waveLayer, heads, handleStart, handleEnd, combined, grip;
+        readonly VisualElement waveLayer, heads, handleStart, handleEnd, randStart, randEnd, combined, grip;
         readonly Image fallback;
         readonly VisualElement[] xmix = new VisualElement[4];
         readonly Label pitchTop, pitchMid, pitchBottom, timeTop, timeMid, timeBottom, live;
         readonly VisualElement pitchLine, timeLine;
-        readonly ZuiSkinEnvelope[] envs = new ZuiSkinEnvelope[3];
-        readonly ZUIEnvelopeRuntime[] runtimes = new ZUIEnvelopeRuntime[3];
+        /// <summary>The sound's own curves: Volume, Pitch, Time and Gain (in <see cref="Curve"/>'s order).</summary>
+        internal const int CurveCount = 4;
+        readonly ZuiSkinEnvelope[] envs = new ZuiSkinEnvelope[CurveCount];
+        readonly ZUIEnvelopeRuntime[] runtimes = new ZUIEnvelopeRuntime[CurveCount];
         readonly List<VisualElement> headPool = new List<VisualElement>();
         readonly List<float> headSeconds = new List<float>(), headWeights = new List<float>();
         readonly List<(Color colour, OwnValueCurves.Line line, Rect rect, float xMin, float xMax, float yMin, float yMax, Func<float, float> toX)> combinedLines
@@ -144,8 +148,12 @@ namespace Laubrary.Zounds.Uitk {
             heads = Layer(); area.Add(heads);
             handleStart = Abs(); handleEnd = Abs();
             handleStart.AddToClassList("zs-trimhandle"); handleEnd.AddToClassList("zs-trimhandle");
+            // A random trim edge's range (owner, 2026-10-09), shaded around the edge, under it.
+            randStart = Abs(); randEnd = Abs();
+            randStart.AddToClassList("zs-wave-surface__trim-random"); randEnd.AddToClassList("zs-wave-surface__trim-random");
+            area.Add(randStart); area.Add(randEnd);
             area.Add(handleStart); area.Add(handleEnd);
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < CurveCount; i++) {
                 var which = (Curve)i;
                 runtimes[i] = new ZUIEnvelopeRuntime {
                     onDragStarted = () => BeginCurveEdit(which),
@@ -232,15 +240,17 @@ namespace Laubrary.Zounds.Uitk {
         static ZoundsProject.ProjectSettings.EditorStyle Es => ZoundsProject.Instance.projectSettings.editorStyle;
 
         internal static Color ColourOf(Curve which) =>
-            which == Curve.Volume ? Es.volumeEnvelopeColor : which == Curve.Pitch ? Es.pitchEnvelopeColor : AudioSpectrumView.TimeCurveColor;
+            which == Curve.Volume ? Es.volumeEnvelopeColor : which == Curve.Pitch ? Es.pitchEnvelopeColor : which == Curve.Gain ? AudioSpectrumView.GainCurveColor : AudioSpectrumView.TimeCurveColor;
 
-        static string UndoName(Curve which) => which == Curve.Volume ? "edit volume envelope" : which == Curve.Pitch ? "edit pitch envelope" : "edit time curve";
+        static string UndoName(Curve which) => which == Curve.Volume ? "edit volume envelope" : which == Curve.Pitch ? "edit pitch envelope" : which == Curve.Gain ? "edit gain curve" : "edit time curve";
+
+        internal static string NameOf(int which) => which == 0 ? "volume" : which == 1 ? "pitch" : which == 3 ? "gain" : "time";
 
         /// <summary>The curve selected for editing, when it is drawn and editable, else null.</summary>
         ZuiSkinEnvelope SelectedEnv(out Curve which) {
             int i = host.SelectedCurve;
-            which = (Curve)Mathf.Clamp(i, 0, 2);
-            if (i < 0 || i > 2) return null;
+            which = (Curve)Mathf.Clamp(i, 0, CurveCount - 1);
+            if (i < 0 || i >= CurveCount) return null;
             var e = envs[i];
             return e.resolvedStyle.display != DisplayStyle.None && e.rt != null && e.points != null ? e : null;
         }
@@ -306,6 +316,7 @@ namespace Laubrary.Zounds.Uitk {
             if (!enabledInHierarchy) hc.a = 0.35f;
             PlaceHandle(handleStart, hs, hc, hotHandle == 0 || (trimDragging && hotHandle < 0));
             PlaceHandle(handleEnd, he, hc, hotHandle == 1);
+            PlaceTrimRandom(r, hc);
 
             PlaceCrossmix(r);
 
@@ -329,8 +340,8 @@ namespace Laubrary.Zounds.Uitk {
             combinedLines.Clear();
             Rect pitchRect = r, timeRect = r;
             bool anySelected = false;
-            for (int i = 0; i < 3; i++) if (host.SelectedCurve == i && Drawn((Curve)i)) anySelected = true;
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < CurveCount; i++) if (host.SelectedCurve == i && Drawn((Curve)i)) anySelected = true;
+            for (int i = 0; i < CurveCount; i++) {
                 var rect = Overlay((Curve)i, r, anySelected);
                 if (i == 1) pitchRect = rect; else if (i == 2) timeRect = rect;
             }
@@ -345,6 +356,25 @@ namespace Laubrary.Zounds.Uitk {
             if (tip != lastTip) { lastTip = tip; area.tooltip = tip; }
         }
 
+        /// <summary>The range each random trim edge may land in, shaded across the waveform's height in the trim colour.</summary>
+        void PlaceTrimRandom(Rect r, Color c) {
+            var k = Sound;
+            bool any = host.TrimRandomEditable && k != null && k.HasTrimRandom && host.Heard(out _, out _);
+            float a = 0f, b = 0f;
+            if (any) host.Heard(out a, out b);
+            for (int i = 0; i < 2; i++) {
+                var e = i == 0 ? randStart : randEnd;
+                float rad = !any ? 0f : i == 0 ? k.trimStartRandom : k.trimEndRandom;
+                float edge = i == 0 ? a : b;
+                e.style.display = rad > 0f ? DisplayStyle.Flex : DisplayStyle.None;
+                if (rad <= 0f) continue;
+                float x0 = Mathf.Max(r.x, host.XOf(Mathf.Max(0f, edge - rad), r)), x1 = Mathf.Min(r.xMax, host.XOf(Mathf.Min(host.FileLength, edge + rad), r));
+                Place(e, Rect.MinMaxRect(x0, r.y, Mathf.Max(x0 + 1f, x1), r.yMax));
+                e.style.backgroundColor = new Color(c.r, c.g, c.b, 0.16f);
+                e.style.borderLeftColor = e.style.borderRightColor = new Color(c.r, c.g, c.b, 0.45f);
+            }
+        }
+
         void PlaceHandle(VisualElement e, Rect? rect, Color c, bool hot) {
             e.style.display = rect.HasValue ? DisplayStyle.Flex : DisplayStyle.None;
             if (!rect.HasValue) return;
@@ -357,10 +387,10 @@ namespace Laubrary.Zounds.Uitk {
         string Tip() {
             var s = new System.Text.StringBuilder(host.ClickTip);
             s.Append("\nRight-click: play only this sound from here (again: stop).");
-            if (host.Heard(out _, out _)) s.Append("\nDrag a trim edge to move it; right-drag one to move both edges together.");
+            if (host.Heard(out _, out _)) s.Append("\nDrag a trim edge to move it; right-drag one to move both edges together" + (host.TrimRandomEditable ? "; right-click one for its random range (a different edge each play)." : "."));
             int sel = host.SelectedCurve;
-            if (sel >= 0 && sel <= 2 && Drawn((Curve)sel))
-                s.Append("\nEditing the ").Append(sel == 0 ? "volume" : sel == 1 ? "pitch" : "time")
+            if (sel >= 0 && sel < CurveCount && Drawn((Curve)sel))
+                s.Append("\nEditing the ").Append(NameOf(sel))
                  .Append(" curve: drag a point; click its line (or double-click anywhere) to add one; double-click a point to remove it; right-click a point for its random range; Shift+drag the line to bend it; drag empty space to select several points (Delete removes them).");
             return s.ToString();
         }
@@ -399,6 +429,8 @@ namespace Laubrary.Zounds.Uitk {
             // backdrops (half transparent, twice as wide), owner's request 2026-10-08.
             env.showHandles = selected;
             env.backdrop = anySelected && !selected;
+            // How a backdrop is drawn: the Settings tab's one choice for every curve (owner, 2026-10-09), live.
+            env.backdropDotted = Es.backdropDotted; env.backdropTransparent = Es.backdropTransparent; env.backdropWidthBonus = Mathf.Max(0f, Es.backdropWidthBonus);
             float ox = rect.x;
             env.timeToLocalX = toX == null ? null : (Func<float, float>)(t => toX(t) - ox);
             env.localXToTime = fromX == null ? null : (Func<float, float>)(x => fromX(x + ox));
@@ -529,6 +561,7 @@ namespace Laubrary.Zounds.Uitk {
             }
             var sum = WaveSummary.For(clip);
             if (sum == null) return;
+            gainAxisValid = KlipChainEnvelopes.TryAxis(Sound, out gainAxis);
             float mid = r.height * 0.5f, amp = r.height * WaveHeightPerUnit;
             var full = Es.waveformColor;
             var faint = new Color(full.r, full.g, full.b, full.a * 0.5f);
@@ -554,8 +587,11 @@ namespace Laubrary.Zounds.Uitk {
         /// waveform picture's 0.75: full scale reaches past the edge, two thirds of it reaches the edge).</summary>
         internal const float WaveHeightPerUnit = 0.75f;
 
-        /// <summary>The factor the sound's own Gain applies at a second of its file (1 without one).</summary>
-        float GainAt(float sourceSeconds) => 1f;
+        /// <summary>The factor the sound's own Gain curve applies at a second of its file (1 without one, or with it off): the
+        /// waveform is drawn as the effects receive it (owner, 2026-10-09). The axis is read once per drawing.</summary>
+        float GainAt(float sourceSeconds) => gainAxisValid ? KlipChainEnvelopes.GainAt(Sound, sourceSeconds, gainAxis) : 1f;
+        Dsp.CurveAnchor.Axis gainAxis;
+        bool gainAxisValid;
 
         /// <summary>
         /// Draws each combined result in its curve's colour, lighter and thinner than the curve's own editable line, in the
@@ -657,7 +693,9 @@ namespace Laubrary.Zounds.Uitk {
             if (!onPoint && (e.button == 0 || e.button == 1)) {
                 int h = HandleAt(m.x, r);
                 if (h >= 0) {
-                    // A right-drag on either edge moves both, keeping the length.
+                    // A right-drag on either edge moves both, keeping the length; a right-click without a drag opens that
+                    // edge's random range instead (on release, see OnUp).
+                    rightPress = e.button == 1; rightMoved = false; pressX = m.x; pressHandle = h;
                     StartTrim(e.button == 1 ? TrimDrag.Both : h == 0 ? TrimDrag.Start : TrimDrag.End, m.x, e);
                     return;
                 }
@@ -693,6 +731,20 @@ namespace Laubrary.Zounds.Uitk {
             if (e.button == 0 && host.Press(e, m, r)) e.StopPropagation();
         }
 
+        bool rightPress, rightMoved;
+        float pressX;
+        int pressHandle = -1;
+
+        /// <summary>Kept checks: receives a right-click's request to open an edge's random range instead of the popup.</summary>
+        internal static Action<WaveSurfaceTK, bool> trimRandomProbe;
+
+        /// <summary>A trim edge's random range: an edit of the sound, so the host's guard first (a shared sound goes to a copy).</summary>
+        void OpenTrimRandom(bool end) {
+            if (trimRandomProbe != null) { trimRandomProbe(this, end); return; }
+            if (!host.BeforeEdit()) return;
+            TrimRandomPopupTK.Show(end ? handleEnd : handleStart, Sound, end, host.FileLength, () => { host.SoundChanged(); Refresh(); });
+        }
+
         void StartTrim(TrimDrag which, float x, PointerDownEvent e) {
             // Moving the trim is an edit of the sound (the host's guard and Undo step).
             e.StopPropagation();
@@ -705,6 +757,8 @@ namespace Laubrary.Zounds.Uitk {
         void OnMove(PointerMoveEvent e) {
             var m = (Vector2)e.localPosition;
             if (trimDragging) {
+                // A right press only becomes a drag once it has moved (a click opens the edge's random range instead).
+                if (rightPress && !rightMoved) { if (Mathf.Abs(m.x - pressX) < 3f) { e.StopPropagation(); return; } rightMoved = true; }
                 host.DragTrim(m.x, AreaRect);
                 Refresh();
                 e.StopPropagation();
@@ -723,7 +777,11 @@ namespace Laubrary.Zounds.Uitk {
             bool mine = area.HasPointerCapture(e.pointerId);
             if (mine) area.ReleasePointer(e.pointerId);
             host.Release();
-            if (trimDragging) { trimDragging = false; host.EndTrim(); }
+            if (trimDragging) {
+                trimDragging = false; host.EndTrim();
+                if (rightPress && !rightMoved && host.TrimRandomEditable && Sound != null) OpenTrimRandom(pressHandle == 1);
+                rightPress = false;
+            }
             if (active != null) { active.PointerUp(); active = null; }
             CloseEdit();
             Refresh();
@@ -749,7 +807,8 @@ namespace Laubrary.Zounds.Uitk {
         /// values, clamped into the new range). One undo step per change.
         /// </summary>
         internal static void ShowCurveSettings(Klip klip, Curve which, VisualElement anchor, Func<bool> guard, Action refresh) {
-            Envelope Env() => which == Curve.Volume ? KlipChainEnvelopes.VolumeCurve(klip, false) : which == Curve.Pitch ? KlipChainEnvelopes.PitchCurve(klip, false) : KlipChainEnvelopes.TimeCurve(klip, false);
+            Envelope Env() => which == Curve.Volume ? KlipChainEnvelopes.VolumeCurve(klip, false) : which == Curve.Pitch ? KlipChainEnvelopes.PitchCurve(klip, false)
+                            : which == Curve.Gain ? KlipChainEnvelopes.GainCurve(klip, false) : KlipChainEnvelopes.TimeCurve(klip, false);
             var env0 = Env();
             if (env0 == null || !env0.enabled || KlipChainEnvelopes.ModifierOf(klip, env0) == null) return;
             // Its settings are an edit of the sound: a shared one goes to a copy first, and the curves are re-read.

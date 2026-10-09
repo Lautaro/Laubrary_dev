@@ -250,8 +250,67 @@ namespace Laubrary.Zounds.Uitk {
 
             into.Add(Bold("Operational Settings"));
             into.Add(Flag("Auto Render", "On: a sound that needs a rendered file (one whose source cannot go through the chain) is rendered when the project is saved. Off: render it yourself from its editor.", "editorStyle.autoRender", sw));
+            into.Add(CurvesBehind(sw));
+            into.Add(LevelMeterRow(sw));
             into.Add(Slider("Envelope Handle Size", "The size, in pixels, of the points on a curve being edited (1 to 10).", "editorStyle.envelopeHandleSize", 1f, 10f, sw, 1));
             into.Add(ProtectedEdits(sw));
+        }
+
+        /// <summary>A yes/no setting as a toggle placed inside a row (no row of its own); one undo step per click.</summary>
+        ZuiToggleButton InlineFlag(string label, string tooltip, string path, float width) {
+            var t = Z.Toggle(label, tooltip, P(path).boolValue, v => { so.Update(); P(path).boolValue = v; Apply(); Undo.SetCurrentGroupName("change " + label); });
+            t.AddToClassList("zs-settings__toggle");
+            t.style.width = width;
+            syncers.Add(() => { bool now = P(path).boolValue; if (t.value != now) t.SetValueWithoutNotify(now); });
+            return t;
+        }
+
+        /// <summary>A scrub-draggable number placed inside a row, with a short unit label after it.</summary>
+        VisualElement InlineNumber(string tooltip, string path, Func<float, float> clamp, int decimals, string undoName) {
+            var f = Z.Float(P(path).floatValue, tooltip, v => { so.Update(); P(path).floatValue = clamp(v); Apply(); Undo.SetCurrentGroupName("change " + undoName); }, 46f, decimals);
+            f.AddToClassList("zs-settingsfield");
+            syncers.Add(() => {
+                if (f.focusController?.focusedElement is VisualElement x && (x == f || f.Contains(x))) return;
+                float now = P(path).floatValue;
+                if (!Mathf.Approximately(f.value, now)) f.SetValueWithoutNotify(now);
+            });
+            return f;
+        }
+
+        static Label Unit(string text, string tooltip) {
+            var l = new Label(text) { tooltip = tooltip };
+            l.AddToClassList("zs-lbl"); l.AddToClassList("zs-settings__unit");
+            return l;
+        }
+
+        /// <summary>
+        /// How a curve looks while another one is being edited (owner, 2026-10-09): dotted, half transparent, and wider by a
+        /// number of pixels; the three combine. One setting for every curve, in the Klip editor and on the tracks, live.
+        /// </summary>
+        VisualElement CurvesBehind(float lw) {
+            const string tip = "How the curves you are NOT editing are drawn while one curve is being edited: dotted, half transparent, and wider by a number of pixels (these combine). One setting for every curve, in the Klip editor and on the Zequence tracks.";
+            var dotted = InlineFlag("Dotted", "Draw the curves behind the one being edited as dotted lines.", "editorStyle.backdropDotted", 60f);
+            var clear = InlineFlag("Transparent", "Draw the curves behind the one being edited at half strength.", "editorStyle.backdropTransparent", 84f);
+            var wider = InlineNumber("How many pixels wider than its own line a curve behind the one being edited is drawn (0: the same width). Drag to scrub, or type.",
+                                     "editorStyle.backdropWidthBonus", v => Mathf.Clamp(v, 0f, 12f), 1, "curves behind width");
+            var g1 = new VisualElement(); g1.style.width = 4f;
+            var g2 = new VisualElement(); g2.style.width = 10f;
+            return Row("Curves behind", tip, lw, dotted, g1, clear, g2, Unit("Wider by", "How many pixels wider than its own line a curve behind the one being edited is drawn."), wider, Unit("px", ""));
+        }
+
+        /// <summary>
+        /// The level meter along the bottom of the Klip editor, the Zequence editor and the Zounds window (owner,
+        /// 2026-10-09): shown or not, and whether its held peak resets after no sound has been triggered for a while.
+        /// </summary>
+        VisualElement LevelMeterRow(float lw) {
+            const string tip = "The thin level meter along the bottom of the Klip editor, the Zequence editor and the Zounds window: how loud everything Zounds plays is, and the loudest peak in dB. The peak is held about two seconds, then falls; a click on the meter resets it.";
+            var shown = InlineFlag("Shown", "Show the level meter in the editors.", "editorStyle.levelMeterShown", 60f);
+            var idle = InlineFlag("Reset when idle", "Clear the held peak once no sound has been triggered for the number of seconds beside it.", "editorStyle.levelMeterIdleReset", 110f);
+            var secs = InlineNumber("Seconds without a triggered sound before the held peak is cleared. Drag to scrub, or type.",
+                                    "editorStyle.levelMeterIdleSeconds", v => Mathf.Clamp(v, 0.5f, 600f), 1, "level meter idle time");
+            var g1 = new VisualElement(); g1.style.width = 10f;
+            var g2 = new VisualElement(); g2.style.width = 4f;
+            return Row("Level meter", tip, lw, shown, g1, idle, g2, secs, Unit("s", ""));
         }
 
         /// <summary>

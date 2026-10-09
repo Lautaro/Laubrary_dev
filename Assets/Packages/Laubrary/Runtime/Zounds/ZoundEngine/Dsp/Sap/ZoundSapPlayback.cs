@@ -59,6 +59,9 @@ namespace Laubrary.Zounds.Dsp {
             // decides where reading starts and stops.
             Region(zound, pcm, sourceAlreadyTrimmed, in excerpt, out double startFrame, out double endFrame);
             if (endFrame <= startFrame) { reason = "the trimmed region is empty"; return null; }
+            // Random trim edges (owner, 2026-10-09): this play's draw, from its own seed, the way a random curve point is drawn.
+            if (!excerpt.on && zound is Klip rk && rk.HasTrimRandom)
+                DrawnRegion(rk, EnvelopeRandom.SeedFor(tokenId), pcm.frequency, pcm.frames, ref startFrame, ref endFrame);
 
             // What this play is made of (T-0481): the chain (with an old stretch setting converted into a time curve),
             // whether the live stretcher runs and at what speed. A pitch or time curve consumes the source at a changing
@@ -221,6 +224,34 @@ namespace Laubrary.Zounds.Dsp {
             }
             for (; written < n; written++) { sourceSeconds[written] = a + region; playSeconds[written] = (float)(total / speedDiv); }
             return true;
+        }
+
+        /// <summary>The random-draw identity of the trim edges (point 0: start, 1: end), apart from every curve's.</summary>
+        public const int TrimRandomMod = -1001;
+
+        /// <summary>
+        /// How far a play with <paramref name="seed"/> moves each trim edge, in seconds (the same draw as a random curve
+        /// point's, along one axis): within the edge's random range either side, the bias deciding where it tends to land.
+        /// Main thread; deterministic for a seed.
+        /// </summary>
+        public static void DrawTrim(Klip k, uint seed, out float startShift, out float endShift) {
+            startShift = endShift = 0f;
+            if (k == null || !k.HasTrimRandom) return;
+            if (k.trimStartRandom > 0f) EnvelopeRandom.Offset(seed, TrimRandomMod, 0, k.trimStartRandom, 0f, k.trimStartRandomBias, out startShift, out _);
+            if (k.trimEndRandom > 0f) EnvelopeRandom.Offset(seed, TrimRandomMod, 1, k.trimEndRandom, 0f, k.trimEndRandomBias, out endShift, out _);
+        }
+
+        /// <summary>
+        /// The frames a play with <paramref name="seed"/> reads once its random trim edges are drawn: each edge moved by its
+        /// draw, kept inside the file (a shipped copy that holds only the trim cannot reach outside it) and at least a
+        /// millisecond apart (otherwise the edges are left as set).
+        /// </summary>
+        public static void DrawnRegion(Klip k, uint seed, double frequency, double totalFrames, ref double startFrame, ref double endFrame) {
+            DrawTrim(k, seed, out float ds, out float de);
+            double s = startFrame + ds * frequency, e = endFrame + de * frequency;
+            if (s < 0d) s = 0d; if (e > totalFrames) e = totalFrames;
+            if (e - s < frequency * 0.001d) return;
+            startFrame = s; endFrame = e;
         }
 
         /// <summary>

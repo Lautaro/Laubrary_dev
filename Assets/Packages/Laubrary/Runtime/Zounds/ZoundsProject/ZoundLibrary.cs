@@ -404,6 +404,15 @@ namespace Laubrary.Zounds
         public bool trimEnabled = true;
         public float trimStart;
         public float trimEnd;
+        /// <summary>
+        /// Random trim edges (owner, 2026-10-09), the way a curve point can be random: every play draws each edge somewhere
+        /// within this many seconds either side of where it is set, with the bias deciding where it tends to land (0.5
+        /// evenly, towards 0 near the set edge, towards 1 out at the limits). Drawn from the play's own seed, so one play
+        /// keeps one draw. Nought (the default, and every sound saved before this existed): the edge stays exactly where it is.
+        /// </summary>
+        public float trimStartRandom, trimEndRandom;
+        public float trimStartRandomBias = 0.5f, trimEndRandomBias = 0.5f;
+        public bool HasTrimRandom => trimEnabled && (trimStartRandom > 0f || trimEndRandom > 0f);
         public bool clampToTrim = true;
         public Envelope volumeEnvelope;
         public Envelope pitchEnvelope;
@@ -504,6 +513,8 @@ namespace Laubrary.Zounds
             trimEnabled = source.trimEnabled;
             trimStart = source.trimStart;
             trimEnd = source.trimEnd;
+            trimStartRandom = source.trimStartRandom; trimEndRandom = source.trimEndRandom;
+            trimStartRandomBias = source.trimStartRandomBias; trimEndRandomBias = source.trimEndRandomBias;
             clampToTrim = source.clampToTrim;
             volumeEnvelope = source.volumeEnvelope.DeepCopy();
             pitchEnvelope = source.pitchEnvelope.DeepCopy();

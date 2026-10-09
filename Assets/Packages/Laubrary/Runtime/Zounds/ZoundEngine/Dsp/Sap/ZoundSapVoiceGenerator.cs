@@ -583,7 +583,9 @@ namespace Laubrary.Zounds.Dsp {
             }
             // [0]: the in-block counter the stopped-for-sure barrier reads. [1]: frames rendered, this play's own clock.
             // [2]: set once the voice has finished, tail and all (T-0409: a live-speed sound's end cannot be predicted).
-            renderTicket = SapRenderTicket.Create(Allocator.Persistent);
+            // [3]: the loudest sample the voice has written since the level meter last took it, in millionths (the editors'
+            //      level meter, 2026-10-09). One more slot than the shared ticket, so it is allocated here.
+            renderTicket = new NativeArray<long>(PeakSlot + 1, Allocator.Persistent, NativeArrayOptions.ClearMemory);
         }
 
         // ───────────────────────── knowing a sound has actually stopped ─────────────────────────
@@ -668,6 +670,26 @@ namespace Laubrary.Zounds.Dsp {
         /// stored anywhere; and it is only meaningful while the sound is playing, because a modifier's output only exists
         /// while there is a voice evaluating it.
         /// </summary>
+        /// <summary>Where in the render ticket the voice keeps its loudest sample since the last <see cref="TakePeak"/>.</summary>
+        public const int PeakSlot = 3;
+
+        /// <summary>
+        /// The loudest sample this voice has written since the last call (0..1 is full scale, more is clipping), and starts
+        /// over. Before the audio source's volume and the mixer. Main thread; allocation-free. Like the other display reads
+        /// it is unsynchronised: a block written between the read and the reset is simply counted in the next call's value
+        /// or, at worst, missed once, which a meter cannot see.
+        /// </summary>
+        public unsafe float TakePeak() {
+            if (!renderTicket.IsCreated || renderTicket.Length <= PeakSlot) return 0f;
+            long* p = (long*)Unity.Collections.LowLevel.Unsafe.NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(renderTicket);
+            long v = System.Threading.Interlocked.Exchange(ref p[PeakSlot], 0L);
+            return v * 1e-6f;
+        }
+
+        /// <summary>The audio source this generator plays through (its volume is applied after the voice).</summary>
+        public AudioSource Carrier => carrier != null ? carrier : (carrier = GetComponent<AudioSource>());
+        private AudioSource carrier;
+
         public bool TryReadLiveParam(int flatIndex, out float value) {
             value = 0f;
             if (!created || flatIndex < 0) return false;

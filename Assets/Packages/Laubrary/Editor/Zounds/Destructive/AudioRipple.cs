@@ -87,6 +87,10 @@ namespace Laubrary.Zounds.Destructive {
         /// before the file is changed.</summary>
         public static void Klip(Klip k, in AudioSpan e, int rate) {
             float oldEnd = k.trimEnd > k.trimStart && k.trimEnd < e.oldLength - 1e-5 ? k.trimEnd : (float)e.oldLength;
+            // A random edge's range is audio around the edge: it ripples with that audio, staying centred on the edge and
+            // inside what is left of it (a cut into the range narrows it; audio inserted beside it never widens it).
+            k.trimStartRandom = Radius(k.trimStart, k.trimStartRandom, e, false);
+            k.trimEndRandom = Radius(oldEnd, k.trimEndRandom, e, true);
             k.trimStart = (float)MapStart(k.trimStart, e);
             k.trimEnd = (float)MapEnd(oldEnd, e);
             if (k.timeStretch != null && k.timeStretch.regionEnd > k.timeStretch.regionStart) {
@@ -96,12 +100,20 @@ namespace Laubrary.Zounds.Destructive {
             if (k.chainPresetId == 0 && k.effectChain != null)
                 foreach (var m in k.effectChain.modifiers) Curve(m, e, rate);
             if (k.ownCurves != null)
-                foreach (int p in new[] { SourceStageParam.Volume, SourceStageParam.Pitch, SourceStageParam.Speed }) {
+                foreach (int p in ZoundOwnCurves.Params) {
                     var slot = k.ownCurves.Of(p);
                     if (slot.Has) Curve(slot.modifier, e, rate);
                 }
             KlipChainEnvelopes.Touch(k);
             ZoundDspPlayback.InvalidateLayout(k);
+        }
+
+        /// <summary>A random trim edge's range after the edit (see <see cref="Klip(Laubrary.Zounds.Klip, in AudioSpan, int)"/>).</summary>
+        public static float Radius(float edge, float radius, in AudioSpan e, bool isEnd) {
+            if (radius <= 0f) return radius;
+            double c = Map(edge, e, isEnd);
+            double lo = Map(Math.Max(0d, edge - radius), e, false), hi = Map(edge + radius, e, true);
+            return (float)Math.Max(0d, Math.Min(Math.Min(c - lo, hi - c), radius));
         }
 
         /// <summary>A curve that follows the waveform on the file's own seconds (<see cref="CurveAnchor.Source"/>). Others

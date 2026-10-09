@@ -330,6 +330,12 @@ namespace Laubrary.Zounds.Dsp {
             if (frames > sap.bufL.Length) frames = sap.bufL.Length;
 
             bool produced = RenderBlock(frames);
+            // The editors' level meter (2026-10-09): the loudest sample since the meter last took it, in millionths, in the
+            // host's ticket (slot 3 when the host made one that long). One compare and store per block, nothing allocated.
+            if (produced && renderTicket.IsCreated && renderTicket.Length > 3) {
+                float pk = sap.lastPeak;
+                if (pk > 0f && pk < 1000f) { long q = (long)(pk * 1000000f); if (q > renderTicket[3]) renderTicket[3] = q; }
+            }
             WriteTo(buffer, frames, produced);
             if (monitor.IsCreated && produced) CopyToMonitor(frames);
 

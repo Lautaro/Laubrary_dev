@@ -64,8 +64,8 @@ namespace Laubrary.Zounds.Uitk {
             bar = new CurveBarTK(Curves(),
                 () => model.TrimEnabled, v => { if (!Guarded()) { bar.Sync(); return; } model.SetTrimEnabled(v); Refresh(); },
                 () => model.TrimEnabled ? "Source trim is active. Click to use the whole recording." : "Source trim is off. Click to use the authored start and end points.",
-                () => model.ShowTimeHandles ? 0 : model.ShowPitchHandles ? 1 : model.ShowVolumeHandles ? 2 : -1,
-                i => { Select(i == 0 ? Curve.Time : i == 1 ? Curve.Pitch : Curve.Volume, i >= 0); Refresh(); },
+                () => gainSelected ? 3 : model.ShowTimeHandles ? 0 : model.ShowPitchHandles ? 1 : model.ShowVolumeHandles ? 2 : -1,
+                i => { Select(i == 0 ? Curve.Time : i == 1 ? Curve.Pitch : i == 3 ? Curve.Gain : Curve.Volume, i >= 0); Refresh(); },
                 ZoundsProject.Instance.projectSettings.editorStyle.trimHandleColor);
             row.Add(bar);
             row.Add(Gap(8f));
@@ -121,8 +121,24 @@ namespace Laubrary.Zounds.Uitk {
                     shown = () => CurveView.IsVisible(ModifierOf(Curve.Volume)), setShown = v => { CurveView.SetVisible(ModifierOf(Curve.Volume), v); Refresh(); },
                     onContext = a => WaveSurfaceTK.ShowCurveSettings(klip, Curve.Volume, a, Guarded, Refresh),
                 },
+                // The sound's own Gain (owner, 2026-10-09): its level INTO the effects, the waveform drawn through it.
+                new CurveBarTK.Curve {
+                    label = "Gain", colour = AudioSpectrumView.GainCurveColor,
+                    enabled = () => { var g = KlipChainEnvelopes.GainCurve(klip, false); return g != null && g.enabled; },
+                    setEnabled = v => {
+                        if (!Guarded()) { bar.Sync(); return; }
+                        ZoundsWindow.ModifyAndSaveZoundsProject("toggle klip gain curve", () => KlipChainEnvelopes.SetGainEnabled(klip, v));
+                        if (!v && gainSelected) gainSelected = false;
+                        Refresh();
+                    },
+                    shown = () => CurveView.IsVisible(ModifierOf(Curve.Gain)), setShown = v => { CurveView.SetVisible(ModifierOf(Curve.Gain), v); Refresh(); },
+                    onContext = a => WaveSurfaceTK.ShowCurveSettings(klip, Curve.Gain, a, Guarded, Refresh),
+                },
             };
         }
+
+        /// <summary>The Gain curve is selected for editing (the other three keep their selection in the shared view model).</summary>
+        bool gainSelected;
 
         static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-klip-waveform__gap"); return e; }
         static VisualElement Space(float h) { var e = new VisualElement(); e.style.height = h; e.AddToClassList("zs-klip-waveform__space"); return e; }
@@ -149,13 +165,15 @@ namespace Laubrary.Zounds.Uitk {
         /// (T-0494).
         /// </summary>
         internal void Select(Curve which, bool on) {
+            gainSelected = on && which == Curve.Gain;
             model.SetShowVolumeHandles(on && which == Curve.Volume);
             model.SetShowPitchHandles(on && which == Curve.Pitch);
             model.SetShowTimeHandles(on && which == Curve.Time);
         }
 
         Envelope EnvelopeOf(Curve which) =>
-            which == Curve.Volume ? model.VolumeEnvelope : which == Curve.Pitch ? model.PitchEnvelope : model.TimeEnvelope;
+            which == Curve.Volume ? model.VolumeEnvelope : which == Curve.Pitch ? model.PitchEnvelope
+            : which == Curve.Gain ? (KlipChainEnvelopes.GainCurve(klip, false) ?? KlipChainEnvelopes.Disabled) : model.TimeEnvelope;
 
         /// <summary>The chain modifier a waveform curve is, or null (an overlay with no modifier yet).</summary>
         ZoundModifier ModifierOf(Curve which) => KlipChainEnvelopes.ModifierOf(klip, EnvelopeOf(which));
@@ -197,6 +215,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         void IWaveSurfaceHost.TrimHandlesLive(out bool start, out bool end) => model.TrimHandlesLive(out start, out end);
+        bool IWaveSurfaceHost.TrimRandomEditable => model.TrimEnabled;
 
         bool IWaveSurfaceHost.BeginTrim(TrimDrag which, float x, Rect r) {
             // Moving the trim is an edit of the sound: a shared one goes to a copy first, and the drag carries on on it.
@@ -215,7 +234,7 @@ namespace Laubrary.Zounds.Uitk {
 
         Envelope IWaveSurfaceHost.CurveOf(Curve which) => EnvelopeOf(which);
 
-        int IWaveSurfaceHost.SelectedCurve => model.ShowVolumeHandles ? (int)Curve.Volume : model.ShowPitchHandles ? (int)Curve.Pitch : model.ShowTimeHandles ? (int)Curve.Time : -1;
+        int IWaveSurfaceHost.SelectedCurve => gainSelected ? (int)Curve.Gain : model.ShowVolumeHandles ? (int)Curve.Volume : model.ShowPitchHandles ? (int)Curve.Pitch : model.ShowTimeHandles ? (int)Curve.Time : -1;
 
         void IWaveSurfaceHost.CurveDomain(Curve which, Envelope env, ZoundModifier mod, Rect r, out Rect rect, out float xMin, out float xMax,
                                           out Func<float, float> toX, out Func<float, float> fromX) {

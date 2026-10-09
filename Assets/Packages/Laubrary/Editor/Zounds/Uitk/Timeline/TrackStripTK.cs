@@ -175,7 +175,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         void JumpToPiece() {
-            var p = P; if (p == null) return;
+            var p = P; if (p == null || !TL.CanMoveView) return;
             float span = TL.Span;
             float c = 0.5f * (p.start + Mathf.Min(p.End, p.start + span * 0.9f));
             TL.t0 = c - span * 0.5f; TL.t1 = TL.t0 + span; TL.fitted = false; TL.Changed();
@@ -183,7 +183,7 @@ namespace Laubrary.Zounds.Uitk {
 
         // ─────────────────────────── the sound's own curves (T-0566) ───────────────────────────
 
-        static int ParamOf(Curve which) => which == Curve.Volume ? SourceStageParam.Volume : which == Curve.Pitch ? SourceStageParam.Pitch : SourceStageParam.Speed;
+        static int ParamOf(Curve which) => which == Curve.Volume ? SourceStageParam.Volume : which == Curve.Pitch ? SourceStageParam.Pitch : which == Curve.Gain ? SourceStageParam.Gain : SourceStageParam.Speed;
 
         /// <summary>The sound's own curve on <paramref name="which"/>'s value when it follows the waveform, else null.</summary>
         static ZoundModifier OwnCurve(Klip k, Curve which) {
@@ -200,7 +200,7 @@ namespace Laubrary.Zounds.Uitk {
             get {
                 var ed = Editing; var k = P?.klip;
                 if (ed == null || k == null) return -1;
-                foreach (Curve c in new[] { Curve.Volume, Curve.Pitch, Curve.Time }) if (ReferenceEquals(OwnCurve(k, c), ed)) return ParamOf(c);
+                foreach (Curve c in new[] { Curve.Volume, Curve.Pitch, Curve.Time, Curve.Gain }) if (ReferenceEquals(OwnCurve(k, c), ed)) return ParamOf(c);
                 return -1;
             }
         }
@@ -208,7 +208,7 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>Select the curve bound to <paramref name="param"/> for editing on this track, or -1 for none.</summary>
         public void SetEditing(int param) {
             var k = P?.klip;
-            Curve which = param == SourceStageParam.Volume ? Curve.Volume : param == SourceStageParam.Pitch ? Curve.Pitch : Curve.Time;
+            Curve which = param == SourceStageParam.Volume ? Curve.Volume : param == SourceStageParam.Pitch ? Curve.Pitch : param == SourceStageParam.Gain ? Curve.Gain : Curve.Time;
             var mod = param < 0 ? null : OwnCurve(k, which);
             if (mod == null) TL.editingCurve.Remove(entry); else TL.editingCurve[entry] = mod;
             Sync();
@@ -398,6 +398,7 @@ namespace Laubrary.Zounds.Uitk {
             float t = T(l.x);
             switch (drag) {
                 case Drag.Pan: {
+                    if (!TL.CanMoveView) break;
                     float dt = (l.x - downLocal.x) / Mathf.Max(1f, W) * TL.Span;
                     float span = TL.Span; TL.t0 = panT0 - dt; TL.t1 = TL.t0 + span; TL.fitted = false; TL.Changed();
                     break;
@@ -424,7 +425,8 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         void OnWheel(WheelEvent e) {
-            if (TL == null) return;
+            // Under auto-tidy the view does not move: the wheel scrolls the track list as anywhere else in the window.
+            if (TL == null || !TL.CanMoveView) return;
             float t = T(e.localMousePosition.x);
             if (e.ctrlKey || e.commandKey) TL.ZoomAround(t, e.delta.y > 0f ? 1.18f : 1f / 1.18f);
             else TL.Pan((e.delta.y + e.delta.x) * 0.06f * TL.Span);
@@ -442,6 +444,9 @@ namespace Laubrary.Zounds.Uitk {
         float IWaveSurfaceHost.SourceAt(float x, Rect r) => P.TimeToSource(T(x));
         bool IWaveSurfaceHost.Heard(out float from, out float to) { var p = P; from = p != null ? p.exA : 0f; to = p != null ? p.exB : 0f; return p != null; }
         void IWaveSurfaceHost.TrimHandlesLive(out bool start, out bool end) { start = end = true; }
+        // Only a local sound's own trim can be random here: a track's excerpt has edges of its own, and a shared sound's
+        // trim is never changed from a Zequence.
+        bool IWaveSurfaceHost.TrimRandomEditable { get { var p = P; return p != null && p.klip != null && p.entry.local && !p.ownExcerpt && p.klip.trimEnabled; } }
 
         bool IWaveSurfaceHost.BeginTrim(TrimDrag which, float x, Rect r) {
             var p = P;
@@ -490,7 +495,7 @@ namespace Laubrary.Zounds.Uitk {
             get {
                 var ed = Editing; var k = P?.klip;
                 if (ed == null || k == null) return -1;
-                for (int i = 0; i < 3; i++) if (ReferenceEquals(OwnCurve(k, (Curve)i), ed)) return i;
+                for (int i = 0; i < WaveSurfaceTK.CurveCount; i++) if (ReferenceEquals(OwnCurve(k, (Curve)i), ed)) return i;
                 return -1;
             }
         }

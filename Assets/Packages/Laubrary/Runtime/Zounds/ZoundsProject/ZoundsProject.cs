@@ -159,6 +159,17 @@ namespace Laubrary.Zounds {
                 public Color trackBackgroundColor = new Color(0.25f, 0.25f, 0.3f, 0.22f);
                 public Color trackAltBackgroundColor = new Color(0.35f, 0.35f, 0.42f, 0.15f);
                 public Color trackLaneColor = new Color(1f, 1f, 1f, 0.04f);
+                // How a curve is drawn while another one is being edited (owner, 2026-10-09): dotted and/or half transparent,
+                // with an optional extra width in pixels. One setting for every curve, in the Klip editor and on the tracks.
+                // The defaults are the look it had: solid, half transparent, twice the default line width.
+                public bool backdropDotted = false;
+                public bool backdropTransparent = true;
+                public float backdropWidthBonus = 1.5f;
+                // The level meter along the editors' bottom edge (owner, 2026-10-09): shown or not, and whether its held peak
+                // resets once no sound has been triggered for a while (and after how many seconds).
+                public bool levelMeterShown = true;
+                public bool levelMeterIdleReset = true;
+                public float levelMeterIdleSeconds = 4f;
             }
 
         }

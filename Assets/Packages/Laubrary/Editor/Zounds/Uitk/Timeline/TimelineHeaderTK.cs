@@ -128,6 +128,8 @@ namespace Laubrary.Zounds.Uitk {
             loop.SetValueWithoutNotify(TL.loop); ZS.ApplyOnColor(loop, new Color(0.22f, 0.45f, 0.75f, 1f));
             bool parallel = TL.zeq != null && TL.zeq.mode == CompositeZound.Mode.Parallel;
             ripple.SetEnabled(parallel);
+            // Auto-tidy holds the view fitted: the zoom buttons have nothing to do then.
+            foreach (var k in new[] { "fit", "zsel", "ztrack" }) if (controls.TryGetValue(k, out var zb)) zb.SetEnabled(TL.CanMoveView);
             follow.tooltip = TL.follow ? "Follow is on: once the time cursor enters the view, the view turns a page each time the cursor reaches its right edge. Click to keep the view where you put it."
                                        : "Follow is off: the view stays where you put it while playing, and markers at the edges show where playheads are. Click to have the view turn a page as the cursor reaches its edge.";
             ripple.tooltip = !parallel ? "Ripple only applies to a Parallel Zequence: in the other modes the tracks are alternatives, not one timeline."
@@ -177,7 +179,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         void OverviewDown(PointerDownEvent e) {
-            if (e.button != 0 || TL == null) return;
+            if (e.button != 0 || TL == null || !TL.CanMoveView) return;
             float t = OvT(e.localPosition.x);
             if (t < TL.t0 || t > TL.t1) { float s = TL.Span; TL.t0 = t - s * 0.5f; TL.t1 = TL.t0 + s; TL.fitted = false; TL.Changed(); }
             overviewDrag = true; overviewGrab = t - TL.t0;
