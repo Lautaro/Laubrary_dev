@@ -511,24 +511,10 @@
 .zs-root.zs-klip-waveform__bar, .zs-root .zs-klip-waveform__bar { flex-direction: row; flex-shrink: 0; }
 .zs-root.zs-klip-waveform__length, .zs-root .zs-klip-waveform__length { width: 50px; flex-shrink: 0; }
 /* The live readout of the sound's own values (shown while it plays): a reserved slot, so the bar never reflows. */
-.zs-root.zs-klip-waveform__live, .zs-root .zs-klip-waveform__live { width: 200px; flex-shrink: 0; height: 16px; -unity-text-align: middle-left; color: rgb(204, 217, 255); white-space: nowrap; overflow: hidden; }
-.zs-root.zs-klip-waveform__pitch-old, .zs-root .zs-klip-waveform__pitch-old { width: 16px; flex-shrink: 0; -unity-text-align: middle-center; }
 .zs-root.zs-klip-waveform__flex, .zs-root .zs-klip-waveform__flex { flex-grow: 1; }
 .zs-root.zs-klip-waveform__box, .zs-root .zs-klip-waveform__box { height: 150px; flex-shrink: 0; }
-.zs-root.zs-klip-waveform__area, .zs-root .zs-klip-waveform__area { position: absolute; left: 4px; right: 4px; top: 4px; bottom: 4px; }
-.zs-root.zs-klip-waveform__wave, .zs-root .zs-klip-waveform__wave { position: absolute; left: 0px; right: 0px; top: 0px; bottom: 0px; }
-.zs-root.zs-klip-waveform__time-axis-label, .zs-root .zs-klip-waveform__time-axis-label { -unity-text-align: upper-right; width: 26px; }
-.zs-root.zs-klip-waveform__envelope, .zs-root .zs-klip-waveform__envelope { position: absolute; }
 .zs-root.zs-klip-waveform__gap, .zs-root .zs-klip-waveform__gap { flex-shrink: 0; }
-.zs-root.zs-klip-waveform__axis-label, .zs-root .zs-klip-waveform__axis-label { position: absolute; left: 3px; width: 44px; height: 13px; padding-left: 2px; padding-right: 2px; border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; }
-.zs-root.zs-klip-waveform__place-time-axis-time-line, .zs-root .zs-klip-waveform__place-time-axis-time-line { height: 1px; }
-.zs-root.zs-klip-waveform__place-pitch-axis-pitch-line, .zs-root .zs-klip-waveform__place-pitch-axis-pitch-line { height: 1px; }
 .zs-root.zs-klip-waveform__space, .zs-root .zs-klip-waveform__space { flex-shrink: 0; }
-.zs-root.zs-klip-waveform__positioned-control, .zs-root .zs-klip-waveform__positioned-control { position: absolute; }
-.zs-root.zs-klip-waveform__refresh-bg, .zs-root .zs-klip-waveform__refresh-bg { left: 0px; top: 0px; }
-.zs-root.zs-klip-waveform__play-head-root, .zs-root .zs-klip-waveform__play-head-root { width: 0px; }
-.zs-root.zs-klip-waveform__play-head-cursor, .zs-root .zs-klip-waveform__play-head-cursor { position: absolute; top: 0px; }
-.zs-root.zs-klip-waveform__play-head-line, .zs-root .zs-klip-waveform__play-head-line { bottom: 0px; }
 .zs-root.zs-looper__root, .zs-root .zs-looper__root { flex-shrink: 0; }
 .zs-root.zs-looper__gap, .zs-root .zs-looper__gap { flex-shrink: 0; }
 .zs-root.zs-looper__r, .zs-root .zs-looper__r { flex-direction: row; height: 20px; flex-shrink: 0; }
@@ -802,7 +788,6 @@
 .zs-root .zs-lbl.zs-track-strip__mark, .zs-root.zs-lbl.zs-track-strip__mark { position: absolute; top: 10px; font-size: 10px; color: rgba(204, 217, 255, 0.85); background-color: rgba(0, 0, 0, 0.35); }
 .zs-root.zs-track-strip__curve, .zs-root .zs-track-strip__curve { position: absolute; }
 /* The live readout of the track's sound's own values, floating in the lane's top-right corner while it plays. */
-.zs-root .zs-lbl.zs-track-strip__live, .zs-root.zs-lbl.zs-track-strip__live { right: 2px; left: auto; top: 2px; padding: 0 3px 0 3px; white-space: nowrap; }
 /* The one curve toolbar (CurveBarTK), shared by the Klip editor and every local track: small, one row. */
 .zs-root.zs-curvebar, .zs-root .zs-curvebar { flex-direction: row; flex-shrink: 0; height: 16px; align-items: center; }
 .zs-root .zs-curvebar__toggle.unity-button, .zs-root .zs-curvebar__toggle { font-size: 10px; padding-left: 3px; padding-right: 3px; }
@@ -820,8 +805,6 @@
 .zs-root .zs-lbl.zs-curve-settings__label { width: 70px; }
 .zs-root .zs-lbl.zs-curve-settings__unit { width: 12px; padding-left: 3px; }
 /* The Klip waveform's bottom grip: drag to set the area's height. */
-.zs-root .zs-klip-waveform__grip { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; cursor: resize-vertical; background-color: rgba(255,255,255,0.06); }
-.zs-root .zs-klip-waveform__grip:hover { background-color: rgba(255,255,255,0.2); }
 /* The audition card pinned into a window, under the toolbar. */
 .zs-root .zs-klip-editor__pinned, .zs-root .zs-zequence-editor__pinned { flex-shrink: 0; }
 .zs-root .zs-audition-card--pinned { margin: 4px 0 2px 0; flex-shrink: 0; }
@@ -857,7 +840,6 @@
 .zs-root .zs-klip-waveform__edit-bar .zs-klip-waveform__edit-readout { flex-grow: 1; flex-shrink: 1; min-width: 0; height: 18px; -unity-text-align: middle-left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zs-root.zs-klip-waveform__selection, .zs-root .zs-klip-waveform__selection { background-color: rgba(89, 158, 255, 0.30); border-left-width: 1px; border-right-width: 1px; border-left-color: rgba(128, 191, 255, 0.9); border-right-color: rgba(128, 191, 255, 0.9); }
 .zs-root.zs-klip-waveform__edit-cursor, .zs-root .zs-klip-waveform__edit-cursor { width: 1px; background-color: rgba(255, 255, 255, 0.95); }
-.zs-root.zs-klip-waveform__notice, .zs-root .zs-klip-waveform__notice { left: 6px; right: 6px; top: 6px; }
 .zs-root.zs-zequence-editor__notice, .zs-root .zs-zequence-editor__notice { left: 8px; right: 8px; bottom: 6px; }
 .zs-root.zs-swap-notice, .zs-root .zs-swap-notice { position: absolute; flex-direction: row; align-items: center; height: 22px; padding-left: 6px; padding-right: 3px; background-color: rgba(28, 42, 66, 0.95); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgba(110, 160, 230, 0.9); border-right-color: rgba(110, 160, 230, 0.9); border-top-color: rgba(110, 160, 230, 0.9); border-bottom-color: rgba(110, 160, 230, 0.9); border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px; }
 .zs-root .zs-swap-notice .zs-swap-notice__text { flex-grow: 1; flex-shrink: 1; min-width: 0; color: rgb(220, 232, 255); -unity-text-align: middle-left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -866,3 +848,23 @@
 .zs-root .zs-klip-editor__badge.zs-klip-editor__badge--locked { color: rgb(170, 190, 225); }
 .zs-root.zs-klip-editor__badge, .zs-root .zs-klip-editor__badge { -unity-text-align: middle-left; margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zs-root.zs-settings__protected-edits, .zs-root .zs-settings__protected-edits { width: 210px; flex-shrink: 0; height: 18px; }
+
+/* The waveform surface (WaveSurfaceTK): one component for the Klip editor and every Klip track of the Zequence editor. */
+.zs-root .zs-wave-surface { flex-shrink: 0; }
+.zs-root .zs-wave-surface--lane { position: absolute; left: 0px; right: 0px; bottom: 0px; }
+.zs-root .zs-wave-surface__area { position: absolute; left: 0px; right: 0px; top: 0px; bottom: 0px; }
+.zs-root .zs-wave-surface--framed > .zs-wave-surface__area { left: 4px; right: 4px; top: 4px; bottom: 4px; }
+.zs-root .zs-wave-surface__layer { position: absolute; left: 0px; right: 0px; top: 0px; bottom: 0px; }
+.zs-root .zs-wave-surface__positioned { position: absolute; }
+.zs-root .zs-wave-surface__envelope { position: absolute; }
+.zs-root .zs-lbl.zs-wave-surface__axis-label { position: absolute; left: 3px; width: 44px; height: 13px; padding-left: 2px; padding-right: 2px; background-color: rgba(0, 0, 0, 0.55); border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; }
+.zs-root .zs-lbl.zs-wave-surface__time-axis-label { -unity-text-align: upper-right; width: 26px; }
+.zs-root .zs-wave-surface__axis-line { height: 1px; }
+.zs-root .zs-wave-surface__play-head { width: 0px; }
+.zs-root .zs-wave-surface__play-head-cursor { position: absolute; top: 0px; }
+.zs-root .zs-wave-surface__play-head-line { bottom: 0px; }
+.zs-root .zs-lbl.zs-wave-surface__live { position: absolute; right: 2px; top: 2px; padding: 0 3px 0 3px; font-size: 10px; color: rgba(204, 217, 255, 0.9); background-color: rgba(0, 0, 0, 0.45); white-space: nowrap; }
+.zs-root .zs-wave-surface__grip { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; cursor: resize-vertical; background-color: rgba(255,255,255,0.06); }
+.zs-root .zs-wave-surface__grip:hover { background-color: rgba(255,255,255,0.2); }
+.zs-root .zs-wave-surface__notice { left: 6px; right: 6px; top: 6px; }
+.zs-root .zs-wave-surface--trim-hot { cursor: resize-horizontal; }

@@ -434,6 +434,17 @@ namespace Laubrary.Zounds {
             return true;
         }
 
+        /// <summary>
+        /// The start of an edit of one of the sound's own waveform curves (volume 0, pitch 1, time 2), inside that edit's Undo
+        /// step: the conversions that keep the sound as it was (curves onto the source's own seconds; a volume curve off an
+        /// inserted Gain; a pitch curve off its old scale). The one start for every place that edits these curves.
+        /// </summary>
+        public static void BeginCurveEdit(Zound zound, int which) {
+            if (which == 0) EnsureVolumeOwnValue(zound);
+            else if (which == 1) EnsurePitchRatio(zound);
+            else EnsureSourceAnchored(zound);
+        }
+
         /// <summary>After an overlay drag mutated a curve in place: the next play rebuilds the layout.</summary>
         public static void Touch(Zound zound) {
             TouchAll(zound);

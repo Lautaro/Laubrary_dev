@@ -178,15 +178,20 @@ namespace Laubrary.Zounds.Uitk {
             g.RegisterCallback<PointerDownEvent>(e => { if (e.button != 0) return; downY = e.position.y; downH = HeightOf(entry); g.CapturePointer(e.pointerId); e.StopPropagation(); });
             g.RegisterCallback<PointerMoveEvent>(e => {
                 if (!g.HasPointerCapture(e.pointerId)) return;
-                float hh = Mathf.Clamp(downH + (e.position.y - downY), MinHeight, MaxHeight);
-                if (Mathf.Approximately(hh, HeightOf(entry))) return;
-                entry.editor_height = hh;
-                EditorUtility.SetDirty(ZoundsProject.Instance);
-                style.height = hh;
-                win.OnTrackHeightChanged(this);
+                SetHeight(downH + (e.position.y - downY));
             });
             g.RegisterCallback<PointerUpEvent>(e => { if (g.HasPointerCapture(e.pointerId)) g.ReleasePointer(e.pointerId); win.RefreshNow(); });
             return g;
+        }
+
+        /// <summary>This track's height (any height between the limits, per track): its grip, or its waveform's grip.</summary>
+        void SetHeight(float h) {
+            float hh = Mathf.Clamp(h, MinHeight, MaxHeight);
+            if (Mathf.Approximately(hh, HeightOf(entry))) return;
+            entry.editor_height = hh;
+            EditorUtility.SetDirty(ZoundsProject.Instance);
+            style.height = hh;
+            win.OnTrackHeightChanged(this);
         }
 
         Button SmallIcon(string icon, string tip, ZUICornerMask corners, Action onClick) => W.IconButton(icon, tip, "RichButton", corners, Btn, HeaderH, onClick);
@@ -312,7 +317,7 @@ namespace Laubrary.Zounds.Uitk {
             }
 
             // The track's lane on the shared timeline (T-0560..T-0566): the piece where and how it sounds, and its gestures.
-            strip = new TrackStripTK(win, entry);
+            strip = new TrackStripTK(win, entry) { cardHeight = () => HeightOf(entry), setCardHeight = SetHeight, heightDone = win.RefreshNow };
             Add(strip);
             win.strips.Add(strip);
 
@@ -341,7 +346,9 @@ namespace Laubrary.Zounds.Uitk {
             Add(mute); Add(solo);
             Button convert = ConversionButton();
             if (convert != null) Add(convert);
-            var heightGrip = HeightGrip(); Add(heightGrip);
+            // A Klip's track is sized by its waveform's own grip (the one the Klip editor has); any other track by the card's.
+            bool waveGrip = zound is Klip;
+            var heightGrip = HeightGrip(); if (!waveGrip) Add(heightGrip);
 
             layouts.Add(w => {
                 var rect = new Rect(0f, 0f, w, float.IsNaN(layout.height) || layout.height < MinHeight ? HeightOf(entry) : layout.height);
@@ -382,7 +389,7 @@ namespace Laubrary.Zounds.Uitk {
 
                 // ── the body: sliders down the left, the lane filling the rest, the grip along the bottom ──
                 float by = content.y + HeaderH + 2f;
-                float bh = content.yMax - GripH - by;
+                float bh = content.yMax - (waveGrip ? 0f : GripH) - by;
                 for (int i = 0; i < sliders.Count; i++) {
                     float sy = by + i * (LH + 3f);
                     if (entry.local) Place(sliders[i], new Rect(content.x, sy, LeftW - 1f, LH));
@@ -392,7 +399,7 @@ namespace Laubrary.Zounds.Uitk {
                 // The strip keeps to the shared lane horizontally (it places itself); here only its rows.
                 strip.style.top = lane.y; strip.style.height = lane.height;
                 if (win.timeline == null || win.timeline.laneWorld.width < 2f) { strip.style.left = lane.x; strip.style.width = lane.width; }
-                Place(heightGrip, new Rect(content.x, content.yMax - GripH, content.width, GripH));
+                if (!waveGrip) Place(heightGrip, new Rect(content.x, content.yMax - GripH, content.width, GripH));
             });
 
             // The flash while this entry sounds (its playheads are the strip's, where each play reads its source).
@@ -425,6 +432,10 @@ namespace Laubrary.Zounds.Uitk {
                 setEnabled = v => { if (GuardTrack(e => e.SetCurveOn(which, v))) SetCurveOn(which, v); else curveBar?.Sync(); },
                 shown = () => CurveView.IsVisible(Mod(curveOf)),
                 setShown = v => { CurveView.SetVisible(Mod(curveOf), v); strip?.Sync(); },
+                warn = which == 1 ? (Func<bool>)(() => strip != null && strip.PitchOldScale) : null,
+                warnTip = which == 1 ? KlipChainEnvelopes.OldScaleTip : null,
+                onContext = a => WaveSurfaceTK.ShowCurveSettings(k, which == 0 ? AudioSpectrumView.Curve.Time : which == 1 ? AudioSpectrumView.Curve.Pitch : AudioSpectrumView.Curve.Volume,
+                                                                  a, () => GuardTrack(_ => { }), () => strip?.Sync()),
             };
             return new List<CurveBarTK.Curve> {
                 Make(0, "Time", AudioSpectrumView.TimeCurveColor, KlipChainEnvelopes.TimeCurve),

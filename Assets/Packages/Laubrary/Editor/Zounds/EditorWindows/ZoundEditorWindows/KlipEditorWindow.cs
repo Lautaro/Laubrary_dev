@@ -198,7 +198,7 @@ namespace Laubrary.Zounds {
                     ZoundsWindow.BeginDragUndo("edit volume envelope");
                     // The first edit moves a curve saved on an inserted Gain onto the Zound's own Volume, sounding the same (T-0493).
                     // The curve object is kept (only its binding moves), so the drag carries on on the same points.
-                    KlipChainEnvelopes.EnsureVolumeOwnValue(target());
+                    KlipChainEnvelopes.BeginCurveEdit(target(), 0);
                 }
             };
 
@@ -207,7 +207,7 @@ namespace Laubrary.Zounds {
                     setDragging(true);
                     ZoundsWindow.BeginDragUndo("edit pitch envelope");
                     // The first edit moves an old-scale curve onto the Ratio scale, sounding the same (T-0479).
-                    KlipChainEnvelopes.EnsurePitchRatio(target());
+                    KlipChainEnvelopes.BeginCurveEdit(target(), 1);
                 }
             };
 
@@ -307,7 +307,7 @@ namespace Laubrary.Zounds {
                 if (target() != null) {
                     setDragging(true);
                     ZoundsWindow.BeginDragUndo("edit time curve");
-                    KlipChainEnvelopes.EnsureSourceAnchored(target());   // curves on the source's own seconds (T-0501)
+                    KlipChainEnvelopes.BeginCurveEdit(target(), 2);   // curves on the source's own seconds (T-0501)
                 }
             };
             spectrumView.onTimeEnvelopeChanged = envelope => {

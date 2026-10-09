@@ -126,9 +126,9 @@ namespace Laubrary.Zounds.Uitk {
                 string what = c.label.ToLowerInvariant() == "vol" ? "volume" : c.label.ToLowerInvariant();
                 c.enable.tooltip = (on ? "The " + what + " curve is on: it shapes every play. Click to bypass it."
                                        : "The " + what + " curve is off. Click to switch it on.")
-                                 + (c.onContext != null ? "\n\nRight-click: its value range." : "");
+                                 + (c.onContext != null ? "\n\nRight-click: its settings (the extra time it keeps going after the audio; for the volume curve, its range)." : "");
                 c.edit.tooltip = !on ? "Switch the " + what + " curve on first."
-                               : editing ? "Editing the " + what + " curve: drag its points, double-click the line to add one, double-click a point to remove it. The other curves step back behind it. Click to stop editing."
+                               : editing ? "Editing the " + what + " curve: drag its points, click its line (or double-click anywhere) to add one, double-click a point to remove it, right-click a point for its random range. The other curves step back behind it. Click to stop editing."
                                          : "Edit the " + what + " curve here: shows its points and puts the other curves behind it.";
                 c.eye.tooltip = !on ? "Switch the " + what + " curve on first."
                               : shown ? "The " + what + " curve is drawn. Click to hide its drawing (it still plays)."

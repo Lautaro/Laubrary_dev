@@ -42,6 +42,7 @@ public static class ZoundsTimelineEditCheck {
         var c = JsonUtility.FromJson<Klip>(JsonUtility.ToJson(src));
         typeof(Zound).GetField("id").SetValue(c, -9701);
         c.name = "piece"; c.effectChain = new ZoundEffectChain(); c.chainPresetId = 0;
+        c.ownCurves = null;   // plain too: the copied sound's own Volume/Pitch/Time curves would change every length below
         c.minPitch = c.maxPitch = 1f; c.minVolume = c.maxVolume = 1f;
         c.trimEnabled = true; c.trimStart = 0f; c.trimEnd = Mathf.Min(S, 1.2f);
         if (c.timeStretch != null) c.timeStretch.liveEnabled = false;

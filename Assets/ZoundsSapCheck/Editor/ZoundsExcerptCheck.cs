@@ -53,6 +53,7 @@ public static class ZoundsExcerptCheck {
             typeof(Zound).GetField("id").SetValue(c, id);
             c.name = name;
             c.effectChain = new ZoundEffectChain();   // plain: the lengths below are then exact
+            c.ownCurves = null;   // plain too: the copied sound's own Volume/Pitch/Time curves would change every length below
             c.chainPresetId = 0;
             c.minPitch = c.maxPitch = 1f; c.minVolume = c.maxVolume = 1f;
             c.trimEnabled = false;

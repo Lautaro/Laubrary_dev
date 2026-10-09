@@ -60,6 +60,8 @@ namespace Laubrary.Zounds.Uitk {
         // every refresh — found 2026-09-28). It is disposed before the reload and made fresh afterwards instead.
         [System.NonSerialized] AudioSpectrumView spectrum;
         KlipWaveformTK waveform;
+        /// <summary>The waveform block (kept check 34).</summary>
+        internal KlipWaveformTK Waveform => waveform;
         bool draggingWaveform;
         [System.NonSerialized] bool shownTrimOnce;
         // The audition card pinned into the window (owner, 2026-10-08) instead of behind Play's right-click; per machine.
@@ -308,7 +310,10 @@ namespace Laubrary.Zounds.Uitk {
             scroll.Add(VSpace(Gap4));
 
             // Waveform block: the curve bar, the edit bar, the waveform with its trim and envelopes (T-0468), its height grip.
-            waveform = new KlipWaveformTK(spectrum, klip) { onReleased = EndWaveformDrag, beforeEdit = GuardSoundEdit };
+            waveform = new KlipWaveformTK(spectrum, klip) {
+                onReleased = EndWaveformDrag, beforeEdit = GuardSoundEdit, onPlayFrom = PlayFrom,
+                onBeginDrag = name => { draggingWaveform = true; ZoundsWindow.BeginDragUndo(name); },
+            };
             WireAudioEdits();
             scroll.Add(waveform);
 
@@ -435,6 +440,29 @@ namespace Laubrary.Zounds.Uitk {
                 }, audition, false);
             }
             finally { klip.needsRender = needsRenderTemp; }
+        }
+
+        // The right-click play's own preview slot, so a second right-click while it sounds stops it (as on a track).
+        readonly object playFromKey = new object();
+
+        /// <summary>
+        /// A right-click on the waveform: only this sound, from that second of its file to the end of its trim (the same
+        /// gesture as on a Zequence track). Pressed again while it sounds: stop.
+        /// </summary>
+        void PlayFrom(float sourceSeconds) {
+            var clip = spectrum?.OriginalClip;
+            if (klip == null || clip == null) return;
+            bool trim = klip.trimEnabled && klip.trimEnd > klip.trimStart;
+            float a = trim ? klip.trimStart : 0f, b = trim ? Mathf.Min(klip.trimEnd, clip.length) : clip.length;
+            float from = Mathf.Clamp(sourceSeconds, a, b);
+            if (b <= from + 0.002f) from = a;
+            ZoundPreviewPlayback.Play(this, klip, new ZoundArgs() {
+                startImmediately = true, delay = 0f,
+                volumeOverride = Random.Range(klip.minVolume, klip.maxVolume),
+                pitchOverride = Random.Range(klip.minPitch, klip.maxPitch),
+                chanceOverride = 1f, useFixedAverageValues = false, bypassGlobalSolo = isLocalZound, ignoreCooldown = true,
+                excerpt = true, excerptStart = from, excerptEnd = b, excerptLoop = false,
+            }, playFromKey, true);
         }
 
         AudioClip ResolveOutputAsset() {

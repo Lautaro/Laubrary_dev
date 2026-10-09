@@ -127,8 +127,18 @@ namespace Laubrary.Zui
         /// element's edges, because the style sheet pads the plot inside the element.
         public Rect PlotRect => Plot;
 
-        float TimeToX(float t, Rect r) => r.x + (t - rt.xMin) / (rt.xMax - rt.xMin) * r.width;
-        float XToTime(float x, Rect r) => rt.xMin + (x - r.x) / r.width * (rt.xMax - rt.xMin);
+        /// <summary>
+        /// An optional time axis that is not a straight line (Zounds, 2026-10-09: a curve drawn over a Zequence track, where
+        /// a time curve or a pitch change stretches the sound unevenly along the timeline): a curve time to an x in this
+        /// element's local space, and back. Both must be set, monotonic, and inverses of each other; null is the usual
+        /// linear axis from <c>rt.xMin..xMax</c> across the plot. Hit-testing, drawing and dragging all go through it.
+        /// </summary>
+        public System.Func<float, float> timeToLocalX, localXToTime;
+
+        float TimeToX(float t, Rect r) => timeToLocalX != null && localXToTime != null ? timeToLocalX(t) : r.x + (t - rt.xMin) / (rt.xMax - rt.xMin) * r.width;
+        float XToTime(float x, Rect r) => timeToLocalX != null && localXToTime != null ? localXToTime(x) : rt.xMin + (x - r.x) / r.width * (rt.xMax - rt.xMin);
+        /// <summary>A pointer move of <paramref name="dx"/> pixels ending at <paramref name="x"/>, in curve time.</summary>
+        float TimeDelta(float x, float dx, Rect r) => XToTime(x, r) - XToTime(x - dx, r);
         float ValueToY(float v, Rect r) => r.y + r.height - (v - rt.yMin) / (rt.yMax - rt.yMin) * r.height;
 
         ZUIEnvelopeEditState State(int i)
@@ -387,7 +397,7 @@ namespace Laubrary.Zui
                 else if (_dragLine > 0 && _dragLine < points.Count)
                 {
                     if (!shift && configuration.requireShiftDuringDrag) _dragLine = -1;
-                    else { MoveSegment(_dragLine, xRange, yRange, r, delta); rt.onDragUpdated?.Invoke(); used = true; }
+                    else { MoveSegment(_dragLine, TimeDelta(m.x, delta.x, r), yRange, r, delta); rt.onDragUpdated?.Invoke(); used = true; }
                 }
                 else if (_dragExponent > 0 && _dragExponent < points.Count)
                 {
@@ -403,7 +413,7 @@ namespace Laubrary.Zui
                 else if (_boxSelecting) { BoxUpdate(r, m); used = true; }
                 else if (_multiDrag && _selected.Count > 1 && (pressedButtons & 1) != 0)
                 {
-                    MoveSelection(xRange * delta.x / r.width, -yRange * delta.y / r.height);
+                    MoveSelection(TimeDelta(m.x, delta.x, r), -yRange * delta.y / r.height);
                     rt.onDragUpdated?.Invoke(); used = true;
                 }
             }
@@ -504,11 +514,11 @@ namespace Laubrary.Zui
             return idx;
         }
 
-        void MoveSegment(int endIdx, float xRange, float yRange, Rect r, Vector2 delta)
+        void MoveSegment(int endIdx, float timeDelta, float yRange, Rect r, Vector2 delta)
         {
             var a = points[endIdx - 1]; var b = points[endIdx];
             var aS = State(endIdx - 1); var bS = State(endIdx);
-            float dt = configuration.segmentVerticalOnly ? 0f : xRange * delta.x / r.width, dv = -yRange * delta.y / r.height;
+            float dt = configuration.segmentVerticalOnly ? 0f : timeDelta, dv = -yRange * delta.y / r.height;
             if (CanMoveX(aS) && CanMoveX(bS))
             {
                 float aT = a.time + dt, bT = b.time + dt;
@@ -668,7 +678,7 @@ namespace Laubrary.Zui
                 var pt = points[i];
                 if (pt.randomX <= 0f && pt.randomY <= 0f) continue;
                 var c = new Vector2(TimeToX(pt.time, r), ValueToY(pt.value, r));
-                float ex = pt.randomX / (rt.xMax - rt.xMin) * r.width, ey = pt.randomY / (rt.yMax - rt.yMin) * r.height;
+                float ex = Mathf.Abs(TimeToX(pt.time + pt.randomX, r) - c.x), ey = pt.randomY / (rt.yMax - rt.yMin) * r.height;
                 Ellipse(p2, c, Mathf.Max(ex, 1f), Mathf.Max(ey, 1f), new Color(style.curveColor.r, style.curveColor.g, style.curveColor.b, style.uncertaintyFillAlpha),
                         new Color(style.curveColor.r, style.curveColor.g, style.curveColor.b, style.uncertaintyStrokeAlpha), StrokeWidth(style.uncertaintyStrokeThickness));
             }

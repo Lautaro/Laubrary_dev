@@ -187,7 +187,7 @@ namespace Laubrary.Zounds {
         // Matches legacy EnvelopeGUI behavior where first.time == xMin and
         // last.time == xMax were enforced on drag. Applied each frame so the
         // editState stays consistent even if a point was inserted or removed.
-        private static void PinEndpointsYOnly(List<ZUIEnvelopePoint> points) {
+        internal static void PinEndpointsYOnly(List<ZUIEnvelopePoint> points) {
             if (points == null || points.Count == 0) return;
             points[0].editState = ZUIEnvelopeEditState.YEditable;
             for (int i = 1; i < points.Count - 1; i++) {
@@ -198,7 +198,7 @@ namespace Laubrary.Zounds {
             }
         }
 
-        private static ZUIEnvelopeDef BuildOverlayDef(Color curveColor, float curveThickness) {
+        internal static ZUIEnvelopeDef BuildOverlayDef(Color curveColor, float curveThickness) {
             var handleColor = new ZUIColorRef(curveColor);
             var hoverColor  = new ZUIColorRef(new Color(
                 Mathf.Clamp01(curveColor.r + 0.2f),
@@ -761,6 +761,25 @@ namespace Laubrary.Zounds {
             return KlipChainEnvelopes.SourceAnchoredModifierOf(m_klip, env);
         }
 
+        /// <summary>The part of a waveform curve's x (its own units) drawn across the overlay's rect: the view window, or
+        /// the trim when the curves are clamped to it.</summary>
+        internal void OverlayDomain(Envelope env, out float xMin, out float xMax) {
+            var anchorMod = SourceAnchoredModifier(env);
+            if (anchorMod != null) {
+                // Source-anchored (T-0501): the curve's 0..1 is the whole file plus the extra time, in seconds, so the
+                // visible window is simply the seconds on screen over that total -- the curve sits on its audio.
+                float total = Mathf.Max(1e-6f, originalClip.length + Mathf.Max(0f, anchorMod.Param(0)));
+                float a = m_clampToTrim && m_klip.trimEnabled ? m_klip.trimStart : viewStart;
+                float b = m_clampToTrim && m_klip.trimEnabled ? m_klip.trimEnd : viewEnd;
+                xMin = Mathf.Lerp(env.xMin, env.xMax, a / total);
+                xMax = Mathf.Lerp(env.xMin, env.xMax, b / total);
+            }
+            else {
+                xMin = m_clampToTrim ? env.xMin : Mathf.Lerp(env.xMin, env.xMax, viewStart / originalClip.length);
+                xMax = m_clampToTrim ? env.xMax : Mathf.Lerp(env.xMin, env.xMax, viewEnd / originalClip.length);
+            }
+        }
+
         internal ZUIEnvelopeDef PrepareOverlay(bool volume, out ZUIEnvelopeRuntime runtime, out List<ZUIEnvelopePoint> pts, out Color colour)
             => PrepareOverlay(volume ? Curve.Volume : Curve.Pitch, out runtime, out pts, out colour);
 
@@ -772,20 +791,7 @@ namespace Laubrary.Zounds {
             colour = which == Curve.Volume ? editorStyle.volumeEnvelopeColor : which == Curve.Pitch ? editorStyle.pitchEnvelopeColor : TimeCurveColor;
             pts = null;
             if (env == null || !env.enabled) return null;
-            var anchorMod = SourceAnchoredModifier(env);
-            if (anchorMod != null) {
-                // Source-anchored (T-0501): the curve's 0..1 is the whole file plus the extra time, in seconds, so the
-                // visible window is simply the seconds on screen over that total -- the curve sits on its audio.
-                float total = Mathf.Max(1e-6f, originalClip.length + Mathf.Max(0f, anchorMod.Param(0)));
-                float a = m_clampToTrim && m_klip.trimEnabled ? m_klip.trimStart : viewStart;
-                float b = m_clampToTrim && m_klip.trimEnabled ? m_klip.trimEnd : viewEnd;
-                runtime.xMin = Mathf.Lerp(env.xMin, env.xMax, a / total);
-                runtime.xMax = Mathf.Lerp(env.xMin, env.xMax, b / total);
-            }
-            else {
-                runtime.xMin = m_clampToTrim ? env.xMin : Mathf.Lerp(env.xMin, env.xMax, viewStart / originalClip.length);
-                runtime.xMax = m_clampToTrim ? env.xMax : Mathf.Lerp(env.xMin, env.xMax, viewEnd / originalClip.length);
-            }
+            OverlayDomain(env, out runtime.xMin, out runtime.xMax);
             runtime.dataXMin = env.xMin;
             runtime.dataXMax = env.xMax;
             runtime.yMin = env.yMin;

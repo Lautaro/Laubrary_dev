@@ -39,9 +39,9 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         partial void AddEditMarks() {
-            // Under the playheads, trim handles and curves.
-            selBand = Abs(); selBand.AddToClassList("zs-klip-waveform__selection"); area.Add(selBand);
-            editCursor = Abs(); editCursor.AddToClassList("zs-klip-waveform__edit-cursor"); area.Add(editCursor);
+            // On the surface's marks layer: under the playheads, trim edges and curves.
+            selBand = Abs(); selBand.AddToClassList("zs-klip-waveform__selection"); surface.marks.Add(selBand);
+            editCursor = Abs(); editCursor.AddToClassList("zs-klip-waveform__edit-cursor"); surface.marks.Add(editCursor);
         }
 
         VisualElement EditBar() {
@@ -164,7 +164,7 @@ namespace Laubrary.Zounds.Uitk {
             handled = true;
             var clip = model.OriginalClip;
             if (clip == null) return;
-            double t = Mathf.Clamp(model.XToTimeIn(m.x, AreaRect), 0f, clip.length);
+            double t = Mathf.Clamp(model.XToTimeIn(m.x, surface.AreaRect), 0f, clip.length);
             if (Mathf.Abs(m.x - selDownX) > 3f || HasSelection) { selA = Math.Min(selAnchor, t); selB = Math.Max(selAnchor, t); cursor = selA; Refresh(); }
         }
 
