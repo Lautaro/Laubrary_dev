@@ -11,8 +11,8 @@ namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
     /// One track card of the Zequence editor (T-0469; laid out afresh 2026-10-08 on the owner's review). A plain track is two
-    /// rows: a header (reorder grip, play, name and length, the track's id, its start time, the curve bar for a local
-    /// Klip, then Mute / Solo / duplicate / delete / convert) and, under it, the V/P/C sliders down the left with the
+    /// rows: a header (reorder grip, play, name and length, the track's id, its start time, the curve bar for a Klip --
+    /// a shared one is swapped for a local copy before its curves change, 2026-10-09 -- then Mute / Solo / duplicate / delete / convert) and, under it, the V/P/C sliders down the left with the
     /// track's lane on the shared timeline filling the rest. A grip along the bottom edge sets the track's own height.
     /// A local Zequence is a group with its own header, fields, buttons, delay, master envelope and, when expanded, its
     /// child tracks and add buttons.
@@ -52,6 +52,7 @@ namespace Laubrary.Zounds.Uitk {
             this.win = win; this.parent = parent; this.entry = entry; this.index = index;
             this.parentPitch = parentPitch; this.parentDelay = parentDelay; this.isGroupChild = isGroupChild;
             AddToClassList("zs-zequence-entry__root");
+            win.entryViews.Add(this);
             found = parent.TryGetEntryZound(entry, out zound);
             var es = ZoundsProject.Instance.projectSettings.editorStyle;
 
@@ -310,14 +311,16 @@ namespace Laubrary.Zounds.Uitk {
             Add(strip);
             win.strips.Add(strip);
 
-            // The curve bar: only a LOCAL Klip's curves may be edited from here (a shared sound is used elsewhere too; edit it
-            // in its own editor). The same bar as the Klip editor's.
-            if (entry.local && zound is Klip localKlip) {
-                curveBar = new CurveBarTK(TrackCurves(localKlip),
-                    () => localKlip.trimEnabled, v => win.Modify("toggle klip trim", () => { KlipChainEnvelopes.EnsureSourceAnchored(localKlip); localKlip.trimEnabled = v; Dsp.ZoundDspPlayback.InvalidateLayout(localKlip); }),
-                    () => localKlip.trimEnabled ? "This track plays its sound's trimmed part. Click to play the whole recording." : "This track plays the whole recording. Click to play only its trimmed part (drag the piece's edges to set it).",
+            // The curve bar, the same as the Klip editor's. On a shared sound's track it is there too (destructive editing,
+            // 2026-10-09): editing its curves from here first gives this track its own copy of the sound (per Settings),
+            // so the other places that use it keep the original; see GuardTrack.
+            if (zound is Klip barKlip) {
+                curveBar = new CurveBarTK(TrackCurves(barKlip),
+                    () => barKlip.trimEnabled, v => { if (GuardTrack(e => e.SetTrim(v))) SetTrim(v); else curveBar?.Sync(); },
+                    () => (barKlip.trimEnabled ? "This track plays its sound's trimmed part. Click to play the whole recording." : "This track plays the whole recording. Click to play only its trimmed part (drag the piece's edges to set it).")
+                          + (entry.local ? "" : "\n\n" + SharedBarTip),
                     () => { int p = strip.EditingParam; return p == SourceStageParam.Speed ? 0 : p == SourceStageParam.Pitch ? 1 : p == SourceStageParam.Volume ? 2 : -1; },
-                    i => strip.SetEditing(i == 0 ? SourceStageParam.Speed : i == 1 ? SourceStageParam.Pitch : i == 2 ? SourceStageParam.Volume : -1),
+                    i => { if (i < 0 || GuardTrack(e => e.SelectCurve(i))) SelectCurve(i); else curveBar?.Sync(); },
                     es.trimHandleColor);
                 curveBar.AddToClassList("zs-zequence-entry__curve-bar");
                 Add(curveBar);
@@ -370,7 +373,7 @@ namespace Laubrary.Zounds.Uitk {
                 float dur = PlacedLength(out float endsAt);
                 duration.text = dur.ToString("0.00") + " s";
                 duration.tooltip = "How long this track plays, from its original audio through its live effects, at the middle of its pitch range" + (endsAt > dur + 1e-3f ? "; it ends at " + endsAt.ToString("0.00") + " s on the Zequence's timeline." : ".");
-                name.tooltip = "Open this sound's own editor." + (entry.local ? "" : "\n\nA shared sound: its curves and effects are edited there, since other sounds use it too.");
+                name.tooltip = "Open this sound's own editor." + (entry.local ? "" : "\n\nA shared sound: editing its curves from this track gives the track its own copy; its own editor changes it everywhere it is used (asking first, per Settings).");
 
                 // ── the body: sliders down the left, the lane filling the rest, the grip along the bottom ──
                 float by = content.y + HeaderH + 2f;
@@ -411,18 +414,56 @@ namespace Laubrary.Zounds.Uitk {
                 var env = curveOf(k, false);
                 return env != null ? KlipChainEnvelopes.ModifierOf(k, env) : null;
             }
-            CurveBarTK.Curve Make(string label, Color colour, Func<Zound, bool, Envelope> curveOf, Action<bool> setOn) => new CurveBarTK.Curve {
+            CurveBarTK.Curve Make(int which, string label, Color colour, Func<Zound, bool, Envelope> curveOf) => new CurveBarTK.Curve {
                 label = label, colour = colour,
                 enabled = () => { var e = curveOf(k, false); return e != null && e.enabled; },
-                setEnabled = v => { win.Modify("toggle klip " + label.ToLowerInvariant() + " curve", () => setOn(v)); strip?.Sync(); },
+                setEnabled = v => { if (GuardTrack(e => e.SetCurveOn(which, v))) SetCurveOn(which, v); else curveBar?.Sync(); },
                 shown = () => CurveView.IsVisible(Mod(curveOf)),
                 setShown = v => { CurveView.SetVisible(Mod(curveOf), v); strip?.Sync(); },
             };
             return new List<CurveBarTK.Curve> {
-                Make("Time", AudioSpectrumView.TimeCurveColor, KlipChainEnvelopes.TimeCurve, v => KlipChainEnvelopes.SetTimeEnabled(k, v)),
-                Make("Pitch", es.pitchEnvelopeColor, KlipChainEnvelopes.PitchCurve, v => KlipChainEnvelopes.SetPitchEnabled(k, v)),
-                Make("Vol", es.volumeEnvelopeColor, KlipChainEnvelopes.VolumeCurve, v => KlipChainEnvelopes.SetVolumeEnabled(k, v)),
+                Make(0, "Time", AudioSpectrumView.TimeCurveColor, KlipChainEnvelopes.TimeCurve),
+                Make(1, "Pitch", es.pitchEnvelopeColor, KlipChainEnvelopes.PitchCurve),
+                Make(2, "Vol", es.volumeEnvelopeColor, KlipChainEnvelopes.VolumeCurve),
             };
+        }
+
+        const string SharedBarTip = "This track plays a shared sound. Changing its trim switch or curves here first gives this track its own copy of it, so everything else keeps the original (Settings > Protected edits decides whether you are asked).";
+
+        // The bar's edits, on whatever sound this card shows (after a swap, the window rebuilds and re-runs them on the copy).
+        internal void SetTrim(bool v) {
+            if (!(zound is Klip k)) return;
+            win.Modify("toggle klip trim", () => { KlipChainEnvelopes.EnsureSourceAnchored(k); k.trimEnabled = v; Dsp.ZoundDspPlayback.InvalidateLayout(k); });
+            curveBar?.Sync();
+        }
+
+        internal void SetCurveOn(int which, bool v) {
+            if (!(zound is Klip k)) return;
+            string label = which == 0 ? "time" : which == 1 ? "pitch" : "vol";
+            win.Modify("toggle klip " + label + " curve", () => {
+                if (which == 0) KlipChainEnvelopes.SetTimeEnabled(k, v);
+                else if (which == 1) KlipChainEnvelopes.SetPitchEnabled(k, v);
+                else KlipChainEnvelopes.SetVolumeEnabled(k, v);
+            });
+            strip?.Sync(); curveBar?.Sync();
+        }
+
+        internal void SelectCurve(int i) {
+            strip?.SetEditing(i == 0 ? SourceStageParam.Speed : i == 1 ? SourceStageParam.Pitch : i == 2 ? SourceStageParam.Volume : -1);
+            curveBar?.Sync();
+        }
+
+        /// <summary>
+        /// Before an edit of the sound's own trim or curves from this card: a local sound, or a shared one you chose to edit
+        /// itself, goes ahead (true). A shared one is first swapped for a local copy on this track (per Settings): the window
+        /// rebuilds, <paramref name="redo"/> runs the edit on the rebuilt card, and this stale card does nothing (false).
+        /// </summary>
+        bool GuardTrack(Action<ZequenceEntryTK> redo) {
+            if (entry.local || Destructive.ZoundsEditGuard.EditsOriginal(zound)) return true;
+            if (!Destructive.ZoundsEditGuard.BeforeTrackEdit(parent, entry, out var ts)) return false;
+            if (!ts.swapped) return true;   // "Edit the original" chosen
+            win.AfterTrackSwap(entry, ts, redo);
+            return false;
         }
 
         /// <summary>This track's drawn length and where it ends on the Zequence timeline, from the shared placements.</summary>

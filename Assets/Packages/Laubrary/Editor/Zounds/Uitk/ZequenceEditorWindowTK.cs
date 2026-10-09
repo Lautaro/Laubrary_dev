@@ -51,6 +51,24 @@ namespace Laubrary.Zounds.Uitk {
         internal ZequenceTimeline timeline;
         TimelineHeaderTK header;
         internal readonly List<TrackStripTK> strips = new List<TrackStripTK>();
+        internal readonly List<ZequenceEntryTK> entryViews = new List<ZequenceEntryTK>();
+        SwapNoticeTK notice;
+
+        /// <summary>
+        /// A shared track was just given its own copy of its sound (destructive editing, 2026-10-09): rebuild now, re-run the
+        /// edit that asked for it on the rebuilt card, and in the "Tell me" mode say so, with "Edit the original instead".
+        /// </summary>
+        internal void AfterTrackSwap(CompositeZound.ZoundEntry entry, Destructive.ZoundsEditGuard.TrackSwap ts, Action<ZequenceEntryTK> redo) {
+            Rebuild();
+            timeline?.Rebuild();   // the track's placement now holds the copy, so its curves can be picked
+            var view = entryViews.Find(v => ReferenceEquals(v.Entry, entry));
+            if (view != null) redo?.Invoke(view);
+            if (Destructive.ZoundsEditGuard.Mode == ZoundsProject.ProjectSettings.ProtectedEditPrompt.Notice && notice != null) {
+                var undoSwap = ts.editOriginal;
+                notice.Show(ts.notice, undoSwap == null ? null : (Action)(() => { undoSwap(); Rebuild(); }));
+            }
+            Say(ts.notice);
+        }
         [SerializeField] float viewT0, viewT1 = 1f;
         [SerializeField] bool viewFitted = true, viewFollow, viewRipple, viewLoop;
         [NonSerialized] ZoundToken hereToken;
@@ -186,6 +204,7 @@ namespace Laubrary.Zounds.Uitk {
             EnsureEnvelopes();
             EnsureTimeline();
             strips.Clear();
+            entryViews.Clear();
             // Keep the scroll position across a rebuild (an edit that changes the tree must never snap the view to the top).
             float keepScroll = scroll != null ? scroll.scrollOffset.y : 0f;
             var es = ZoundsProject.Instance.projectSettings.editorStyle;
@@ -229,6 +248,11 @@ namespace Laubrary.Zounds.Uitk {
             scroll.Add(MasterSection());
             box.Add(AddRow(zeq, true));
             if (keepScroll > 0f) scroll.schedule.Execute(() => scroll.scrollOffset = new Vector2(0f, keepScroll));
+
+            // The "Tell me" notice of destructive editing floats along the bottom of the window (never moves anything).
+            notice = new SwapNoticeTK();
+            notice.AddToClassList("zs-zequence-editor__notice");
+            root.Add(notice);
 
             builtSig = Signature();
             root.focusable = true;

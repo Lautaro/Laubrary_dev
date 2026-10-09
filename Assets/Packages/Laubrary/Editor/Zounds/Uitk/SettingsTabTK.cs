@@ -251,6 +251,29 @@ namespace Laubrary.Zounds.Uitk {
             into.Add(Bold("Operational Settings"));
             into.Add(Flag("Auto Render", "On: a sound that needs a rendered file (one whose source cannot go through the chain) is rendered when the project is saved. Off: render it yourself from its editor.", "editorStyle.autoRender", sw));
             into.Add(Slider("Envelope Handle Size", "The size, in pixels, of the points on a curve being edited (1 to 10).", "editorStyle.envelopeHandleSize", 1f, 10f, sw, 1));
+            into.Add(ProtectedEdits(sw));
+        }
+
+        /// <summary>
+        /// Destructive editing (2026-10-09): how an edit that has to go to a copy is announced -- a shared sound edited from
+        /// an editor, or an audio file Zounds never overwrites. A three-way choice, so a segmented control; one undo step.
+        /// </summary>
+        VisualElement ProtectedEdits(float lw) {
+            const string path = "protectedEditPrompt";
+            const string tip = "When an edit would change a sound other sounds use (its trim, curves or audio), or an audio file Zounds must not overwrite (a source, library or outside file, or one several sounds play), the edit goes to a copy. This decides how you hear about it.";
+            var values = new[] { ZoundsProject.ProjectSettings.ProtectedEditPrompt.Ask, ZoundsProject.ProjectSettings.ProtectedEditPrompt.Notice, ZoundsProject.ProjectSettings.ProtectedEditPrompt.Silent };
+            var seg = Z.Segmented(Array.IndexOf(values, (ZoundsProject.ProjectSettings.ProtectedEditPrompt)P(path).intValue),
+                new[] { "Ask first", "Tell me", "Silent" }, tip, i => {
+                    if (i < 0 || i >= values.Length) return;
+                    so.Update(); P(path).intValue = (int)values[i]; Apply(); Undo.SetCurrentGroupName("change protected edits");
+                });
+            seg.AddToClassList("zs-settings__protected-edits");
+            seg.SegmentAt(0).tooltip = "Ask first: a dialog before the copy is made -- edit a copy, edit the original instead (not offered for a file Zounds never overwrites), or cancel.";
+            seg.SegmentAt(1).tooltip = "Tell me (the default): the copy is made, and a notice in the editor says so, with Edit the original instead.";
+            seg.SegmentAt(2).tooltip = "Silent: the copy is made without a word; the editor's title and the source row's badge still show which sound and file you are editing.";
+            int shown = -2;
+            syncers.Add(() => { int now = Array.IndexOf(values, (ZoundsProject.ProjectSettings.ProtectedEditPrompt)P(path).intValue); if (now != shown) { shown = now; seg.SetOn(i => i == now); } });
+            return Row("Protected edits", tip, lw, seg);
         }
 
         /// <summary>A drawn line's row: the label in the label column, its thickness in a 45 px scrub-draggable number box, then its colour.</summary>

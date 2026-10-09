@@ -109,6 +109,15 @@ namespace Laubrary.Zounds {
             public int maxPlayedZoundInstances = 10;
             public float cullFadeDuration = 0.4f;
 
+            /// <summary>
+            /// How an edit that would change something protected is announced (destructive editing, 2026-10-09): a sound
+            /// other sounds use, or an audio file Zounds must not overwrite (a source, library or outside file, or one several
+            /// sounds play). Such an edit always goes to a copy; this only decides whether you are asked first, told after,
+            /// or not told. Editor-only behaviour; a game never reads it.
+            /// </summary>
+            public enum ProtectedEditPrompt { Ask = 1, Notice = 2, Silent = 3 }
+            public ProtectedEditPrompt protectedEditPrompt = ProtectedEditPrompt.Notice;
+
             public string workFolderPath => systemFolderPath + "/WorkFiles";
             public string zoundFilesFolderPath => systemFolderPath + "/ZoundFiles";
 

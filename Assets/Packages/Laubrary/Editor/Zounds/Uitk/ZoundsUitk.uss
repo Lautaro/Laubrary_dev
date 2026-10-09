@@ -846,3 +846,20 @@
 .zs-root.zs-bake-popup__name, .zs-root .zs-bake-popup__name { width: 250px; }
 .zs-root.zs-bake-popup__go, .zs-root .zs-bake-popup__go { margin-left: 6px; }
 .zs-root.zs-bake-popup__info, .zs-root .zs-bake-popup__info { white-space: nowrap; overflow: hidden; }
+
+/* ── destructive editing (2026-10-09): the Klip editor's edit bar, edit cursor and selection, the source row's badge,
+      the "Tell me" notice, the Settings row ── */
+.zs-root.zs-klip-waveform__edit-bar, .zs-root .zs-klip-waveform__edit-bar { flex-direction: row; flex-shrink: 0; align-items: center; height: 18px; }
+.zs-root.zs-klip-waveform__edit-button, .zs-root .zs-klip-waveform__edit-button { flex-shrink: 0; }
+.zs-root .zs-klip-waveform__edit-bar .zs-klip-waveform__edit-readout { flex-grow: 1; flex-shrink: 1; min-width: 0; height: 18px; -unity-text-align: middle-left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zs-root.zs-klip-waveform__selection, .zs-root .zs-klip-waveform__selection { background-color: rgba(89, 158, 255, 0.30); border-left-width: 1px; border-right-width: 1px; border-left-color: rgba(128, 191, 255, 0.9); border-right-color: rgba(128, 191, 255, 0.9); }
+.zs-root.zs-klip-waveform__edit-cursor, .zs-root .zs-klip-waveform__edit-cursor { width: 1px; background-color: rgba(255, 255, 255, 0.95); }
+.zs-root.zs-klip-waveform__notice, .zs-root .zs-klip-waveform__notice { left: 6px; right: 6px; top: 6px; }
+.zs-root.zs-zequence-editor__notice, .zs-root .zs-zequence-editor__notice { left: 8px; right: 8px; bottom: 6px; }
+.zs-root.zs-swap-notice, .zs-root .zs-swap-notice { position: absolute; flex-direction: row; align-items: center; height: 22px; padding-left: 6px; padding-right: 3px; background-color: rgba(28, 42, 66, 0.95); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgba(110, 160, 230, 0.9); border-right-color: rgba(110, 160, 230, 0.9); border-top-color: rgba(110, 160, 230, 0.9); border-bottom-color: rgba(110, 160, 230, 0.9); border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px; }
+.zs-root .zs-swap-notice .zs-swap-notice__text { flex-grow: 1; flex-shrink: 1; min-width: 0; color: rgb(220, 232, 255); -unity-text-align: middle-left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zs-root .zs-swap-notice .zs-swap-notice__button, .zs-root .zs-swap-notice .zs-swap-notice__close { flex-shrink: 0; margin-left: 4px; }
+.zs-root .zs-klip-editor__source-row .zs-klip-editor__badge { flex-grow: 1; flex-shrink: 1; min-width: 0; margin-left: 8px; -unity-text-align: middle-left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zs-root .zs-klip-editor__badge.zs-klip-editor__badge--locked { color: rgb(170, 190, 225); }
+.zs-root.zs-klip-editor__badge, .zs-root .zs-klip-editor__badge { -unity-text-align: middle-left; margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zs-root.zs-settings__protected-edits, .zs-root .zs-settings__protected-edits { width: 210px; flex-shrink: 0; height: 18px; }

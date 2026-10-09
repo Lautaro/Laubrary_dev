@@ -403,6 +403,20 @@ namespace Laubrary.Zounds {
 
         private static bool s_isModifying = false;
         private static int s_dragUndoGroup = -1;
+        private static int s_joinGroup = -1;
+
+        /// <summary>
+        /// The next edit (a drag, or a modification) records into Undo group <paramref name="group"/> instead of a new one,
+        /// provided nothing else has moved the current group on meanwhile -- so an edit that first had to switch the editor
+        /// to a copy of a shared sound (destructive editing, 2026-10-09) undoes together with that switch, in one step.
+        /// </summary>
+        internal static void JoinNextEdit(int group) { s_joinGroup = group; }
+
+        static bool TakeJoinedGroup(out int group) {
+            group = s_joinGroup;
+            s_joinGroup = -1;
+            return group >= 0 && group == Undo.GetCurrentGroup();
+        }
 
         /// <summary>
         /// Opens a named undo group and records the ZoundsProject snapshot.
@@ -413,8 +427,10 @@ namespace Laubrary.Zounds {
         /// Must be paired with a call to EndDragUndo on MouseUp.
         /// </summary>
         public static void BeginDragUndo(string undoName) {
-            Undo.IncrementCurrentGroup();
-            s_dragUndoGroup = Undo.GetCurrentGroup();
+            if (!TakeJoinedGroup(out s_dragUndoGroup)) {
+                Undo.IncrementCurrentGroup();
+                s_dragUndoGroup = Undo.GetCurrentGroup();
+            }
             Undo.RegisterCompleteObjectUndo(ZoundsProject.Instance, undoName);
             Undo.SetCurrentGroupName(undoName);
             s_isModifying = true;
@@ -465,8 +481,10 @@ namespace Laubrary.Zounds {
 
             if (isOutermost) {
                 s_isModifying = true;
-                Undo.IncrementCurrentGroup();
-                undoGroup = Undo.GetCurrentGroup();
+                if (!TakeJoinedGroup(out undoGroup)) {
+                    Undo.IncrementCurrentGroup();
+                    undoGroup = Undo.GetCurrentGroup();
+                }
             }
 
             try {

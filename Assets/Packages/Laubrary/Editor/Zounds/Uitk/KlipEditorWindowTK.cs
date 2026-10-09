@@ -15,7 +15,7 @@ namespace Laubrary.Zounds.Uitk {
     ///
     /// Opened from the old window's temporary "UITK" button (owner's decision D3), which exists only while both exist.
     /// </summary>
-    public class KlipEditorWindowTK : ZuiWindow, IHasCustomMenu {
+    public partial class KlipEditorWindowTK : ZuiWindow, IHasCustomMenu {
 
         [SerializeField] int targetZoundID;
         [SerializeField] bool isLocalZound;
@@ -67,6 +67,73 @@ namespace Laubrary.Zounds.Uitk {
         static bool AuditionPinned { get => EditorPrefs.GetBool(PinKey, false); set => EditorPrefs.SetBool(PinKey, value); }
         VisualElement pinnedSlot;
 
+        // ── destructive editing (2026-10-09) ──
+        // After an edit went to a copy of a shared sound, the window follows the copy; an undo of that brings the copy's id
+        // back off the books, and the window follows the original again (a redo, forward again).
+        [SerializeField] int swappedFromId, swappedToId;
+        Label badge;
+        TextField sourceName;
+
+        // The edit bar's audio edits, in KlipEditorWindowTK.AudioEdits.cs.
+        partial void WireAudioEdits();
+        partial void UnwireAudioEdits();
+        partial void Report(string message);
+
+        /// <summary>Before the waveform block edits the sound's trim or curves: a shared sound goes to a copy (per Settings).</summary>
+        bool GuardSoundEdit() {
+            if (klip == null) return false;
+            bool willSwap = Destructive.ZoundsProtection.IsShared(klip) && !Destructive.ZoundsEditGuard.EditsOriginal(klip);
+            if (willSwap) audition?.StopAll();
+            if (!Destructive.ZoundsEditGuard.BeforeSoundEdit(klip, out var swap)) return false;
+            if (swap.swapped) {
+                FollowCopy(swap);
+                if (Destructive.ZoundsEditGuard.Mode == ZoundsProject.ProjectSettings.ProtectedEditPrompt.Notice)
+                    waveform?.notice.Show("'" + swap.originalName + "' is " + swap.usedIn + ", so this change goes to a copy, '" + swap.copyName + "'. Everything else keeps the original.",
+                                          () => EditOriginal(swap));
+            }
+            return true;
+        }
+
+        void FollowCopy(Destructive.ZoundsEditGuard.Swap swap) {
+            swappedFromId = swap.originalId; swappedToId = swap.copyId;
+            targetZoundID = swap.copyId;
+            // The audition session is keyed to the sound's id: start a fresh one for the copy.
+            KillAudition(); EnsureAudition(); SyncPlayButton();
+            titleContent = new GUIContent(TitleFor(klip));
+            fields?.Sync();
+            SyncBadge();
+        }
+
+        void EditOriginal(Destructive.ZoundsEditGuard.Swap swap) {
+            audition?.StopAll();
+            if (!Destructive.ZoundsEditGuard.SwapBack(klip, swap.originalId)) { Report("The original is gone, so there is nothing to go back to."); return; }
+            targetZoundID = swap.originalId;
+            swappedFromId = swappedToId = 0;
+            KillAudition(); EnsureAudition(); SyncPlayButton();
+            titleContent = new GUIContent(TitleFor(klip));
+            fields?.Sync();
+            SyncBadge();
+            Report("Now editing the original, '" + klip.name + "'.");
+        }
+
+        void SyncBadge() {
+            if (badge == null || klip == null) return;
+            // The source's name too: an audio edit of a protected file points the sound at the new one.
+            var src = spectrum?.sourceClip;
+            if (sourceName != null && src != null && sourceName.value != src.name) { sourceName.SetValueWithoutNotify(src.name); sourceName.tooltip = AssetDatabase.GetAssetPath(src); }
+            Destructive.ZoundsProtection.Badge(klip, out string text, out string tip, out bool locked);
+            if (badge.text != text) badge.text = text;
+            badge.tooltip = tip;
+            badge.EnableInClassList("zs-klip-editor__badge--locked", locked);
+        }
+
+        Label MakeBadge() {
+            badge = new Label();
+            badge.AddToClassList("zs-lbl"); badge.AddToClassList("zs-greymini"); badge.AddToClassList("zs-klip-editor__badge");
+            SyncBadge();
+            return badge;
+        }
+
         void EnsureSpectrum() {
             if (spectrum != null) return;
             spectrum = new AudioSpectrumView(this) { height = 150f };
@@ -91,6 +158,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         protected override void OnDisable() {
+            UnwireAudioEdits();
             ZoundPreviewPlayback.Dispose(this);
             // Closing, and the disable Unity sends before every script reload: nothing this window started may outlive it.
             KillAudition();
@@ -183,7 +251,12 @@ namespace Laubrary.Zounds.Uitk {
             if (!ZS.EditorStylesReady) { root.schedule.Execute(Rebuild).StartingIn(100); return; }
             ZS.Attach(root);
             klip = ZoundsProject.isJSONLoaded ? FindKlip(targetZoundID) : null;
-            if (klip == null) { root.Add(new Label(ZoundsProject.isJSONLoaded ? "Klip no longer exists in the project." : "Zounds Project is not loaded.")); return; }
+            if (klip == null) {
+                root.Add(new Label(ZoundsProject.isJSONLoaded ? "Klip no longer exists in the project." : "Zounds Project is not loaded."));
+                // An undo may bring back the sound this window followed a copy from (destructive editing): keep watching.
+                if (swappedFromId != 0) syncTick = root.schedule.Execute(Sync).Every(200);
+                return;
+            }
             titleContent = new GUIContent(TitleFor(klip));
             EnsureAudition();
 
@@ -234,8 +307,9 @@ namespace Laubrary.Zounds.Uitk {
             box.Add(scroll);
             scroll.Add(VSpace(Gap4));
 
-            // Waveform block: the curve bar, the waveform with its trim and envelopes (T-0468), its height grip.
-            waveform = new KlipWaveformTK(spectrum, klip) { onReleased = EndWaveformDrag };
+            // Waveform block: the curve bar, the edit bar, the waveform with its trim and envelopes (T-0468), its height grip.
+            waveform = new KlipWaveformTK(spectrum, klip) { onReleased = EndWaveformDrag, beforeEdit = GuardSoundEdit };
+            WireAudioEdits();
             scroll.Add(waveform);
 
             // ── the action row (Retrigger, Delete, Play), then the audition card when it is pinned ──
@@ -381,6 +455,7 @@ namespace Laubrary.Zounds.Uitk {
             label.style.width = EditorGUIUtility.labelWidth; label.AddToClassList("zs-klip-editor__external-source-row-label");
             var name = new TextField { value = sourceAsset != null ? sourceAsset.name : "(none)", isReadOnly = true, tooltip = sourceAsset != null ? AssetDatabase.GetAssetPath(sourceAsset) : "No clip assigned yet." };
             name.AddToClassList("zs-klip-editor__external-source-row-name");
+            sourceName = name;
             var change = ZS.Button("Change…", "Pick another clip of the workspace for this Klip to play from.", "RichButton",
                 () => ZoundPickerWindowTK.Open(ZoundPickerRequests.KlipSource(klip, ReplaceSource, this)), ZUICornerMask.Left, 70f, EditorGUIUtility.singleLineHeight);
             change.AddToClassList("zs-klip-editor__external-source-row-browse");
@@ -388,6 +463,8 @@ namespace Laubrary.Zounds.Uitk {
             show.SetEnabled(sourceAsset != null);
             show.AddToClassList("zs-klip-editor__external-source-row-reveal");
             r.Add(label); r.Add(name); r.Add(change); r.Add(show);
+            // Whether audio edits rewrite this file or write a new one, and who else uses the sound (variable width: last).
+            r.Add(MakeBadge());
             // A clip dropped from the Project window (or dragged out of the picker) replaces the source.
             r.RegisterCallback<DragUpdatedEvent>(e => { if (DroppedClip() != null) { DragAndDrop.visualMode = DragAndDropVisualMode.Link; e.StopPropagation(); } });
             r.RegisterCallback<DragPerformEvent>(e => { var c = DroppedClip(); if (c == null) return; DragAndDrop.AcceptDrag(); ReplaceSource(c); e.StopPropagation(); });
@@ -425,6 +502,7 @@ namespace Laubrary.Zounds.Uitk {
             var reveal = new Button(() => EditorUtility.RevealInFinder(klip.externalSourcePath)) { text = "Reveal" };
             reveal.AddToClassList("zs-klip-editor__external-source-row-reveal");
             r.Add(label); r.Add(name); r.Add(browse); r.Add(reveal);
+            r.Add(MakeBadge());
             return r;
         }
 
@@ -458,8 +536,19 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         void Sync() {
-            if (klip == null) return;
-            if (FindKlip(targetZoundID) != klip) { Rebuild(); return; }
+            if (klip == null) {
+                // The sound this window showed is gone: an undo of an edit that went to a copy brings the original back here.
+                if (swappedFromId != 0 && ZoundsProject.isJSONLoaded && FindKlip(targetZoundID) == null && FindKlip(swappedFromId) != null) { targetZoundID = swappedFromId; Rebuild(); }
+                return;
+            }
+            if (FindKlip(targetZoundID) != klip) {
+                if (FindKlip(targetZoundID) == null && swappedFromId != 0 && targetZoundID == swappedToId && FindKlip(swappedFromId) != null) targetZoundID = swappedFromId;
+                Rebuild(); return;
+            }
+            // A redo of that edit: the copy is back, so follow it again.
+            if (swappedToId != 0 && targetZoundID == swappedFromId && FindKlip(swappedToId) != null) { targetZoundID = swappedToId; Rebuild(); return; }
+            if (spectrum != null && spectrum.NeedsSourceRefresh(klip)) RefreshSpectrum();
+            SyncBadge();
             fields?.Sync();
             SyncPlayButton();
             SyncRetriggerButton();

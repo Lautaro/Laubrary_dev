@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Laubrary.Zui;
 using UnityEditor;
@@ -19,7 +20,7 @@ namespace Laubrary.Zounds.Uitk {
     /// drag on either trim handle (moves both), the end handle, the start handle, then the curve selected for editing (the
     /// others are backdrops: half transparent, twice as wide, no handles, no input).
     /// </summary>
-    public class KlipWaveformTK : VisualElement {
+    public partial class KlipWaveformTK : VisualElement {
 
         /// <summary>The waveform area's height: the owner sets it by dragging the grip along the bottom (2026-10-08), and it is
         /// kept per machine, for every Klip editor.</summary>
@@ -54,6 +55,14 @@ namespace Laubrary.Zounds.Uitk {
         readonly VisualElement timeLine;
         ZuiSkinEnvelope active;
         bool trimDragging;
+
+        // ── destructive editing (2026-10-09): the shared-sound guard and its notice ──
+        /// <summary>Asked before any edit of the sound's trim or curves begins; false cancels it (the host's shared-sound guard).</summary>
+        public Func<bool> beforeEdit;
+        internal SwapNoticeTK notice;
+
+        bool Guarded() => beforeEdit == null || beforeEdit();
+
         readonly List<VisualElement> headPool = new List<VisualElement>();
         readonly List<float> headWeights = new List<float>();
 
@@ -69,19 +78,19 @@ namespace Laubrary.Zounds.Uitk {
             var row = new VisualElement();
             row.AddToClassList("zs-klip-waveform__bar"); row.style.height = CurveBarTK.H;
             bar = new CurveBarTK(Curves(),
-                () => model.TrimEnabled, v => { model.SetTrimEnabled(v); Refresh(); },
+                () => model.TrimEnabled, v => { if (!Guarded()) { bar.Sync(); return; } model.SetTrimEnabled(v); Refresh(); },
                 () => model.TrimEnabled ? "Source trim is active. Click to use the whole recording." : "Source trim is off. Click to use the authored start and end points.",
                 () => model.ShowTimeHandles ? 0 : model.ShowPitchHandles ? 1 : model.ShowVolumeHandles ? 2 : -1,
                 i => { Select(i == 0 ? AudioSpectrumView.Curve.Time : i == 1 ? AudioSpectrumView.Curve.Pitch : AudioSpectrumView.Curve.Volume, i >= 0); Refresh(); },
                 ZoundsProject.Instance.projectSettings.editorStyle.trimHandleColor);
             row.Add(bar);
             row.Add(Gap(8f));
-            clamp = ZS.Toggle("Clamp", "", model.ClampToTrim, v => { model.SetClampToTrim(v); Refresh(); }, "RichToggle", ZUICornerMask.All, 46f, CurveBarTK.H);
+            clamp = ZS.Toggle("Clamp", "", model.ClampToTrim, v => { if (!Guarded()) { clamp.SetValueWithoutNotify(model.ClampToTrim); return; } model.SetClampToTrim(v); Refresh(); }, "RichToggle", ZUICornerMask.All, 46f, CurveBarTK.H);
             clamp.AddToClassList("zs-curvebar__toggle");
             row.Add(clamp);
             // Keep length (on the pitch curve), T-0482. Present only for a Klip's chain curves.
             keepLen = ZS.Toggle("Keep length", AudioSpectrumView.KeepLengthTip(model.KeepLength), model.KeepLength,
-                v => { model.RequestKeepLength(v); keepLen.tooltip = AudioSpectrumView.KeepLengthTip(v); Refresh(); }, "RichToggle", ZUICornerMask.All, 72f, CurveBarTK.H);
+                v => { if (!Guarded()) { keepLen.SetValueWithoutNotify(model.KeepLength); return; } model.RequestKeepLength(v); keepLen.tooltip = AudioSpectrumView.KeepLengthTip(v); Refresh(); }, "RichToggle", ZUICornerMask.All, 72f, CurveBarTK.H);
             keepLen.AddToClassList("zs-curvebar__toggle");
             if (model.HasKlip) { row.Add(Gap(4f)); row.Add(keepLen); }
             // The sound's own values as the newest play hears them (curves and modulators included), while it plays. The
@@ -97,6 +106,7 @@ namespace Laubrary.Zounds.Uitk {
             row.Add(length);
             Add(row);
             Add(Space(3f));
+            AddEditBar();   // the audio edit bar (destructive editing, 2026-10-09)
 
             // ── the waveform area: GUI.Box, then the picture inset by 4 ──
             box = new VisualElement();
@@ -105,7 +115,7 @@ namespace Laubrary.Zounds.Uitk {
             box.style.height = AreaH;
             model.height = AreaH;
             Add(box);
-            area = new VisualElement { tooltip = "Mouse wheel: zoom within the trimmed range." };
+            area = new VisualElement { tooltip = "Click to place the edit cursor; drag to select audio (Shift+click extends the selection) for the edit bar above. Mouse wheel: zoom within the trimmed range." };
             area.AddToClassList("zs-waveform-area");
             area.AddToClassList("zs-klip-waveform__area");
             // Not clipped: the old view lets an envelope's end handles spill past the picture's edge, and so does this.
@@ -134,6 +144,7 @@ namespace Laubrary.Zounds.Uitk {
             combined = Abs(); combined.pickingMode = PickingMode.Ignore;
             combined.generateVisualContent += PaintCombined;
             area.Add(combined);
+            AddEditMarks();   // the edit selection and cursor (apart from the playheads), under the handles and curves
             heads = Abs(); area.Add(heads);
             handleStart = Abs(); handleEnd = Abs(); area.Add(handleStart); area.Add(handleEnd);
             handleStart.AddToClassList("zs-trimhandle"); handleEnd.AddToClassList("zs-trimhandle");
@@ -173,13 +184,17 @@ namespace Laubrary.Zounds.Uitk {
             });
             grip.RegisterCallback<PointerUpEvent>(e => { if (grip.HasPointerCapture(e.pointerId)) grip.ReleasePointer(e.pointerId); });
             box.Add(grip);
+            // The "Tell me" notice floats over the top of the waveform, so it never moves anything.
+            notice = new SwapNoticeTK();
+            notice.AddToClassList("zs-klip-waveform__notice");
+            box.Add(notice);
 
             area.RegisterCallback<WheelEvent>(OnWheel);
             area.RegisterCallback<PointerDownEvent>(OnDown);
             area.RegisterCallback<PointerMoveEvent>(OnMove);
             area.RegisterCallback<PointerUpEvent>(OnUp);
             area.RegisterCallback<PointerLeaveEvent>(_ => { volEnv.PointerLeft(); pitchEnv.PointerLeft(); timeEnv.PointerLeft(); });
-            area.RegisterCallback<KeyDownEvent>(e => { if (volEnv.KeyDown(e.keyCode) | pitchEnv.KeyDown(e.keyCode) | timeEnv.KeyDown(e.keyCode)) e.StopPropagation(); });
+            area.RegisterCallback<KeyDownEvent>(OnKey);
             area.RegisterCallback<GeometryChangedEvent>(_ => Refresh());
             schedule.Execute(Refresh).Every(33);
         }
@@ -190,20 +205,20 @@ namespace Laubrary.Zounds.Uitk {
             return new List<CurveBarTK.Curve> {
                 new CurveBarTK.Curve {
                     label = "Time", colour = AudioSpectrumView.TimeCurveColor,
-                    enabled = () => model.TimeEnvelope.enabled, setEnabled = v => { model.RequestTimeEnabled(v); Refresh(); },
+                    enabled = () => model.TimeEnvelope.enabled, setEnabled = v => { if (!Guarded()) { bar.Sync(); return; } model.RequestTimeEnabled(v); Refresh(); },
                     shown = () => CurveView.IsVisible(ModifierOf(AudioSpectrumView.Curve.Time)), setShown = v => { CurveView.SetVisible(ModifierOf(AudioSpectrumView.Curve.Time), v); Refresh(); },
                     onContext = a => ShowCurveSettings(AudioSpectrumView.Curve.Time, a),
                 },
                 new CurveBarTK.Curve {
                     label = "Pitch", colour = es.pitchEnvelopeColor,
-                    enabled = () => model.PitchEnvelope.enabled, setEnabled = v => { model.RequestPitchEnabled(v); Refresh(); },
+                    enabled = () => model.PitchEnvelope.enabled, setEnabled = v => { if (!Guarded()) { bar.Sync(); return; } model.RequestPitchEnabled(v); Refresh(); },
                     shown = () => CurveView.IsVisible(ModifierOf(AudioSpectrumView.Curve.Pitch)), setShown = v => { CurveView.SetVisible(ModifierOf(AudioSpectrumView.Curve.Pitch), v); Refresh(); },
                     warn = () => pitchOldScale, warnTip = KlipChainEnvelopes.OldScaleTip,
                     onContext = a => ShowCurveSettings(AudioSpectrumView.Curve.Pitch, a),
                 },
                 new CurveBarTK.Curve {
                     label = "Vol", colour = es.volumeEnvelopeColor,
-                    enabled = () => model.VolumeEnvelope.enabled, setEnabled = v => { model.RequestVolumeEnabled(v); Refresh(); },
+                    enabled = () => model.VolumeEnvelope.enabled, setEnabled = v => { if (!Guarded()) { bar.Sync(); return; } model.RequestVolumeEnabled(v); Refresh(); },
                     shown = () => CurveView.IsVisible(ModifierOf(AudioSpectrumView.Curve.Volume)), setShown = v => { CurveView.SetVisible(ModifierOf(AudioSpectrumView.Curve.Volume), v); Refresh(); },
                     onContext = a => ShowCurveSettings(AudioSpectrumView.Curve.Volume, a),
                 },
@@ -217,6 +232,9 @@ namespace Laubrary.Zounds.Uitk {
         /// above 1 boosts; points keep their values, clamped into the new range). One undo step per change.
         /// </summary>
         void ShowCurveSettings(AudioSpectrumView.Curve which, VisualElement anchor) {
+            if (EnvelopeOf(which) == null || !EnvelopeOf(which).enabled || ModifierOf(which) == null) return;
+            // Its settings are an edit of the sound: a shared one goes to a copy first, and the editor's curves are re-read.
+            if (!Guarded()) return;
             var env = EnvelopeOf(which);
             var mod = ModifierOf(which);
             if (env == null || !env.enabled || mod == null) return;
@@ -257,6 +275,24 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-klip-waveform__gap"); return e; }
+
+        // The audio edits' parts, in KlipWaveformTK.AudioEdits.cs (destructive editing, 2026-10-09).
+        partial void AddEditBar();
+        partial void AddEditMarks();
+        partial void PlaceEditMarks(Rect r);
+        partial void EditKey(KeyDownEvent e, ref bool handled);
+        partial void EditPress(PointerDownEvent e, Vector2 m, Rect r, ref bool handled);
+        partial void EditMove(Vector2 m, ref bool handled);
+        partial void EditRelease();
+
+        void OnKey(KeyDownEvent e) {
+            bool handled = false;
+            EditKey(e, ref handled);
+            if (handled) { e.StopPropagation(); return; }
+            // Delete removes the selected curve points: an edit of the sound, so a shared one goes to a copy first.
+            if (e.keyCode == KeyCode.Delete && AnySelected && !Guarded()) { e.StopPropagation(); return; }
+            if (volEnv.KeyDown(e.keyCode) | pitchEnv.KeyDown(e.keyCode) | timeEnv.KeyDown(e.keyCode)) e.StopPropagation();
+        }
 
         static Label AxisLabel() {
             var l = new Label { pickingMode = PickingMode.Ignore };
@@ -383,6 +419,7 @@ namespace Laubrary.Zounds.Uitk {
             }
 
             PlaceCrossmix(r, clip.length);
+            PlaceEditMarks(r);
 
             // Playheads, drawn over the dims and under the envelopes, as the old view draws them.
             ZoundEngine.CullingGroups.TryGetValue(klip, out var playing);
@@ -563,6 +600,9 @@ namespace Laubrary.Zounds.Uitk {
                 if (endLive && he.Contains(m) && (e.button == 0 || e.button == 1)) { StartTrim(e.button == 0 ? AudioSpectrumView.TrimDrag.End : AudioSpectrumView.TrimDrag.Both, time, e); return; }
                 if (startLive && hs.Contains(m) && (e.button == 0 || e.button == 1)) { StartTrim(e.button == 0 ? AudioSpectrumView.TrimDrag.Start : AudioSpectrumView.TrimDrag.Both, time, e); return; }
             }
+            // A curve being edited takes presses on it (points, its line, a box selection): an edit of the sound, so a
+            // shared one goes to a copy first. The curve objects stay the editor's own, so the press carries on.
+            if (AnySelected && e.button <= 1 && !Guarded()) { e.StopPropagation(); return; }
             foreach (var env in new[] { timeEnv, volEnv, pitchEnv }) {
                 if (env.resolvedStyle.display == DisplayStyle.None || env.rt == null) continue;
                 if (env.PointerDown(area.ChangeCoordinatesTo(env, m), e.button, e.clickCount, e.shiftKey)) {
@@ -572,9 +612,15 @@ namespace Laubrary.Zounds.Uitk {
                     return;
                 }
             }
+            // Nothing else took it: the edit cursor (a click) or a selection (a drag).
+            bool took = false;
+            EditPress(e, m, r, ref took);
+            if (took) e.StopPropagation();
         }
 
         void StartTrim(AudioSpectrumView.TrimDrag which, float time, PointerDownEvent e) {
+            // Moving the trim is an edit of the sound: a shared one goes to a copy first, and the drag carries on on it.
+            if (!Guarded()) { e.StopPropagation(); return; }
             model.BeginTrimDrag(which, time);
             trimDragging = true;
             area.CapturePointer(e.pointerId);
@@ -588,6 +634,9 @@ namespace Laubrary.Zounds.Uitk {
                 if (model.DragTrim(model.XToTimeIn(m.x, AreaRect))) Refresh();
                 return;
             }
+            bool moving = false;
+            EditMove(m, ref moving);
+            if (moving) return;
             if (active != null) { active.PointerMove(area.ChangeCoordinatesTo(active, m), e.deltaPosition, e.shiftKey, e.pressedButtons); return; }
             foreach (var env in new[] { volEnv, pitchEnv, timeEnv })
                 if (env.resolvedStyle.display != DisplayStyle.None && env.rt != null)
@@ -596,6 +645,7 @@ namespace Laubrary.Zounds.Uitk {
 
         void OnUp(PointerUpEvent e) {
             if (area.HasPointerCapture(e.pointerId)) area.ReleasePointer(e.pointerId);
+            EditRelease();
             if (trimDragging) { trimDragging = false; model.EndTrimDrag(); }
             if (active != null) { active.PointerUp(); active = null; }
             onReleased?.Invoke();
