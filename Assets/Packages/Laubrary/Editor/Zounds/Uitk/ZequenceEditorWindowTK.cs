@@ -12,8 +12,8 @@ namespace Laubrary.Zounds.Uitk {
     /// <summary>
     /// The Zequence editor window (T-0469; laid out afresh 2026-10-08 on the owner's review): the header fields row, then in
     /// the content box one compact toolbar (Mode, No-Play for a randomizer, Auto length or the authored Length, the timeline
-    /// edit tools switch, Tidy, then Retrigger, Bake…, Delete and Play), the audition card when it is pinned, the timeline
-    /// header (edit bar and overview when the edit tools are on, the ruler always), one card per track (plain tracks, and
+    /// Edit tools button, Tidy, then Retrigger, Bake…, Delete and Play), the playback options when they are pinned, the timeline
+    /// header (edit bar and overview when the edit tools are pinned, the ruler always), one card per track (plain tracks, and
     /// local Zequences as groups holding their own), the MASTER row and the add buttons. Every edit goes through the
     /// project's modify path, so Undo and saving behave as everywhere else.
     ///
@@ -41,7 +41,8 @@ namespace Laubrary.Zounds.Uitk {
         ZoundFieldsRowTK fields;
         VisualElement box;
         Button playButton;
-        ZuiToggleButton retriggerButton, editToolsButton;
+        ZuiToggleButton retriggerButton;
+        Button editToolsButton;
         Action retriggerSync;
         bool pinnedRetrigger;
         ScrollView scroll;
@@ -79,10 +80,15 @@ namespace Laubrary.Zounds.Uitk {
         [NonSerialized] ZoundToken auditionWhole;
         [NonSerialized] float auditionFrom;
 
-        // Per machine: whether the timeline's edit tools are shown, and whether the audition card is pinned into the window.
-        const string EditToolsKey = "Laubrary.Zounds.Zequence.EditTools", PinKey = "Laubrary.Zounds.AuditionPinned.Zequence";
-        static bool EditTools { get => EditorPrefs.GetBool(EditToolsKey, false); set => EditorPrefs.SetBool(EditToolsKey, value); }
-        static bool AuditionPinned { get => EditorPrefs.GetBool(PinKey, false); set => EditorPrefs.SetBool(PinKey, value); }
+        // The two pinnable tool groups (per machine, default not pinned): the timeline's edit tools (anchor: the Edit tools
+        // button) and the playback options (anchor: Play's right-click).
+        internal const string EditToolsKey = "Laubrary.Zounds.Zequence.EditTools", PlaybackPinKey = "Laubrary.Zounds.AuditionPinned.Zequence";
+        PinnableToolGroupTK editTools, playback;
+        /// <summary>The tool groups and their anchors (kept check 38).</summary>
+        internal PinnableToolGroupTK EditTools => editTools;
+        internal PinnableToolGroupTK Playback => playback;
+        internal Button EditToolsButton => editToolsButton;
+        internal Button PlayButton => playButton;
         // Per machine: auto-tidy (a right-click on Tidy) holds the view fitted and stops zooming and dragging it.
         const string AutoTidyKey = "Laubrary.Zounds.Zequence.AutoTidy";
         static bool AutoTidy { get => EditorPrefs.GetBool(AutoTidyKey, false); set => EditorPrefs.SetBool(AutoTidyKey, value); }
@@ -172,6 +178,8 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         protected override void OnDisable() {
+            playback?.ClosePopover();
+            editTools?.ClosePopover();
             ZoundPreviewPlayback.Dispose(this);
             KillAudition();
             base.OnDisable();
@@ -188,7 +196,7 @@ namespace Laubrary.Zounds.Uitk {
             playButton.tooltip = (live ? (audition.IsLoopPlaying(audition) ? "Stop loop" : "Stop the queued audition run.")
                                        : "Play this Zequence.")
                                + (armed ? "\n\n• Play on change is on: every change you make here plays the sound again." : "")
-                               + (AuditionPinned ? "\n\nPlay on change, Burst and Loop are on the pinned card below." : "\n\nRight-click: Play on change, Burst, Loop.");
+                               + (playback != null ? "\n\n" + playback.AnchorHint : "");
         }
 
         internal void Modify(string undo, Action a) { ZoundsWindow.ModifyZoundsProject(undo, a); Tick(); }
@@ -233,7 +241,7 @@ namespace Laubrary.Zounds.Uitk {
             SyncPinned();
             box.Add(Space(8f));
             header = new TimelineHeaderTK(this);
-            header.SetEditToolsVisible(EditTools);
+            header.SetPinnedBar(editTools.BuildPinned());
             box.Add(header);
             box.Add(Space(7f));
             if (zeq.zoundEntries.Count == 0) {
@@ -285,7 +293,7 @@ namespace Laubrary.Zounds.Uitk {
             var sb = new StringBuilder();
             Append(sb, zeq);
             sb.Append(zeq.masterVolumeEnvelope != null && zeq.masterVolumeEnvelope.enabled ? 'M' : 'm');
-            sb.Append(autoDuration ? 'A' : 'a').Append(EditTools ? 'T' : 't').Append(AuditionPinned ? 'P' : 'p');
+            sb.Append(autoDuration ? 'A' : 'a').Append(PinnableToolGroupTK.IsPinned(EditToolsKey) ? 'T' : 't').Append(PinnableToolGroupTK.IsPinned(PlaybackPinKey) ? 'P' : 'p');
             return sb.ToString();
         }
 
@@ -399,9 +407,14 @@ namespace Laubrary.Zounds.Uitk {
                                             : "The length is set by hand (the Length box). Click to have it follow the longest track.";
             });
             r.Add(Gap(6f));
-            editToolsButton = ZS.Toggle("Edit tools", "", EditTools, v => { EditTools = v; header?.SetEditToolsVisible(v); Tick(); }, "RichToggle", ZUICornerMask.Left, 70f, ToolH);
-            refreshers.Add(() => editToolsButton.tooltip = EditTools ? "The timeline's edit tools (zoom, follow, ripple, trim, split, delete, copy and paste, and the overview strip) are shown. Click to hide them and keep the window lean."
-                                                                     : "Show the timeline's edit tools: zoom, follow, ripple, trim, split, delete, copy and paste, and the overview strip.");
+            // The edit tools: a click or a right-click opens them as a popover (pinned: offers Unpin); pinned, they and the
+            // overview strip sit over the timeline. A pin change rebuilds the window (its signature has the pins).
+            editTools = new PinnableToolGroupTK(EditToolsKey, "edit tools", "the Edit tools button", "over the timeline", ctx => header?.BuildEditBar(ctx)) { changed = Tick };
+            editToolsButton = ZS.Button("Edit tools", "", "RichButton", null, ZUICornerMask.Left, 70f, ToolH);
+            editToolsButton.name = "edit-tools-anchor";
+            editTools.WireAnchor(editToolsButton, leftClickToo: true);
+            refreshers.Add(() => editToolsButton.tooltip = "The timeline's edit tools: zoom, follow, ripple, play from here, audition, trim, split, delete, copy and paste (their keys work without them); pinned, the overview strip too. "
+                                                           + editTools.AnchorHint + (!editTools.Pinned && header != null && header.ReadoutText.Length > 0 ? "\n\nNow: " + header.ReadoutText : ""));
             r.Add(editToolsButton);
             // Tidy: a click tidies once; a right-click switches auto-tidy on or off, and the button stays lit while it is on.
             tidyButton = ZS.Toggle("Tidy", "", AutoTidy, _ => { tidyButton.SetValueWithoutNotify(AutoTidy); Tidy(); }, "RichToggle", ZUICornerMask.Right, 44f, ToolH);
@@ -428,33 +441,30 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(Gap(6f));
             r.Add(IconButton("remove", "Delete this Zequence from the project (asks first). Cannot be undone.", "RichButton", ZUICornerMask.All, 30f, ToolH, RemoveZound));
             r.Add(Gap(6f));
-            // Pinned audition controls (Play on change, Burst, Loop, Pin) sit right before Play, on its row; empty and
-            // zero-width while the card is not pinned. SyncPinned fills it.
+            // The pinned playback options' first row (Play on change, Burst, Loop, Pin) sits right before Play, on its row;
+            // empty and zero-width while they are not pinned. SyncPinned fills it.
             pinnedInline = new VisualElement();
             pinnedInline.AddToClassList("zs-zequence-editor__pinned-inline");
             r.Add(pinnedInline);
+            playback = AuditionCardTK.Group(PlaybackPinKey, () => { EnsureAudition(); return audition; }, () => pinnedInline, "beside Play");
+            playback.changed = Tick;
+            playback.WireUnpinMenu(pinnedInline);
             playButton = ZS.Button("Play", "", "RichButton", () => {
                 EnsureAudition();
                 if (audition.BurstRunning || audition.LoopRunning) audition.StopRun();
                 else audition.PlayOnce();
                 Tick();
             }, ZUICornerMask.All, 60f, ToolH);
-            // Right-click: the audition card (T-0486), unless it is pinned into the window.
-            var pb = playButton;
-            pb.RegisterCallback<PointerDownEvent>(e => {
-                if (e.button != 1) return;
-                e.StopPropagation();
-                EnsureAudition();
-                if (AuditionPinned) return;
-                AuditionPopupTK.Show(pb, audition, v => { AuditionPinned = v; SyncPinned(); Tick(); });
-            });
+            // Right-click: the playback options (T-0486), or, while they are pinned, Unpin.
+            playback.WireAnchor(playButton);
             r.Add(playButton);
             SyncPlayButton();
             SyncRetriggerButton();
             return r;
         }
 
-        /// <summary>The pinned audition card under the toolbar, or nothing: the slot keeps no height while empty.</summary>
+        /// <summary>The pinned playback options' second row under the toolbar (their first row on Play's row), or nothing:
+        /// the slot keeps no height while empty.</summary>
         void SyncPinned() {
             if (pinnedSlot == null) return;
             pinnedSlot.Clear();
@@ -465,10 +475,9 @@ namespace Laubrary.Zounds.Uitk {
             // audition card's second row sits on the right of the same row.
             if (pinnedRetrigger) pinnedSlot.Add(RetriggerPopupTK.Inline(zeq, Tick, out retriggerSync));
             pinnedSlot.Add(Flex());
-            pinnedSlot.style.display = pinnedRetrigger || AuditionPinned ? DisplayStyle.Flex : DisplayStyle.None;
-            if (!AuditionPinned) { SyncPlayButton(); return; }
-            EnsureAudition();
-            var card = new AuditionCardTK(audition, true, v => { AuditionPinned = v; SyncPinned(); Tick(); }, pinnedInline);
+            var card = playback?.BuildPinned();
+            pinnedSlot.style.display = pinnedRetrigger || card != null ? DisplayStyle.Flex : DisplayStyle.None;
+            if (card == null) { SyncPlayButton(); return; }
             card.AddToClassList("zs-audition-card--pinned");
             card.AddToClassList("zs-audition-card--under-play");
             if (pinnedInline != null) {

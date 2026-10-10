@@ -11,10 +11,10 @@ namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
     /// The Klip editor's waveform block (T-0468): the curve bar (the one shared with the Zequence tracks: Trim, then Time /
-    /// Pitch / Vol each with on, edit and eye), Clamp and Keep length, the length, the audio edit bar, and the waveform
+    /// Pitch / Vol each with on, edit and eye), Clamp and Keep length, the Edit tools button, the length, the pinned edit tools, and the waveform
     /// surface -- the same <see cref="WaveSurfaceTK"/> every Klip track of the Zequence editor uses, so the sound is drawn
     /// and edited the same way in both. This block is that surface's Klip-editor host: the axis is the old view object's
-    /// (its view window and wheel zoom, its trim geometry and drags); the edit marker, the selection, the edit bar, the
+    /// (its view window and wheel zoom, its trim geometry and drags); the edit marker, the selection, the edit tools, the
     /// selection's right-click menu and the mouse schemes are in KlipWaveformTK.AudioEdits.cs.
     /// </summary>
     public partial class KlipWaveformTK : VisualElement, IWaveSurfaceHost {
@@ -77,6 +77,8 @@ namespace Laubrary.Zounds.Uitk {
                 v => { if (!Guarded()) { keepLen.SetValueWithoutNotify(model.KeepLength); return; } model.RequestKeepLength(v); keepLen.tooltip = AudioSpectrumView.KeepLengthTip(v); Refresh(); }, "RichToggle", ZUICornerMask.All, 72f, CurveBarTK.H);
             keepLen.AddToClassList("zs-curvebar__toggle");
             if (model.HasKlip) { row.Add(Gap(4f)); row.Add(keepLen); }
+            row.Add(Gap(8f));
+            AddEditAnchor(row);   // the edit tools: a popover from here, or pinned in a bar under this row
             length = new Label();
             length.AddToClassList("zs-lbl"); length.AddToClassList("zs-mini");
             length.AddToClassList("zs-klip-waveform__length");
@@ -84,7 +86,7 @@ namespace Laubrary.Zounds.Uitk {
             row.Add(length);
             Add(row);
             Add(Space(3f));
-            AddEditBar();   // the audio edit bar (destructive editing, 2026-10-09)
+            AddEditBar();   // the pinned edit tools' slot (destructive editing, 2026-10-09; pinnable 2026-10-10)
 
             // ── the waveform surface (the one the Zequence tracks use too) ──
             surface = new WaveSurfaceTK(this, framed: true);
@@ -137,6 +139,7 @@ namespace Laubrary.Zounds.Uitk {
 
         // The audio edits' parts, in KlipWaveformTK.AudioEdits.cs (destructive editing, 2026-10-09).
         partial void AddEditBar();
+        partial void AddEditAnchor(VisualElement row);
         partial void AddEditMarks();
         partial void PlaceEditMarks(Rect r);
         partial void EditKey(KeyDownEvent e, ref bool handled);
@@ -266,8 +269,8 @@ namespace Laubrary.Zounds.Uitk {
         bool IWaveSurfaceHost.ContextPress(PointerDownEvent e, Vector2 m, Rect r) => ContextPressHere(m, r);
 
         string IWaveSurfaceHost.ClickTip => ZoundsMachineSettings.WaveMouseScheme == ZoundsMachineSettings.WaveMouse.Halves
-            ? "Upper half: click to place the edit marker; drag to select audio (Shift+click extends the selection) for the edit bar above. Lower half: click to play only this sound from there (again: stop). Mouse wheel: zoom within the trimmed range. (Settings > Waveform mouse.)"
-            : "Click to place the edit marker; drag to select audio (Shift+click extends the selection) for the edit bar above; double-click to play only this sound from there. Mouse wheel: zoom within the trimmed range. (Settings > Waveform mouse.)";
+            ? "Upper half: click to place the edit marker; drag to select audio (Shift+click extends the selection) for the edit tools (the Edit tools button, or a right-click on the selection). Lower half: click to play only this sound from there (again: stop). Mouse wheel: zoom within the trimmed range. (Settings > Waveform mouse.)"
+            : "Click to place the edit marker; drag to select audio (Shift+click extends the selection) for the edit tools (the Edit tools button, or a right-click on the selection); double-click to play only this sound from there. Mouse wheel: zoom within the trimmed range. (Settings > Waveform mouse.)";
 
         string IWaveSurfaceHost.RightClickTip => ZoundsMachineSettings.WaveMouseScheme == ZoundsMachineSettings.WaveMouse.Halves
             ? "Right-click a selection in the upper half: its edits (play it, cut, copy, paste, trim to it…). Right-click anywhere else: play only this sound from there (again: stop)."

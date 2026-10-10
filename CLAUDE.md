@@ -135,6 +135,16 @@ Cut / copy / paste / insert / delete / duplicate-insert / duplicate-paste on a s
 - **A file going away leaves the Addressables groups too** (`ZoundsAudioEdits.ForgetAddressable`); deleting the asset does not remove its entry.
 - The Zequence timeline's own trims, excerpts and splits stay non-destructive; do not route them through this.
 
+### Tool groups in the editors, as of 2026-10-10 — one pinnable type; never write a second
+
+The playback options (the audition card) and the edit tools (the verb bars) in the Klip and Zequence editors are each a `PinnableToolGroupTK` (`Editor/Zounds/Uitk/PinnableToolGroupTK.cs`): a popover from its anchor (Play's right-click; the Edit tools button's click or right-click), or pinned into the window's bar. **Any other group of tools that should be either a popover or part of a bar uses this type; never hand-roll another popover-plus-pin path** (the old audition popup and the Edit tools show/hide switch were exactly that and were removed). Rules that are easy to break:
+
+- **Both groups default to not pinned.** The pin is an editor preference per group and per editor (keys in the windows: `PlaybackPinKey`, `EditToolsKey`, `KlipWaveformTK.EditPinKey`); it is view state, so it is not part of Undo. Existing keys were kept so earlier choices carry over; do not rename them.
+- **The group owns the presenting; the host owns the content and where a pinned group goes.** A builder receives a context: which way it is shown, the Pin toggle to place (end of the first row, before any variable-width readout), and `done` for an action to close the popover (a switch or setting leaves it open). Pinned content comes from `BuildPinned()`; the Zequence playback options split it over Play's row and the row under it.
+- **Only one copy of a group's content exists at a time** (pinned or in the popover), so a host that keeps references to its controls (the edit buttons, the readout) follows the newest copy. Keys and the selection menu never depend on the bar being shown.
+- **A right-click on a pinned group away from its controls, or on its anchor, offers Unpin.** Controls keep their own right-click.
+- Kept check 38 measures it with real pointer events in both editors; check 37 pins the Klip edit tools for its run.
+
 Background documents: the authoritative technical foundation is `D:/Claude@GDrive/Zounds GC-Stutter-Free Audio Architecture Research 2026-09-26.md` (sections 1 and 7 for the plan, 8 for the validation test). `D:/Claude@GDrive/HH2 Audio Effect Chains Architecture.md` describes the existing engine the new path has to match. The 2026-09-25 native-DSP roadmap is **partly superseded** — its phases assume a hand-written C++ plugin as the target, which the 2026-09-26 research replaces; read it for history, not direction. The 2026-09-11 lifetime health report is at `D:/Claude@GDrive/Zounds Lifetime Health Report 2026-09-11.md`.
 
 ## Cartographer and MetaMapper — developed HERE since 2026-10-02

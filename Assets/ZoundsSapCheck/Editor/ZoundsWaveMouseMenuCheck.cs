@@ -89,6 +89,9 @@ public static class ZoundsWaveMouseMenuCheck {
         const string EditToolsKey = "Laubrary.Zounds.Zequence.EditTools";
         bool keepEditTools = EditorPrefs.GetBool(EditToolsKey, false);
         EditorPrefs.SetBool(EditToolsKey, true);
+        // The Klip editor's edit tools pinned too (default: not), so its edit bar is in the window for the clicks below.
+        bool keepKlipEditTools = PinnableToolGroupTK.IsPinned(KlipWaveformTK.EditPinKey);
+        PinnableToolGroupTK.SetPinnedQuietly(KlipWaveformTK.EditPinKey, true);
         var keepClipboard = ZoundsAudioEdits.Clipboard;
         SetSchemeQuietly(WaveMouse.ClickSelects);
         Undo.IncrementCurrentGroup();
@@ -316,6 +319,7 @@ public static class ZoundsWaveMouseMenuCheck {
             ZoundsAudioEdits.Clipboard = keepClipboard;
             SetSchemeQuietly(keepScheme);
             EditorPrefs.SetBool(EditToolsKey, keepEditTools);
+            PinnableToolGroupTK.SetPinnedQuietly(KlipWaveformTK.EditPinKey, keepKlipEditTools);
             ZoundsProject.Instance.zoundLibrary.zequences.RemoveAll(z => z.id == -9900);
             ZoundEngine.InvalidateLookups();
             if (projectBytes != null) {

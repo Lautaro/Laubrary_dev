@@ -8,18 +8,23 @@ using UnityEngine.UIElements;
 namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
-    /// The Zequence window's timeline header (T-0562..T-0565): the edit bar (view, playback and editing actions, then the
-    /// readout), the overview strip (the whole Zequence in miniature, the visible window as a box you can drag, and the
-    /// time cursor), and the ruler (seconds, finer as you zoom in; click it to set the moment Play from here and Paste use).
+    /// The Zequence window's timeline header (T-0562..T-0565): the edit bar (view, playback and editing actions, the Pin
+    /// toggle, then the readout), the overview strip (the whole Zequence in miniature, the visible window as a box you can
+    /// drag, and the time cursor), and the ruler (seconds, finer as you zoom in; click it to set the moment Play from here
+    /// and Paste use).
     ///
-    /// The edit bar is one row that never wraps: every control is always there, and only the readout's text changes, so
-    /// nothing below it ever moves when a selection appears or a notice arrives.
+    /// The edit bar is the window's edit tools (a <see cref="PinnableToolGroupTK"/>, 2026-10-10): pinned, it and the
+    /// overview strip sit here; not pinned (the default), the bar opens as a popover from the Edit tools button and the
+    /// overview strip is not shown. The bar is one row that never wraps: every control is always there, and only the
+    /// readout's text changes, so nothing below it ever moves when a selection appears or a notice arrives.
     /// </summary>
     internal sealed class TimelineHeaderTK : VisualElement {
 
         readonly ZequenceEditorWindowTK win;
-        readonly VisualElement overview, ruler, editBar;
+        readonly VisualElement overview, ruler;
         Label readout;
+        /// <summary>The readout's text (the window's Edit tools button repeats it while the tools are not pinned).</summary>
+        internal string ReadoutText { get; private set; } = "";
         readonly List<Label> tickLabels = new List<Label>();
         readonly Dictionary<string, VisualElement> controls = new Dictionary<string, VisualElement>();
         ZuiToggleButton follow, ripple, loop;
@@ -32,8 +37,6 @@ namespace Laubrary.Zounds.Uitk {
         public TimelineHeaderTK(ZequenceEditorWindowTK win) {
             this.win = win;
             AddToClassList("zs-timeline-header");
-            editBar = EditBar();
-            Add(editBar);
             overview = new VisualElement();
             overview.AddToClassList("zs-timeline-header__overview"); overview.style.height = OverviewHeight;
             overview.generateVisualContent += PaintOverview;
@@ -41,6 +44,7 @@ namespace Laubrary.Zounds.Uitk {
             overview.RegisterCallback<PointerDownEvent>(OverviewDown);
             overview.RegisterCallback<PointerMoveEvent>(OverviewMove);
             overview.RegisterCallback<PointerUpEvent>(e => { if (overview.HasPointerCapture(e.pointerId)) overview.ReleasePointer(e.pointerId); });
+            overview.style.display = DisplayStyle.None;   // shown with the pinned edit tools (SetPinnedBar)
             Add(overview);
             ruler = new VisualElement();
             ruler.AddToClassList("zs-timeline-header__ruler"); ruler.style.height = RulerHeight;
@@ -58,16 +62,19 @@ namespace Laubrary.Zounds.Uitk {
             Add(ruler);
         }
 
-        /// <summary>The edit tools (the edit bar and the overview strip) are optional (owner, 2026-10-08); the ruler stays,
-        /// being the tracks' time axis.</summary>
-        public void SetEditToolsVisible(bool on) {
-            editBar.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
-            overview.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+        /// <summary>The pinned edit tools (the window's edit tool group's pinned content; null when not pinned): put at the
+        /// top with the overview strip under them. Not pinned, neither shows; the ruler stays, being the tracks' time axis.</summary>
+        public void SetPinnedBar(VisualElement bar) {
+            if (bar != null) Insert(0, bar);
+            overview.style.display = bar != null ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         // ─────────────────────────── edit bar ───────────────────────────
 
-        VisualElement EditBar() {
+        /// <summary>The edit bar, for the pinned header or the popover (only one exists at a time; the controls followed are
+        /// the newest one's). An action closes the popover; a switch (Follow, Ripple, Loop) leaves it open.</summary>
+        internal VisualElement BuildEditBar(PinnableToolGroupTK.Ctx ctx) {
+            controls.Clear();
             var r = new VisualElement();
             r.AddToClassList("zs-timeline-header__edit-bar");
             r.style.height = lh;
@@ -75,7 +82,7 @@ namespace Laubrary.Zounds.Uitk {
             // Every button and switch is built by the shared verb faces (EditVerbsTK), as the Klip editor's edit bar is:
             // the same verb has the same icon, label and shortcut in both editors.
             Button B(string key, EditVerb v, string tip, Action a, ZUICornerMask corners = ZUICornerMask.All) {
-                var b = EditVerbsTK.Button(v, tip, () => { a(); win.OnTimelineChanged(); }, corners, h);
+                var b = EditVerbsTK.Button(v, tip, () => { a(); win.OnTimelineChanged(); ctx.done(); }, corners, h);
                 b.AddToClassList("zs-timeline-header__control");
                 controls[key] = b; r.Add(b);
                 return b;
@@ -107,10 +114,13 @@ namespace Laubrary.Zounds.Uitk {
             B("copy", EditVerb.Copy, "Copy the selected part of each selected track (Ctrl+C).", () => win.Say(TimelineEdits.Copy(TL)), ZUICornerMask.Left);
             B("paste", EditVerb.Paste, "", () => win.Say(TimelineEdits.Paste(win, TL, win.PasteTime())), ZUICornerMask.Right);
             Gap();
+            r.Add(ctx.pin);
+            Gap();
             readout = new Label { pickingMode = PickingMode.Position };
             readout.AddToClassList("zs-lbl"); readout.AddToClassList("zs-greymini");
             readout.AddToClassList("zs-timeline-header__readout");
             r.Add(readout);
+            if (TL != null) Sync();
             return r;
         }
 
@@ -125,6 +135,11 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>Values and state that change without a rebuild (5 Hz and after edits).</summary>
         public void Sync() {
             if (TL == null) return;
+            bool sel = TL.hasSel, tracks = TL.selTracks.Count > 0;
+            string sText = sel ? (TL.selB > TL.selA ? ZequenceTimeline.Seconds(TL.selA) + " – " + ZequenceTimeline.Seconds(TL.selB) + " (" + ZequenceTimeline.Seconds(TL.selB - TL.selA) + ")" : "at " + ZequenceTimeline.Seconds(TL.selA))
+                                   + (tracks ? ", " + TL.selTracks.Count + (TL.selTracks.Count == 1 ? " track" : " tracks") : ", all tracks") : "";
+            ReadoutText = string.IsNullOrEmpty(TL.readout) ? sText : (sText.Length > 0 ? sText + "   ·   " : "") + TL.readout;
+            if (follow == null) return;   // no edit bar built yet (not pinned, popover never opened)
             follow.SetValueWithoutNotify(TL.follow); ZS.ApplyOnColor(follow, new Color(0.22f, 0.45f, 0.75f, 1f));
             ripple.SetValueWithoutNotify(TL.ripple); ZS.ApplyOnColor(ripple, new Color(0.22f, 0.45f, 0.75f, 1f));
             loop.SetValueWithoutNotify(TL.loop); ZS.ApplyOnColor(loop, new Color(0.22f, 0.45f, 0.75f, 1f));
@@ -141,7 +156,6 @@ namespace Laubrary.Zounds.Uitk {
                                    : "Loop is off: Audition plays the selection once. Click to have it repeat until stopped, to tune a trim by ear.";
             controls["paste"].tooltip = TimelineEdits.CanPaste ? "Paste the copied pieces at the clicked moment or the selection's start, as new tracks (Ctrl+V). A piece of a local sound gets a copy of its own; a piece of a library sound plays its excerpt of it."
                                                                  : "Nothing copied yet: copy a part of a track first (Ctrl+C).";
-            bool sel = TL.hasSel, tracks = TL.selTracks.Count > 0;
             controls["zsel"].SetEnabled(sel && TL.selB > TL.selA);
             controls["ztrack"].SetEnabled(tracks);
             controls["aud"].SetEnabled(sel && TL.selB > TL.selA);
@@ -151,9 +165,7 @@ namespace Laubrary.Zounds.Uitk {
             controls["del"].SetEnabled(tracks);
             controls["copy"].SetEnabled(tracks);
             controls["paste"].SetEnabled(TimelineEdits.CanPaste);
-            string sText = sel ? (TL.selB > TL.selA ? ZequenceTimeline.Seconds(TL.selA) + " – " + ZequenceTimeline.Seconds(TL.selB) + " (" + ZequenceTimeline.Seconds(TL.selB - TL.selA) + ")" : "at " + ZequenceTimeline.Seconds(TL.selA))
-                                   + (tracks ? ", " + TL.selTracks.Count + (TL.selTracks.Count == 1 ? " track" : " tracks") : ", all tracks") : "";
-            readout.text = string.IsNullOrEmpty(TL.readout) ? sText : (sText.Length > 0 ? sText + "   ·   " : "") + TL.readout;
+            readout.text = ReadoutText;
             readout.tooltip = readout.text.Length > 0 ? readout.text : "The selection and the result of the last edit show here.";
         }
 

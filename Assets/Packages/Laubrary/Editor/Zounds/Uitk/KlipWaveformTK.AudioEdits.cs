@@ -11,7 +11,8 @@ namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
     /// The Klip editor waveform's editing (destructive editing 2026-10-09; the shared verbs, the selection menu and the
-    /// mouse schemes 2026-10-10): the edit bar over the waveform, the edit marker and selection drawn on the waveform
+    /// mouse schemes 2026-10-10; pinnable 2026-10-10): the edit tools (a popover from the Edit tools button, or pinned
+    /// in a bar over the waveform, one shared tool group type), the edit marker and selection drawn on the waveform
     /// (apart from the playheads), the right-click menu on a selection, and the keys.
     ///
     /// The mouse follows the Settings tab's "Waveform mouse" (per machine). Click to select (the default): a left click
@@ -70,10 +71,47 @@ namespace Laubrary.Zounds.Uitk {
 
         // ─────────────────────────── building ───────────────────────────
 
+        /// <summary>The edit tools' pin, per machine (default: not pinned, so the bar takes no row until it is pinned).</summary>
+        internal const string EditPinKey = "Laubrary.Zounds.EditToolsPinned.Klip";
+        PinnableToolGroupTK editTools;
+        Button editAnchor;
+        VisualElement editSlot;
+        /// <summary>The edit tools' group and its anchor button (kept check 38).</summary>
+        internal PinnableToolGroupTK EditTools => editTools;
+        internal Button EditAnchor => editAnchor;
+
+        PinnableToolGroupTK EnsureEditTools() {
+            if (editTools != null) return editTools;
+            editTools = new PinnableToolGroupTK(EditPinKey, "edit tools", "the Edit tools button", "in a bar over the waveform", EditBar) { rowH = EditH };
+            editTools.changed = SyncEditGroup;
+            return editTools;
+        }
+
+        partial void AddEditAnchor(VisualElement row) {
+            // On the curve bar's row: a click or a right-click opens the edit tools (pinned: offers Unpin).
+            editAnchor = ZS.Button("Edit tools", "", "RichButton", null, ZUICornerMask.All, 66f, CurveBarTK.H);
+            editAnchor.name = "edit-tools-anchor";
+            editAnchor.AddToClassList("zs-curvebar__toggle");
+            EnsureEditTools().WireAnchor(editAnchor, leftClickToo: true);
+            row.Add(editAnchor);
+        }
+
         partial void AddEditBar() {
-            // One fixed row, always all there: what changes is only whether a button is enabled and what the readout says.
-            Add(EditBar());
-            Add(Space(3f));
+            // The pinned edit bar's slot: one fixed row while pinned, nothing (no height) while not.
+            editSlot = new VisualElement();
+            editSlot.AddToClassList("zs-klip-waveform__edit-slot");
+            Add(editSlot);
+            SyncEditGroup();
+        }
+
+        void SyncEditGroup() {
+            if (editSlot == null) return;
+            editSlot.Clear();
+            var bar = EnsureEditTools().BuildPinned();
+            if (bar != null) { editSlot.Add(bar); editSlot.Add(Space(3f)); }
+            editSlot.style.display = bar != null ? DisplayStyle.Flex : DisplayStyle.None;
+            editBarSynced = false;
+            SyncEditBar();
         }
 
         partial void AddEditMarks() {
@@ -91,27 +129,35 @@ namespace Laubrary.Zounds.Uitk {
             menuAnchor = Abs(); surface.overlay.Add(menuAnchor);
         }
 
-        VisualElement EditBar() {
+        /// <summary>The edit bar: the verbs in their groups, the Pin toggle, then the readout (variable width, so last). One
+        /// fixed row, always all there: what changes is only whether a button is enabled and what the readout says. Built
+        /// into the pinned slot or into the popover; only one exists at a time, and the buttons and readout followed are
+        /// the newest one's.</summary>
+        VisualElement EditBar(PinnableToolGroupTK.Ctx ctx) {
             var r = new VisualElement();
             r.AddToClassList("zs-klip-waveform__edit-bar");
             r.style.height = EditH;
+            editButtons.Clear();
             for (int g = 0; g < BarGroups.Length; g++) {
                 if (g > 0) r.Add(Gap(6f));
                 var group = BarGroups[g];
                 for (int i = 0; i < group.Length; i++) {
                     var v = group[i];
                     var corners = group.Length == 1 ? ZUICornerMask.All : i == 0 ? ZUICornerMask.Left : i == group.Length - 1 ? ZUICornerMask.Right : ZUICornerMask.None;
-                    var b = EditVerbsTK.Button(v, "", () => RunVerb(v), corners, EditH);
+                    var b = EditVerbsTK.Button(v, "", () => { RunVerb(v); ctx.done(); }, corners, EditH);
                     b.AddToClassList("zs-klip-waveform__edit-button");
                     editButtons[v] = b;
                     r.Add(b);
                 }
             }
             r.Add(Gap(8f));
+            r.Add(ctx.pin);
+            r.Add(Gap(8f));
             editReadout = new Label { pickingMode = PickingMode.Position };
             editReadout.AddToClassList("zs-lbl"); editReadout.AddToClassList("zs-greymini");
             editReadout.AddToClassList("zs-klip-waveform__edit-readout");
             r.Add(editReadout);
+            editBarSynced = false;
             SyncEditBar();
             return r;
         }
@@ -232,13 +278,12 @@ namespace Laubrary.Zounds.Uitk {
 
         internal void SetEditMessage(string message) { lastEditMessage = message ?? ""; SyncEditBar(); }
 
-        (bool, double, double, double, double, string, bool, WaveMouse) editBarKey;
+        (bool, double, double, double, double, string, bool, WaveMouse, bool) editBarKey;
         bool editBarSynced;
 
         void SyncEditBar() {
-            if (editReadout == null) return;
             bool sel = HasSelection, at = cursor >= 0d;
-            var key = (Edits.HasClipboard, Edits.ClipboardSeconds, cursor, selA, selB, lastEditMessage, enabledInHierarchy, Scheme);
+            var key = (Edits.HasClipboard, Edits.ClipboardSeconds, cursor, selA, selB, lastEditMessage, enabledInHierarchy, Scheme, editTools != null && editTools.Pinned);
             if (editBarSynced && key.Equals(editBarKey)) return;
             editBarKey = key; editBarSynced = true;
             foreach (var kv in editButtons) {
@@ -248,10 +293,16 @@ namespace Laubrary.Zounds.Uitk {
             string s = sel ? Edits.Seconds(selA) + " – " + Edits.Seconds(selB) + " (" + Edits.Seconds(selB - selA) + ")"
                      : at ? "marker at " + Edits.Seconds(cursor) : "";
             string text = lastEditMessage.Length == 0 ? s : (s.Length > 0 ? s + "   ·   " : "") + lastEditMessage;
+            string how = Scheme == WaveMouse.Halves ? "Click the upper half of the waveform to place the marker; drag there to select (Shift+click extends)."
+                                                    : "Click the waveform to place the marker; drag to select (Shift+click extends).";
+            if (editAnchor != null && editTools != null) {
+                // Not pinned, the readout is out of view: the anchor says it instead.
+                editAnchor.tooltip = "The edit tools: play from the marker or the selection, trim, delete, cut, copy, paste, insert and duplicate (their keys work without them). "
+                                   + editTools.AnchorHint + (!editTools.Pinned && text.Length > 0 ? "\n\nNow: " + text : "");
+            }
+            if (editReadout == null) return;
             if (editReadout.text != text) editReadout.text = text;
-            editReadout.tooltip = text.Length > 0 ? text : "The edit marker, the selection and the result of the last audio edit show here. " +
-                                  (Scheme == WaveMouse.Halves ? "Click the upper half of the waveform to place the marker; drag there to select (Shift+click extends)."
-                                                              : "Click the waveform to place the marker; drag to select (Shift+click extends).");
+            editReadout.tooltip = text.Length > 0 ? text : "The edit marker, the selection and the result of the last audio edit show here. " + how;
         }
 
         // ─────────────────────────── drawing ───────────────────────────

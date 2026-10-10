@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — pinnable tool groups: the playback options and the edit tools, a popover or pinned into the bar (2026-10-10)
+
+Branch `feat/zounds-destructive-edit`.
+
+- **One kind of tool group for both editors.** The playback options (Play on change, Burst, Loop, Plays, Gap and the gap mode) and the edit tools (the verb bar: play from the marker or the selection, trim, delete, cut, copy, paste, insert, duplicate; in the Zequence editor also zoom, follow, ripple, loop, untrim and split) now work the same way: **not pinned (the default for both), they open as a popover** from their anchor; the popover's **Pin** puts them into the window's bar; pinned, the same Pin shows lit and a click unpins, and a **right-click on the pinned group (away from its controls) or on its anchor offers Unpin**. The pin is remembered per machine, per group and per editor.
+- **Anchors.** Playback options: a right-click on **Play** (as before). Edit tools: the **Edit tools** button — in the Zequence toolbar (it used to be a show/hide switch) and, new, on the Klip editor's curve bar row; a click or a right-click opens them. Their tooltips say how to reach the group, and while the edit tools are not pinned the button's tooltip also carries the marker, selection and last-edit line the bar's readout shows.
+- **Layouts pinned are unchanged:** the Zequence editor's playback options keep their first row on Play's row and the second under it; the Klip editor's card sits under the Play row; the edit bars sit where they were (over the waveform; over the timeline, with the overview strip, which shows only while the Zequence edit tools are pinned). Not pinned, the Klip editor no longer spends a row on the edit bar. Earlier pins carry over (the Zequence "Edit tools" switch and both audition pins keep their saved state).
+- In a popover, an action (a verb) closes it once run; a switch or setting leaves it open. Keyboard shortcuts work whether the tools are pinned or not. The waveform's right-click menu on a selection is unchanged.
+- **Fixes:** the waveform stays inside its frame at any Gain (on a Zequence track, loud spikes used to run under the height grip along the lane's bottom; full scale now reaches the edge of the area the grip leaves free, red clip marks on that edge); the Gain slider's 100 % tick no longer crosses the "G" of its label (a slider's default tick becomes a stub at the top and bottom edges wherever the label's text spans it, in every skin slider with a default mark).
+- Kept check 38 drives both editors with real pointer events (default unpinned, popover from each anchor, Pin, reopening, four ways to unpin). Check 37 pins the Klip edit tools for its run.
+
 ### Zounds — the waveform's selection menu, two mouse schemes, icon edit bars shared by both editors (2026-10-10)
 
 Branch `feat/zounds-destructive-edit`.

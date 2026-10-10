@@ -897,3 +897,10 @@
 .zs-root.zs-klip-waveform__play-zone, .zs-root .zs-klip-waveform__play-zone { background-color: rgba(120, 200, 140, 0.08); }
 .zs-root .zs-klip-waveform__zone-icon { position: absolute; -unity-background-image-tint-color: rgba(255, 255, 255, 0.55); }
 .zs-root .zs-settings__wave-mouse { flex-shrink: 0; }
+
+/* A pinnable tool group (PinnableToolGroupTK): the edit tools and the playback options, in a popover or pinned in a bar.
+   In the popover the content-sized card gives the readout a width of its own (pinned, it takes the bar's leftover room). */
+.zs-root .zs-toolgroup--popover .zs-klip-waveform__edit-readout,
+.zs-root .zs-toolgroup--popover .zs-lbl.zs-timeline-header__readout { flex-grow: 0; width: 240px; min-width: 240px; }
+.zs-root .zs-toolgroup__pin { flex-shrink: 0; }
+.zs-root .zs-klip-waveform__edit-slot { flex-shrink: 0; }

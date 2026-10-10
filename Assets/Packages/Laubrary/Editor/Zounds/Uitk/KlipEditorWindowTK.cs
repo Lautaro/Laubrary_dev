@@ -66,9 +66,12 @@ namespace Laubrary.Zounds.Uitk {
         internal KlipWaveformTK Waveform => waveform;
         bool draggingWaveform;
         [System.NonSerialized] bool shownTrimOnce;
-        // The audition card pinned into the window (owner, 2026-10-08) instead of behind Play's right-click; per machine.
-        const string PinKey = "Laubrary.Zounds.AuditionPinned.Klip";
-        static bool AuditionPinned { get => EditorPrefs.GetBool(PinKey, false); set => EditorPrefs.SetBool(PinKey, value); }
+        // The playback options (the audition card): a popover from Play's right-click, or pinned under the action row.
+        internal const string PlaybackPinKey = "Laubrary.Zounds.AuditionPinned.Klip";
+        PinnableToolGroupTK playback;
+        /// <summary>The playback options' tool group (kept check 38).</summary>
+        internal PinnableToolGroupTK Playback => playback;
+        internal Button PlayButton => playButton;
         VisualElement pinnedSlot;
 
         // ── destructive editing (2026-10-09) ──
@@ -162,6 +165,8 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         protected override void OnDisable() {
+            playback?.ClosePopover();
+            waveform?.EditTools?.ClosePopover();
             UnwireAudioEdits();
             ZoundPreviewPlayback.Dispose(this);
             // Closing, and the disable Unity sends before every script reload: nothing this window started may outlive it.
@@ -364,37 +369,28 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(ZequenceEditorWindowTK.IconButton("remove", "Delete this sound from the project (asks first). Cannot be undone.", "RichButton", ZUICornerMask.All, 30f, h, Remove));
             r.Add(Gap(6f));
             playButton = ZS.Button("Play", "", "RichButton", PlayOrStop, ZUICornerMask.All, 60f, h);
-            WireAuditionMenu(playButton);
+            // Right-click: the playback options (T-0486), or, while they are pinned, Unpin.
+            playback = AuditionCardTK.Group(PlaybackPinKey, () => { EnsureAudition(); return audition; }, null, "under the Play row");
+            playback.changed = () => { SyncPinned(); SyncPlayButton(); };
+            playback.WireAnchor(playButton);
             r.Add(playButton);
             SyncPlayButton();
             return r;
         }
 
-        /// <summary>Right-click on Play opens the audition card (T-0486), unless it is pinned into the window.</summary>
-        void WireAuditionMenu(Button b) {
-            b.RegisterCallback<PointerDownEvent>(e => {
-                if (e.button != 1) return;
-                e.StopPropagation();
-                EnsureAudition();
-                if (AuditionPinned) return;
-                AuditionPopupTK.Show(b, audition, v => { AuditionPinned = v; SyncPinned(); });
-            });
-        }
-
-        /// <summary>The pinned audition card under the action row, or nothing: the slot keeps no height while empty.</summary>
+        /// <summary>The pinned playback options under the action row, or nothing: the slot keeps no height while empty.</summary>
         void SyncPinned() {
             if (pinnedSlot == null) return;
             pinnedSlot.Clear();
             retriggerSync = null;
             pinnedRetrigger = klip != null && klip.retriggerEnabled;
             // While Retrigger is on, its options sit on the left of the row under the action row (owner, 2026-10-09); the
-            // pinned audition card sits on the right.
+            // pinned playback options sit on the right.
             if (pinnedRetrigger) pinnedSlot.Add(RetriggerPopupTK.Inline(klip, Sync, out retriggerSync));
             pinnedSlot.Add(Flex());
-            pinnedSlot.style.display = pinnedRetrigger || AuditionPinned ? DisplayStyle.Flex : DisplayStyle.None;
-            if (!AuditionPinned) return;
-            EnsureAudition();
-            var card = new AuditionCardTK(audition, true, v => { AuditionPinned = v; SyncPinned(); SyncPlayButton(); });
+            var card = playback?.BuildPinned();
+            pinnedSlot.style.display = pinnedRetrigger || card != null ? DisplayStyle.Flex : DisplayStyle.None;
+            if (card == null) return;
             card.AddToClassList("zs-audition-card--pinned");
             pinnedSlot.Add(card);
             SyncPlayButton();
@@ -409,7 +405,7 @@ namespace Laubrary.Zounds.Uitk {
             playButton.tooltip = (live ? (audition.IsLoopPlaying(audition) ? "Stop loop" : "Stop the queued audition run.")
                                        : "Play this Klip.")
                                + (armed ? "\n\n• Play on change is on: every change you make here plays the sound again." : "")
-                               + (AuditionPinned ? "\n\nPlay on change, Burst and Loop are on the pinned card below." : "\n\nRight-click: Play on change, Burst, Loop.");
+                               + (playback != null ? "\n\n" + playback.AnchorHint : "");
         }
 
         void SyncRetriggerButton() {
