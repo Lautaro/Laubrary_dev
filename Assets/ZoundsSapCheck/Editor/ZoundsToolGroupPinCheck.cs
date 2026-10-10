@@ -94,6 +94,7 @@ public static class ZoundsToolGroupPinCheck {
 
         ZequenceEditorWindowTK zw = null;
         KlipEditorWindowTK kw = null;
+        var oldIds = new HashSet<int>();
         void OpenBoth() {
             zw = ZequenceEditorWindowTK.Open(zeq, false);
             zw.position = new Rect(120, 120, 1400, 460);
@@ -101,6 +102,8 @@ public static class ZoundsToolGroupPinCheck {
             kw.position = new Rect(160, 200, 1000, 760);
         }
         void CloseBoth() {
+            if (zw != null) oldIds.Add(zw.GetInstanceID());
+            if (kw != null) oldIds.Add(kw.GetInstanceID());
             try { if (zw != null) zw.Close(); } catch (Exception e) { Debug.LogException(e); }
             try { if (kw != null) kw.Close(); } catch (Exception e) { Debug.LogException(e); }
             zw = null; kw = null;
@@ -203,11 +206,13 @@ public static class ZoundsToolGroupPinCheck {
             () => { },
             () => {
                 Check(AllKeys(true) && AllPinnedLayout(), "3. Zequence: Pin puts the edit bar and the overview over the timeline; all four pinned. " + Layout());
-                // 4. Reopen
-                CloseBoth(); OpenBoth();
+                // 4. Reopen: closed now and opened on a later frame, as a person would.
+                CloseBoth();
             },
+            () => OpenBoth(),
             () => { },
             () => {
+                Check(!oldIds.Contains(zw.GetInstanceID()) && !oldIds.Contains(kw.GetInstanceID()), "4. both windows are new ones, not the closed ones reused");
                 Check(AllKeys(true) && AllPinnedLayout(), "4. closed and opened again: all four still pinned. " + Layout());
                 // 5. Unpin, four ways. Klip card: its lit Pin.
                 var pin = PinIn(KCard());
@@ -247,17 +252,22 @@ public static class ZoundsToolGroupPinCheck {
             () => {
                 Check(Open(zw.Playback), "5. unpinned, a right-click on Play opens the popover again");
                 zw.Playback.ClosePopover();
-                CloseBoth(); OpenBoth();
+                CloseBoth();
             },
+            () => OpenBoth(),
             () => { },
-            () => Check(AllKeys(false) && NonePinnedLayout(), "6. closed and opened again: all four stay unpinned. " + Layout()),
+            () => {
+                Check(!oldIds.Contains(zw.GetInstanceID()) && !oldIds.Contains(kw.GetInstanceID()), "6. both windows are new ones again");
+                Check(AllKeys(false) && NonePinnedLayout(), "6. closed and opened again: all four stay unpinned. " + Layout());
+            },
         };
 
         int frame = 0, step = 0;
         EditorApplication.CallbackFunction tick = null;
         tick = () => {
             frame++;
-            zw?.Repaint(); kw?.Repaint();
+            if (zw != null) zw.Repaint();
+            if (kw != null) kw.Repaint();
             if (frame < 40 || frame % 12 != 0) return;
             bool stop = false;
             try { steps[step](); }
