@@ -58,7 +58,8 @@ public static class ZoundsWaveMouseMenuCheck {
         Send(area, EventType.MouseUp, to, 0);
     }
 
-    static void SetSchemeQuietly(WaveMouse v) {
+    /// <summary>Sets the waveform mouse scheme without an Undo step (a check's own setup and clean-up).</summary>
+    internal static void SetSchemeQuietly(WaveMouse v) {
         var s = ZoundsMachineSettings.instance;
         typeof(ZoundsMachineSettings).GetField("waveMouse", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(s, (int)v);
         typeof(ZoundsMachineSettings).GetMethod("SaveIfChanged", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(s, null);

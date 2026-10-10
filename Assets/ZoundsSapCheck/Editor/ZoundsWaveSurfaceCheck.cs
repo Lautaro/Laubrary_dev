@@ -63,6 +63,9 @@ public static class ZoundsWaveSurfaceCheck {
 
         string projectJson = ZoundsProjectInitialization.GetZoundsProjectPath();
         byte[] projectBytes = !string.IsNullOrEmpty(projectJson) && File.Exists(ZoundsProtection.Absolute(projectJson)) ? File.ReadAllBytes(ZoundsProtection.Absolute(projectJson)) : null;
+        // The gestures below are the default mouse scheme's (Settings > Waveform mouse): it is set for the run, put back after.
+        var keepScheme = ZoundsMachineSettings.WaveMouseScheme;
+        ZoundsWaveMouseMenuCheck.SetSchemeQuietly(ZoundsMachineSettings.WaveMouse.ClickSelects);
         Undo.IncrementCurrentGroup();
         int startGroup = Undo.GetCurrentGroup();
         var lib = ZoundsProject.Instance.zoundLibrary;
@@ -231,6 +234,7 @@ public static class ZoundsWaveSurfaceCheck {
             if (!stop && step < steps.Count) return;
             EditorApplication.update -= tick;
             WaveSurfaceTK.playFromProbe = null;
+            ZoundsWaveMouseMenuCheck.SetSchemeQuietly(keepScheme);
             try { if (zw != null) zw.Close(); } catch (Exception e) { Debug.LogException(e); }
             try { if (kw != null) kw.Close(); } catch (Exception e) { Debug.LogException(e); }
             try { Undo.RevertAllDownToGroup(startGroup); } catch (Exception e) { Debug.LogException(e); }

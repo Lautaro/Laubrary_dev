@@ -81,6 +81,22 @@ public static class ZoundsGainTrimTidyMeterCheck {
         return outp;
     }
 
+    /// <summary>
+    /// The save that follows the shared sound's copy-on-edit makes a shipped file for the copy (named after it) and lists
+    /// it in the Addressables group: both are removed again, so the run leaves nothing behind.
+    /// </summary>
+    static void RemoveMadeFiles() {
+        foreach (var guid in AssetDatabase.FindAssets("check t:AudioClip", new[] { "Assets" })) {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (!Path.GetFileName(path).StartsWith("check 35", StringComparison.Ordinal)) continue;
+            ZoundsAudioEdits.ForgetAddressable(guid);
+            AssetDatabase.DeleteAsset(path);
+        }
+        // The group that listed it is written now (only it), not left dirty for the next save.
+        foreach (var g in AssetDatabase.FindAssets("t:AddressableAssetGroup"))
+            AssetDatabase.SaveAssetIfDirty(AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(g)));
+    }
+
     static int Diff(float[] a, float[] b) { if (a.Length != b.Length) return -1; int d = 0; for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) d++; return d; }
 
     /// <summary>A Klip with a chain of one effect-free modifier-free nothing: only its own curves act.</summary>
@@ -309,6 +325,10 @@ public static class ZoundsGainTrimTidyMeterCheck {
         ZuiSkinSlider GainIn(VisualElement root) => root.Q<ZuiSkinSlider>(className: "zs-gain");
         // A real drag on a slider: press in its middle, move to a share of its width, release.
         void Drag(VisualElement sl, float frac) {
+            // Say which it is if a drag cannot happen: the slider missing, or not laid out yet (a test-timing problem, not
+            // the slider's).
+            if (sl == null) throw new Exception("the Gain slider was not found in the window");
+            if (sl.panel == null || sl.layout.width < 10f) throw new Exception("the Gain slider is not laid out yet (" + sl.layout.width + " px wide)");
             float w = sl.layout.width, y = sl.layout.height * 0.5f;
             Send(sl, EventType.MouseDown, new Vector2(w * 0.5f, y), 0);
             Send(sl, EventType.MouseDrag, new Vector2(w * frac, y), 0);
@@ -466,6 +486,7 @@ public static class ZoundsGainTrimTidyMeterCheck {
             l2.zequences.RemoveAll(z => z.id == -9870 || z.id == -9872);
             l2.klips.RemoveAll(k => k.id == -9880 || (k.name != null && k.name.StartsWith("check 35 shared")));
             ZoundEngine.InvalidateLookups();
+            RemoveMadeFiles();
             done(LastReport = (fail == 0 ? "PASS" : "FAIL (" + fail + ")") + " - gain, trim randomness, Tidy, level meter\n" + sb);
         };
         EditorApplication.update += tick;
