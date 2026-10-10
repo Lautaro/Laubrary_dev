@@ -1,4 +1,5 @@
 using Laubrary.Zounds.Destructive;
+using UnityEngine;
 
 namespace Laubrary.Zounds.Uitk {
 
@@ -31,11 +32,13 @@ namespace Laubrary.Zounds.Uitk {
         void DoAudioEdit(ZoundsAudioEdits.Verb verb) {
             if (klip == null || waveform == null) return;
             if (verb != ZoundsAudioEdits.Verb.Copy) audition?.StopAll();
+            var view = spectrum != null ? spectrum.ViewSeconds : Vector2.zero;
             var res = ZoundsAudioEdits.Apply(klip, new ZoundsAudioEdits.Request {
                 verb = verb, cursor = waveform.cursor, selA = waveform.selA, selB = waveform.selB });
             if (!res.done) { waveform.SetEditMessage(res.message); return; }
             if (res.swap.swapped) FollowCopy(res.swap);
-            if (verb != ZoundsAudioEdits.Verb.Copy) { spectrum?.InvalidateWaveform(); RefreshSpectrum(); }
+            // The view stays on the part of the file it showed (a new file would otherwise reset it to the whole recording).
+            if (verb != ZoundsAudioEdits.Verb.Copy) { spectrum?.InvalidateWaveform(); RefreshSpectrum(); if (spectrum != null) spectrum.ViewSeconds = view; }
             waveform.EditDone(res.message, res.cursor, res.selA, res.selB);
             if (res.notice != null) {
                 var sw = res.swap;
@@ -63,14 +66,17 @@ namespace Laubrary.Zounds.Uitk {
             });
             RefreshSpectrum();
             spectrum?.ShowTrim();
-            waveform.EditDone("Trimmed to " + ZoundsAudioEdits.Seconds(a) + " – " + ZoundsAudioEdits.Seconds(b) + ".", a, a, b);
+            // The selection has become the trim: the marker stays at its start, the selection is cleared.
+            waveform.EditDone("Trimmed to " + ZoundsAudioEdits.Seconds(a) + " – " + ZoundsAudioEdits.Seconds(b) + ".", a, 0d, 0d);
         }
 
         /// <summary>A file changed on disk (an edit here or elsewhere, or an undo putting a version back): re-read the view.</summary>
         void OnFileChanged(string path) {
             if (klip == null || spectrum == null) return;
+            var view = spectrum.ViewSeconds;
             spectrum.InvalidateWaveform();
             RefreshSpectrum();
+            spectrum.ViewSeconds = view;
             SyncBadge();
         }
     }

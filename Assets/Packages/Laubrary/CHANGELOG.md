@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — the waveform's selection menu, two mouse schemes, icon edit bars shared by both editors (2026-10-10)
+
+Branch `feat/zounds-destructive-edit`.
+
+- **Right-click a selection on the Klip editor's waveform: its edits**, in a menu at the pointer — Play selection, Cut, Copy, Paste, Insert, Delete, Duplicate insert, Duplicate paste, Trim to selection, Select all — each with its icon and shortcut. An item that cannot run now is greyed and its tooltip says why. Every item runs exactly what the edit bar's button runs (one path, the same Undo step, the same copy-on-edit guard).
+- **Settings > Waveform mouse** (kept per machine, one Undo step): **Click to select** (the default) — left click places the edit marker, left drag selects, double-click plays from the pointer (the marker and selection stay), right-click plays from the pointer, right-click inside a selection opens its menu. **Halves** — the upper half places the marker, selects and opens a selection's menu; the lower half plays from the pointer with either button; a faint line, a faint shade over the lower half and a small mark in each half show the zones. With a curve being edited, presses on it still go to the curve first.
+- **Paste and Insert need a marker:** with none placed they are greyed and say "Place a marker first (click the wave)" (in Halves: the upper half).
+- **One set of verb buttons for both editors.** The Klip editor's edit bar and the Zequence editor's timeline bar are built from one table of verb faces (icon, short label, menu name, shortcut), so a verb looks and reads the same everywhere: every button now carries an icon (the zoom buttons are icon only). The Klip editor's bar gains the Zequence bar's single-sound verbs — **Here** (play from the marker), **Audition** (play the selection; Space), **Trim** (to the selection, T; the file is not changed) and **Delete** (removes the selection like Cut without keeping it; Delete key) — and Select all (Ctrl+A). Timeline-only verbs (zoom, follow, ripple, loop, untrim, split) stay in the Zequence bar: the Klip view is always kept around its trim, and the curve bar's Trim switch already does Untrim.
+- **The view stays put through an audio edit:** a cut or paste that writes a new file used to reset the waveform to the whole recording; it now keeps showing the same seconds (also after an undo).
+- **ZUI:** a menu item can show a keyboard shortcut at its right end, and a greyed item keeps its tooltip.
+- Kept check 37 drives both editors with real pointer events (both schemes, the menu against the bar, icons, the marker rule). Check 34 now pins the default scheme for its run; check 35 removes the shipped file and Addressables entry its shared-copy step made.
+
 ### Zounds — the owner's list of 2026-10-09: Zequence effects, Gain, level meter, random trim edges, Tidy (2026-10-09)
 
 Branch `feat/zounds-destructive-edit`.

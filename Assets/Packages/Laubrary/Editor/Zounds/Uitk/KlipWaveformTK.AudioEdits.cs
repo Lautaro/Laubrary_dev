@@ -40,7 +40,7 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>The edit marker and the selection, in seconds of the file; marker below 0 = none placed yet.</summary>
         internal double cursor = -1d, selA, selB;
         internal bool HasSelection => selB > selA + 1e-9;
-        VisualElement selBand, editCursor, zoneLine, zoneShade, menuAnchor;
+        VisualElement selBand, editCursor, zoneLine, zoneShade, zoneEdit, zonePlay, menuAnchor;
         readonly Dictionary<EditVerb, Button> editButtons = new Dictionary<EditVerb, Button>();
         Label editReadout;
         string lastEditMessage = "";
@@ -80,6 +80,11 @@ namespace Laubrary.Zounds.Uitk {
             // On the surface's marks layer: under the playheads, trim edges and curves.
             zoneShade = Abs(); zoneShade.AddToClassList("zs-klip-waveform__play-zone"); surface.marks.Add(zoneShade);
             zoneLine = Abs(); zoneLine.AddToClassList("zs-klip-waveform__zone-line"); surface.marks.Add(zoneLine);
+            // Halves: a small mark in each half saying what it is for (select, play); the waveform's tooltip says more.
+            zoneEdit = Z.Icon("cursor-text", 12f) ?? Abs(); zoneEdit.pickingMode = PickingMode.Ignore;
+            zoneEdit.AddToClassList("zs-wave-surface__positioned"); zoneEdit.AddToClassList("zs-klip-waveform__zone-icon"); surface.marks.Add(zoneEdit);
+            zonePlay = Z.Icon("play", 12f) ?? Abs(); zonePlay.pickingMode = PickingMode.Ignore;
+            zonePlay.AddToClassList("zs-wave-surface__positioned"); zonePlay.AddToClassList("zs-klip-waveform__zone-icon"); surface.marks.Add(zonePlay);
             selBand = Abs(); selBand.AddToClassList("zs-klip-waveform__selection"); surface.marks.Add(selBand);
             editCursor = Abs(); editCursor.AddToClassList("zs-klip-waveform__edit-cursor"); surface.marks.Add(editCursor);
             // Where the selection menu opens: a point at the pointer, on the overlay.
@@ -263,11 +268,14 @@ namespace Laubrary.Zounds.Uitk {
             if (at) Place(editCursor, new Rect(cx - 0.5f, r.y, 1f, r.height));
             // Halves: a faint line through the middle, and a faint shade over the lower (listening) half.
             bool halves = Scheme == WaveMouse.Halves;
-            zoneLine.style.display = zoneShade.style.display = halves ? DisplayStyle.Flex : DisplayStyle.None;
+            zoneLine.style.display = zoneShade.style.display = zoneEdit.style.display = zonePlay.style.display = halves ? DisplayStyle.Flex : DisplayStyle.None;
             if (halves) {
                 float mid = Mathf.Round(r.y + r.height * 0.5f);
                 Place(zoneLine, new Rect(r.x, mid, r.width, 1f));
                 Place(zoneShade, Rect.MinMaxRect(r.x, mid + 1f, r.xMax, r.yMax));
+                // At the left edge, in the middle of each half (the pitch axis labels sit at the top, middle and bottom).
+                Place(zoneEdit, new Rect(r.x + 4f, Mathf.Round(r.y + r.height * 0.25f - 6f), 12f, 12f));
+                Place(zonePlay, new Rect(r.x + 4f, Mathf.Round(r.y + r.height * 0.75f - 6f), 12f, 12f));
             }
             SyncEditBar();
         }

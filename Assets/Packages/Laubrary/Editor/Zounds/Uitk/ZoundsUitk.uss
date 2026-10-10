@@ -893,6 +893,7 @@
 .zs-root .zs-verb.zs-verb--icon-only .zs-verb__icon { margin: 0; }
 /* The Klip waveform in the Halves mouse scheme: a faint line through the middle and a faint shade over the lower
    (listening) half, so the two zones can be seen. */
-.zs-root.zs-klip-waveform__zone-line, .zs-root .zs-klip-waveform__zone-line { background-color: rgba(255, 255, 255, 0.16); }
-.zs-root.zs-klip-waveform__play-zone, .zs-root .zs-klip-waveform__play-zone { background-color: rgba(120, 200, 140, 0.05); }
+.zs-root.zs-klip-waveform__zone-line, .zs-root .zs-klip-waveform__zone-line { background-color: rgba(255, 255, 255, 0.24); }
+.zs-root.zs-klip-waveform__play-zone, .zs-root .zs-klip-waveform__play-zone { background-color: rgba(120, 200, 140, 0.08); }
+.zs-root .zs-klip-waveform__zone-icon { position: absolute; -unity-background-image-tint-color: rgba(255, 255, 255, 0.55); }
 .zs-root .zs-settings__wave-mouse { flex-shrink: 0; }

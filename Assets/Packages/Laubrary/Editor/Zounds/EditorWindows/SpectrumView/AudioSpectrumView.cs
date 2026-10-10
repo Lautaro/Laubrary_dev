@@ -503,6 +503,18 @@ namespace Laubrary.Zounds {
             ConstrainView();
         }
 
+        /// <summary>The part of the file the view shows, in seconds. Set it back after the view is re-read from a sound whose
+        /// file changed (an audio edit writes a new file, which would otherwise reset the view to the whole recording).</summary>
+        internal Vector2 ViewSeconds {
+            get => new Vector2(viewStart, viewEnd);
+            set {
+                if (originalClip == null || value.y <= value.x) return;
+                zoomFactor = Mathf.Max(1f, originalClip.length / Mathf.Max(1e-4f, value.y - value.x));
+                viewStart = value.x;
+                ConstrainView();
+            }
+        }
+
         internal AudioClip OriginalClip => originalClip;
         internal bool TrimEnabled => m_trimEnabled;
         internal bool ClampToTrim => m_clampToTrim;

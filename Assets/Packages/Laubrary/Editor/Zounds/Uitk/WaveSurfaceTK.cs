@@ -82,7 +82,7 @@ namespace Laubrary.Zounds.Uitk {
     /// combined result of everything moving them, the trim edges, one playhead per read head of each play of this sound,
     /// what the newest play hears, and the height grip. Its gestures: a press on a point or on the line of the curve being
     /// edited edits it (add, drag, delete, random points, bend, box select); an edge of the trim drags it (a right-drag on
-    /// one moves both edges together); a right-click anywhere else plays only this sound from that second; the Delete key
+    /// one moves both edges together); a right-click anywhere else is offered to the host (the Klip editor's selection menu), else it plays only this sound from that second; the Delete key
     /// removes selected points. A left press nothing here took is the host's (the Klip editor's edit cursor, a track's
     /// timeline gestures). The host only says where the seconds are drawn (<see cref="IWaveSurfaceHost"/>).
     /// </summary>
