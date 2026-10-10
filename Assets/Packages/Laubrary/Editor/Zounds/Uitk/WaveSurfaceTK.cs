@@ -566,7 +566,10 @@ namespace Laubrary.Zounds.Uitk {
             var sum = WaveSummary.For(clip);
             if (sum == null) return;
             float g = GainOf(Sound);
-            float mid = r.height * 0.5f, amp = r.height * WaveHeightPerUnit;
+            // The wave stays inside its frame: the grip along the bottom edge lies over the area (wholly, on a track's lane),
+            // so the wave is drawn in the band above it, around the same middle line, with full scale at that band's edge.
+            float mid = r.height * 0.5f, half = WaveHalfHeight(r), amp = half * (WaveHeightPerUnit / 0.5f);
+            float top = mid - half, bottom = mid + half;
             var full = Es.waveformColor;
             var faint = new Color(full.r, full.g, full.b, full.a * 0.5f);
             // Two passes, so each colour is one path: the played part, then the unplayed parts.
@@ -580,8 +583,8 @@ namespace Laubrary.Zounds.Uitk {
                     float sa = host.SourceAt(x, r), sb = host.SourceAt(x + 1f, r);
                     if (!sum.Range(sa, sb, out float mn, out float mx)) continue;
                     if (pass == 0 && (mx * g > 1f || mn * g < -1f)) clipped.Add(x + 0.5f);
-                    float y0 = Mathf.Max(0f, mid - mx * g * amp), y1 = Mathf.Min(r.height, mid - mn * g * amp);
-                    if (y1 - y0 < 1f) { y0 -= 0.5f; y1 += 0.5f; }
+                    float y0 = Mathf.Max(top, mid - mx * g * amp), y1 = Mathf.Min(bottom, mid - mn * g * amp);
+                    if (y1 - y0 < 1f) { y0 = Mathf.Max(top, y0 - 0.5f); y1 = Mathf.Min(bottom, y1 + 0.5f); }
                     p2.MoveTo(new Vector2(x + 0.5f, y0)); p2.LineTo(new Vector2(x + 0.5f, y1));
                 }
                 p2.Stroke();
@@ -591,11 +594,23 @@ namespace Laubrary.Zounds.Uitk {
             if (clipped.Count > 0) {
                 p2.strokeColor = new Color(1f, 0.25f, 0.2f, 0.95f); p2.lineWidth = 1f;
                 p2.BeginPath();
-                foreach (float cx in clipped) { p2.MoveTo(new Vector2(cx, 0f)); p2.LineTo(new Vector2(cx, 3f)); p2.MoveTo(new Vector2(cx, r.height - 3f)); p2.LineTo(new Vector2(cx, r.height)); }
+                foreach (float cx in clipped) { p2.MoveTo(new Vector2(cx, top)); p2.LineTo(new Vector2(cx, top + 3f)); p2.MoveTo(new Vector2(cx, bottom - 3f)); p2.LineTo(new Vector2(cx, bottom)); }
                 p2.Stroke();
             }
         }
         readonly List<float> clipped = new List<float>();
+
+        /// <summary>Half the height the wave may use around the area's middle: up to the top edge and down to where the
+        /// height grip starts covering the area (whichever is nearer), so no stroke ever reaches under the grip or past
+        /// the frame.</summary>
+        internal float WaveHalfHeight(Rect r) {
+            float mid = r.height * 0.5f, bottomEdge = r.height;
+            if (grip != null && grip.resolvedStyle.display != DisplayStyle.None) {
+                float gripTop = grip.layout.yMin - area.layout.yMin;   // both laid out in the surface
+                if (!float.IsNaN(gripTop) && gripTop > mid) bottomEdge = Mathf.Min(bottomEdge, gripTop);
+            }
+            return Mathf.Max(1f, Mathf.Min(mid, bottomEdge - mid));
+        }
 
         /// <summary>A sample's height on the waveform, as a share of the area's height per unit of amplitude: full scale
         /// reaches (just inside) the edge. The old waveform picture drew 0.75, so anything above two thirds of full scale

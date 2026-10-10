@@ -67,26 +67,74 @@ namespace Laubrary.Zui
 
         public void SetValueWithoutNotify(float v) { _value = Mathf.Clamp(v, _min, _max); Refresh(); }
 
-        VisualElement _defaultMark;
+        // The default tick: one line, or, where the label's text crosses it, two stubs at the top and bottom edges so it
+        // never draws through a letter (_defaultMarkLow is the bottom stub, hidden while the tick is one line).
+        VisualElement _defaultMark, _defaultMarkLow;
         TextField _typeIn;
         Func<string, float?> _parseTyped;
         Action<float> _onTyped;
 
         /// <summary>
         /// Draws a thin tick on the track where the default value sits (the value a double-click returns to), so a
-        /// changed value is visible at a glance. Needs the default given to the constructor.
+        /// changed value is visible at a glance. Needs the default given to the constructor. Where the label's text
+        /// sits over the tick, the tick shrinks to a stub at each edge of the track, so it never crosses a letter.
         /// </summary>
         public ZuiSkinSlider WithDefaultMark()
         {
             if (!_default.HasValue || _defaultMark != null) return this;
-            _defaultMark = new VisualElement { pickingMode = PickingMode.Ignore };
-            _defaultMark.AddToClassList("zui-skinslider__default");
-            _defaultMark.style.position = Position.Absolute;
-            _defaultMark.style.width = 1f; _defaultMark.style.top = 2f; _defaultMark.style.bottom = 2f;
-            _defaultMark.style.backgroundColor = new Color(1f, 1f, 1f, 0.6f);
-            Insert(IndexOf(_label), _defaultMark);
+            VisualElement Mark()
+            {
+                var m = new VisualElement { pickingMode = PickingMode.Ignore };
+                m.AddToClassList("zui-skinslider__default");
+                m.style.position = Position.Absolute;
+                m.style.width = 1f;
+                m.style.backgroundColor = new Color(1f, 1f, 1f, 0.6f);
+                Insert(IndexOf(_label), m);
+                return m;
+            }
+            _defaultMark = Mark();
+            _defaultMarkLow = Mark();
             Refresh();
             return this;
+        }
+
+        /// <summary>The default tick (kept checks): its top part, and its bottom stub (shown only while the text crosses it).</summary>
+        public VisualElement DefaultMarkForTest => _defaultMark;
+        public VisualElement DefaultMarkLowForTest => _defaultMarkLow;
+        /// <summary>The label's text, as drawn (kept checks).</summary>
+        public Label LabelForTest => _label;
+
+        /// <summary>Places the default tick: a line from 2 px below the top to 2 px above the bottom, or, when the label's
+        /// text spans the tick's x, a stub at each edge that stops short of the glyphs (the text is centred both ways).</summary>
+        void PlaceDefaultMark()
+        {
+            float w = resolvedStyle.width, h = resolvedStyle.height;
+            float x = (_max > _min ? Mathf.InverseLerp(_min, _max, _default.Value) : 0f) * (float.IsNaN(w) ? 0f : w);
+            _defaultMark.style.left = Length.Percent((_max > _min ? Mathf.InverseLerp(_min, _max, _default.Value) : 0f) * 100f);
+            _defaultMarkLow.style.left = _defaultMark.style.left;
+            bool crosses = true;   // before the first layout: assume the text is there
+            float half = 0f;
+            if (!float.IsNaN(w) && w > 0f && !float.IsNaN(h) && h > 0f && !string.IsNullOrEmpty(_label.text))
+            {
+                var sz = _label.MeasureTextSize(_label.text, 0, MeasureMode.Undefined, 0, MeasureMode.Undefined);
+                float fs = _label.resolvedStyle.fontSize;
+                if (float.IsNaN(fs) || fs <= 0f) fs = 12f;
+                // The glyphs' band: half a cap height plus a descender's worth either side of the middle.
+                half = Mathf.Ceil(fs * 0.45f);
+                crosses = sz.x <= 0f || (x >= (w - sz.x) * 0.5f - 2f && x <= (w + sz.x) * 0.5f + 2f);
+            }
+            else if (string.IsNullOrEmpty(_label.text)) crosses = false;
+            if (!crosses || float.IsNaN(h) || h <= 0f)
+            {
+                _defaultMark.style.top = 2f; _defaultMark.style.bottom = 2f; _defaultMark.style.height = StyleKeyword.Auto;
+                _defaultMarkLow.style.display = DisplayStyle.None;
+                return;
+            }
+            // A stub from the edge to 1 px short of the glyph band, at least 2 px long.
+            float stub = Mathf.Max(2f, Mathf.Floor(h * 0.5f - half - 1f));
+            _defaultMark.style.top = 0f; _defaultMark.style.bottom = StyleKeyword.Auto; _defaultMark.style.height = stub;
+            _defaultMarkLow.style.display = DisplayStyle.Flex;
+            _defaultMarkLow.style.top = StyleKeyword.Auto; _defaultMarkLow.style.bottom = 0f; _defaultMarkLow.style.height = stub;
         }
 
         /// <summary>
@@ -143,8 +191,6 @@ namespace Laubrary.Zui
         void Refresh()
         {
             float t = _max > _min ? Mathf.InverseLerp(_min, _max, _value) : 0f;
-            if (_defaultMark != null)
-                _defaultMark.style.left = Length.Percent((_max > _min ? Mathf.InverseLerp(_min, _max, _default.Value) : 0f) * 100f);
             _fill.style.width = Length.Percent(t * 100f);
             _rest.style.width = Length.Percent((1f - t) * 100f);
             _fill.style.display = t > 0f ? DisplayStyle.Flex : DisplayStyle.None;
@@ -154,6 +200,7 @@ namespace Laubrary.Zui
                         : _mode == LabelMode.LabelOnly ? _text
                         : string.IsNullOrEmpty(_text) ? v : _text + " " + v;   // "Chance 100", as the min/max bars read "Volume 90-100"
             ZuiSkinTrackLabel.Fit(_label, full, _mode == LabelMode.LabelAndValue ? v : null, resolvedStyle.width);
+            if (_defaultMark != null) PlaceDefaultMark();   // after the text is fitted: the tick steps around it
         }
 
         void SetFromPointer(Vector2 local)
