@@ -97,9 +97,10 @@ namespace Laubrary.Zui
         /// A menu item: click runs <paramref name="onClick"/> then closes the menu (GenericMenu semantics).
         /// <paramref name="checked"/> draws a tick in the left gutter; <paramref name="icon"/> (a ZUI icon
         /// name, resolved via ZUIAssetLibrary.FindIcon) draws a 14px glyph before the label;
-        /// <paramref name="enabled"/>:false greys the row and ignores clicks.
+        /// <paramref name="enabled"/>:false greys the row and ignores clicks (its tooltip still shows, so it can say
+        /// why); <paramref name="shortcut"/> (e.g. "Ctrl+X") is shown greyed at the row's right end.
         public ZuiMenu Item(string label, string tooltip, Action onClick,
-            bool @checked = false, bool enabled = true, string icon = null)
+            bool @checked = false, bool enabled = true, string icon = null, string shortcut = null)
         {
             // _currentSection must be read INSIDE the deferred lambda, not here at chain-build time: every
             // row (this Item's own included) is only a queued Action until Show() actually runs `_rows` in
@@ -111,7 +112,7 @@ namespace Laubrary.Zui
             _rows.Add((menu, close) =>
             {
                 var section = _currentSection;
-                var row = BuildItem(label, tooltip, onClick, @checked, enabled, icon, close);
+                var row = BuildItem(label, tooltip, onClick, @checked, enabled, icon, shortcut, close);
                 menu.Add(row);
                 if (_searchEnabled) _searchableItems.Add((row, (label ?? "").ToLowerInvariant(), section));
             });
@@ -120,7 +121,7 @@ namespace Laubrary.Zui
 
         /// An item that leads with an icon (shorthand for Item(..., icon: icon)).
         public ZuiMenu IconItem(string icon, string label, string tooltip, Action onClick, bool enabled = true)
-            => Item(label, tooltip, onClick, false, enabled, icon);
+            => Item(label, tooltip, onClick, false, enabled, icon, null);
 
         /// A persistent toggle row — stays open on click so several settings can be flipped in one visit.
         /// Renders as a ZUI button-toggle (Z.ToggleButton / ZuiToggleButton: the label latches visibly
@@ -282,7 +283,7 @@ namespace Laubrary.Zui
         }
 
         static VisualElement BuildItem(string label, string tooltip, Action onClick,
-            bool @checked, bool enabled, string icon, Action close)
+            bool @checked, bool enabled, string icon, string shortcut, Action close)
         {
             var row = new VisualElement { tooltip = tooltip };
             row.AddToClassList("zui-menu__item");
@@ -304,13 +305,19 @@ namespace Laubrary.Zui
             lbl.AddToClassList("zui-menu__label");
             row.Add(lbl);
 
+            if (!string.IsNullOrEmpty(shortcut))
+            {
+                var sc = new Label(shortcut) { pickingMode = PickingMode.Ignore };
+                sc.AddToClassList("zui-menu__shortcut");
+                row.Add(sc);
+            }
+
             if (enabled)
                 row.AddManipulator(new Clickable(() => { onClick?.Invoke(); close?.Invoke(); }));
             else
-            {
+                // Greyed and inert, but NOT SetEnabled(false): a disabled element shows no tooltip, and a greyed item's
+                // tooltip is where it says why it cannot be used right now.
                 row.AddToClassList("zui-menu__item--disabled");
-                row.SetEnabled(false);
-            }
             return row;
         }
     }

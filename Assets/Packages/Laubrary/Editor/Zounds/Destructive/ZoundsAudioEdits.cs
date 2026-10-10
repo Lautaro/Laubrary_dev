@@ -19,7 +19,8 @@ namespace Laubrary.Zounds.Destructive {
     /// the new file (removed again on undo) or the file's new content, and the ripple.
     ///
     /// <b>What the verbs do</b>, all at the edit cursor or on the selection, in seconds of the file:
-    /// Cut -- removes the selection (later audio moves up) and keeps it to paste. Copy -- keeps the selection to paste.
+    /// Cut -- removes the selection (later audio moves up) and keeps it to paste. Delete -- removes it the same way
+    /// without keeping it (what is kept stays as it was). Copy -- keeps the selection to paste.
     /// Paste -- writes what was kept over the audio from the cursor on (nothing moves; the file grows only past its end).
     /// Insert -- puts what was kept in at the cursor (later audio moves on). Duplicate insert -- puts a copy of the
     /// selection in right after it. Duplicate paste -- writes a copy of the selection over the audio right after it.
@@ -34,7 +35,7 @@ namespace Laubrary.Zounds.Destructive {
     /// </summary>
     internal static class ZoundsAudioEdits {
 
-        public enum Verb { Cut, Copy, Paste, Insert, DuplicateInsert, DuplicatePaste }
+        public enum Verb { Cut, Copy, Paste, Insert, DuplicateInsert, DuplicatePaste, Delete }
 
         static AudioPcm clipboard;
         static string clipboardFrom;
@@ -105,15 +106,18 @@ namespace Laubrary.Zounds.Destructive {
                     clipboard = pcm.Slice(a, b); clipboardFrom = k.name;
                     return new Result { done = true, message = "Copied " + Seconds(clipboard.Seconds) + ".", cursor = r.cursor, selA = r.selA, selB = r.selB };
                 case Verb.Cut:
-                    if (!sel) return Fail("Select some audio to cut.");
-                    if (b - a >= pcm.Frames) return Fail("Cutting all of it would leave no audio; select less.");
+                case Verb.Delete: {
+                    bool keep = r.verb == Verb.Cut;
+                    if (!sel) return Fail(keep ? "Select some audio to cut." : "Select some audio to delete.");
+                    if (b - a >= pcm.Frames) return Fail((keep ? "Cutting" : "Deleting") + " all of it would leave no audio; select less.");
                     var cut = pcm.Slice(a, b);
                     edited = pcm.Spliced(a, b - a, null);
                     span = new AudioSpan { at = (double)a / pcm.rate, removed = (double)(b - a) / pcm.rate, inserted = 0d };
-                    what = "Cut " + Seconds(cut.Seconds);
+                    what = (keep ? "Cut " : "Deleted ") + Seconds(cut.Seconds);
                     newCursor = a; newA = newB = a;
-                    clipboard = cut; clipboardFrom = k.name;
+                    if (keep) { clipboard = cut; clipboardFrom = k.name; }
                     break;
+                }
                 case Verb.Paste:
                 case Verb.Insert: {
                     if (!HasClipboard) return Fail("Nothing to paste yet: cut or copy some audio first.");
@@ -180,7 +184,7 @@ namespace Laubrary.Zounds.Destructive {
                 swap = swap,
                 cursor = (double)newCursor / rate, selA = (double)newA / rate, selB = (double)newB / rate,
             };
-            if (r.verb == Verb.Cut) res.selA = res.selB = res.cursor;
+            if (r.verb == Verb.Cut || r.verb == Verb.Delete) res.selA = res.selB = res.cursor;
             res.message = what + "." + (inPlace ? " The previous version is kept: Undo brings it back." : " Written to a new file, '" + Path.GetFileName(newPath) + "'.");
             bool notify = ZoundsEditGuard.Mode == ZoundsProject.ProjectSettings.ProtectedEditPrompt.Notice;
             if (notify && (swap.swapped || !inPlace)) {

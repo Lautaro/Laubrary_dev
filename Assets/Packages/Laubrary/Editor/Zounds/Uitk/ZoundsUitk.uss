@@ -879,3 +879,20 @@
 .zs-root .zs-level-meter__bar { flex-grow: 1; height: 8px; }
 .zs-root .zs-level-meter__readout { width: 84px; flex-shrink: 0; font-size: 10px; -unity-text-align: middle-right; color: rgb(190,190,200); padding: 0; margin: 0; }
 .zs-root .zs-level-meter__readout--hot { color: rgb(255,95,80); }
+
+/* The shared edit-verb buttons (EditVerbsTK, 2026-10-10): an icon, then a short label, centred in a row; the same face in
+   the Klip editor's edit bar, the Zequence timeline bar and the waveform's selection menu. The icon is tinted to the
+   button's own text colour so it reads the same as the label in every state. */
+.zs-root .zs-verb.unity-button, .zs-root .zs-verb { flex-direction: row; align-items: center; justify-content: center; padding-left: 5px; padding-right: 5px; flex-shrink: 0; }
+.zs-root .zs-verb .zs-verb__icon { width: 12px; height: 12px; flex-shrink: 0; -unity-background-image-tint-color: rgba(123, 176, 211, 1); }
+.zs-root .zs-verb .zs-verb__label { margin: 0 0 0 3px; padding: 0; flex-shrink: 0; white-space: nowrap; -unity-text-align: middle-left; color: rgba(123, 176, 211, 1); }
+.zs-root .zs-verb.zs-RichButton:active .zs-verb__icon { -unity-background-image-tint-color: rgba(237, 232, 213, 1); }
+.zs-root .zs-verb.zs-RichButton:active .zs-verb__label { color: rgba(237, 232, 213, 1); }
+.zs-root .zs-verb.zs-ZoundBtnFlatToggle .zs-verb__icon { -unity-background-image-tint-color: rgba(255, 228, 198, 1); }
+.zs-root .zs-verb.zs-ZoundBtnFlatToggle .zs-verb__label { color: rgba(255, 228, 198, 1); }
+.zs-root .zs-verb.zs-verb--icon-only .zs-verb__icon { margin: 0; }
+/* The Klip waveform in the Halves mouse scheme: a faint line through the middle and a faint shade over the lower
+   (listening) half, so the two zones can be seen. */
+.zs-root.zs-klip-waveform__zone-line, .zs-root .zs-klip-waveform__zone-line { background-color: rgba(255, 255, 255, 0.16); }
+.zs-root.zs-klip-waveform__play-zone, .zs-root .zs-klip-waveform__play-zone { background-color: rgba(120, 200, 140, 0.05); }
+.zs-root .zs-settings__wave-mouse { flex-shrink: 0; }

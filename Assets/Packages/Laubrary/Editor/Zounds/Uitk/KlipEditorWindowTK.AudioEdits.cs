@@ -17,6 +17,8 @@ namespace Laubrary.Zounds.Uitk {
 
         partial void WireAudioEdits() {
             waveform.onAudioEdit = DoAudioEdit;
+            waveform.onPlayRange = PlayRange;
+            waveform.onTrimToSelection = TrimToSelection;
             waveform.EditDone("", editCursor, editSelA, editSelB);
             ZoundsAudioEdits.changed -= OnFileChanged;
             ZoundsAudioEdits.changed += OnFileChanged;
@@ -40,6 +42,28 @@ namespace Laubrary.Zounds.Uitk {
                 waveform.notice.Show(res.notice, res.editOriginal == null ? null : (System.Action)(() => EditOriginal(sw)));
             }
             SyncBadge();
+        }
+
+        /// <summary>
+        /// Trim to the selection: the sound plays only the selected part of its file. Not an audio edit (the file stays as
+        /// it is): one Undo step, a shared sound goes to a copy first (the same guard as a trim drag), and the curves are
+        /// moved onto the file's own seconds first so they stay on their audio.
+        /// </summary>
+        void TrimToSelection(double a, double b) {
+            if (klip == null || waveform == null || b <= a) return;
+            if (!GuardSoundEdit()) return;
+            var k = klip;
+            ZoundsWindow.ModifyAndSaveZoundsProject("trim klip to selection", () => {
+                KlipChainEnvelopes.EnsureSourceAnchored(k);
+                k.trimEnabled = true;
+                k.trimStart = (float)a;
+                k.trimEnd = (float)b;
+                k.needsRender = true;
+                if (k.IsLooper) Dsp.SapVoiceRegistry.PushLoop(k);
+            });
+            RefreshSpectrum();
+            spectrum?.ShowTrim();
+            waveform.EditDone("Trimmed to " + ZoundsAudioEdits.Seconds(a) + " – " + ZoundsAudioEdits.Seconds(b) + ".", a, a, b);
         }
 
         /// <summary>A file changed on disk (an edit here or elsewhere, or an undo putting a version back): re-read the view.</summary>

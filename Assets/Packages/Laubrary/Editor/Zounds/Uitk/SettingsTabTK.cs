@@ -254,6 +254,25 @@ namespace Laubrary.Zounds.Uitk {
             into.Add(LevelMeterRow(sw));
             into.Add(Slider("Envelope Handle Size", "The size, in pixels, of the points on a curve being edited (1 to 10).", "editorStyle.envelopeHandleSize", 1f, 10f, sw, 1));
             into.Add(ProtectedEdits(sw));
+            into.Add(WaveMouseRow(sw));
+        }
+
+        /// <summary>
+        /// How the mouse works on the Klip editor's waveform (owner, 2026-10-10): two schemes, per machine (it is about how
+        /// one person works, not about the project), one Undo step per change.
+        /// </summary>
+        VisualElement WaveMouseRow(float lw) {
+            const string tip = "How the mouse works on the Klip editor's waveform. Kept for this machine only. " +
+                               "Click to select: left click places the edit marker, left drag selects, double-click plays from the pointer, right-click plays from the pointer (right-click inside a selection opens its edits). " +
+                               "Halves: the upper half places the marker and selects (right-click a selection there for its edits); the lower half plays from the pointer with either button.";
+            var seg = Z.Segmented((int)ZoundsMachineSettings.WaveMouseScheme, new[] { "Click to select", "Halves" }, tip,
+                i => { if (i == 0 || i == 1) ZoundsMachineSettings.SetWaveMouse((ZoundsMachineSettings.WaveMouse)i); });
+            seg.AddToClassList("zs-settings__wave-mouse");
+            seg.SegmentAt(0).tooltip = "Click to select (the default): left click places the edit marker, left drag selects audio, double-click plays from the pointer, right-click plays from the pointer. Right-click inside a selection opens its edits (play it, cut, copy, paste, trim to it…).";
+            seg.SegmentAt(1).tooltip = "Halves: the waveform's upper half is for editing (left click places the marker, drag selects, right-click a selection for its edits); the lower half is for listening (a left or right click plays from the pointer). A faint line marks the middle.";
+            int shown = -2;
+            syncers.Add(() => { int now = (int)ZoundsMachineSettings.WaveMouseScheme; if (now != shown) { shown = now; seg.SetOn(i => i == now); } });
+            return Row("Waveform mouse", tip, lw, seg);
         }
 
         /// <summary>A yes/no setting as a toggle placed inside a row (no row of its own); one undo step per click.</summary>

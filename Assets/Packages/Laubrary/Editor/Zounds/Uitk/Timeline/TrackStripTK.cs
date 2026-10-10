@@ -534,6 +534,8 @@ namespace Laubrary.Zounds.Uitk {
         void IWaveSurfaceHost.PlayFrom(float s) => win.PlayTrackFrom(entry, s);
         // Every other press is the timeline's: it goes on to this strip.
         bool IWaveSurfaceHost.Press(PointerDownEvent e, Vector2 m, Rect r) => false;
+        bool IWaveSurfaceHost.ContextPress(PointerDownEvent e, Vector2 m, Rect r) => false;
+        string IWaveSurfaceHost.RightClickTip => "Right-click: play only this sound from here (again: stop).";
         bool IWaveSurfaceHost.Move(Vector2 m, Rect r) => false;
         void IWaveSurfaceHost.Release() { }
         bool IWaveSurfaceHost.Key(KeyDownEvent e) => false;

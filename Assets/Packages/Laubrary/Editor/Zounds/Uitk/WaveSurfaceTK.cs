@@ -56,11 +56,16 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>A left press nothing on the surface took (no trim edge, no curve being edited): the host's own gesture.
         /// False lets it go on to whatever holds the surface.</summary>
         bool Press(PointerDownEvent e, Vector2 m, Rect area);
+        /// <summary>A right press nothing on the surface took (no trim edge, no point of the curve being edited), before it
+        /// plays from there: true when the host took it instead (the Klip editor's selection menu).</summary>
+        bool ContextPress(PointerDownEvent e, Vector2 m, Rect area);
         bool Move(Vector2 m, Rect area);
         void Release();
         bool Key(KeyDownEvent e);
         /// <summary>What a left click does in this host, for the tooltip.</summary>
         string ClickTip { get; }
+        /// <summary>What a right click does in this host, for the tooltip.</summary>
+        string RightClickTip { get; }
         /// <summary>The height the grip along the bottom edge sets.</summary>
         float Height { get; set; }
         /// <summary>The grip was let go.</summary>
@@ -690,6 +695,12 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>The source second a right-click at <paramref name="x"/> plays from (shared by both hosts; kept check 34).</summary>
         internal float PlayFromSecondAt(float x) => Mathf.Clamp(host.SourceAt(x, AreaRect), 0f, host.FileLength);
 
+        /// <summary>Plays only this sound from the second at <paramref name="x"/> (again while it sounds: stops). Every
+        /// play-from-the-pointer gesture of either host comes through here.</summary>
+        internal void PlayAt(float x) {
+            if (playFromProbe != null) playFromProbe(this, PlayFromSecondAt(x)); else host.PlayFrom(PlayFromSecondAt(x));
+        }
+
         void OnDown(PointerDownEvent e) {
             if (host.Source == null || Sound == null) return;
             var m = (Vector2)e.localPosition;
@@ -719,8 +730,8 @@ namespace Laubrary.Zounds.Uitk {
                     if (sel.PointerDown(lm, 1, e.clickCount, e.shiftKey)) { active = sel; area.CapturePointer(e.pointerId); e.StopPropagation(); return; }
                     CloseEdit();
                 }
-                // Anywhere else: play only this sound, from the second under the pointer.
-                if (playFromProbe != null) playFromProbe(this, PlayFromSecondAt(m.x)); else host.PlayFrom(PlayFromSecondAt(m.x));
+                // Anywhere else: the host's (a selection's menu), else play only this sound, from the second under the pointer.
+                if (!host.ContextPress(e, m, r)) PlayAt(m.x);
                 e.StopPropagation();
                 return;
             }

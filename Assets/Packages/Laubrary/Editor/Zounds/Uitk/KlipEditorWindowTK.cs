@@ -468,6 +468,19 @@ namespace Laubrary.Zounds.Uitk {
             float a = trim ? klip.trimStart : 0f, b = trim ? Mathf.Min(klip.trimEnd, clip.length) : clip.length;
             float from = Mathf.Clamp(sourceSeconds, a, b);
             if (b <= from + 0.002f) from = a;
+            PlayRange(from, b);
+        }
+
+        /// <summary>
+        /// Only this sound, from one second of its file to another (the edit bar's Here and Audition, and every play from
+        /// the pointer). Shares the right-click's preview slot, so pressing again while it sounds stops it.
+        /// </summary>
+        void PlayRange(float from, float to) {
+            var clip = spectrum?.OriginalClip;
+            if (klip == null || clip == null) return;
+            from = Mathf.Clamp(from, 0f, clip.length); to = Mathf.Clamp(to, 0f, clip.length);
+            if (to <= from + 0.002f) return;
+            float b = to;
             ZoundPreviewPlayback.Play(this, klip, new ZoundArgs() {
                 startImmediately = true, delay = 0f,
                 volumeOverride = Random.Range(klip.minVolume, klip.maxVolume),

@@ -72,38 +72,40 @@ namespace Laubrary.Zounds.Uitk {
             r.AddToClassList("zs-timeline-header__edit-bar");
             r.style.height = lh;
             float h = lh;
-            Button B(string key, string text, string tip, float w, Action a, ZUICornerMask corners = ZUICornerMask.All) {
-                var b = ZS.Button(text, tip, "RichButton", () => { a(); win.OnTimelineChanged(); }, corners, w, h);
+            // Every button and switch is built by the shared verb faces (EditVerbsTK), as the Klip editor's edit bar is:
+            // the same verb has the same icon, label and shortcut in both editors.
+            Button B(string key, EditVerb v, string tip, Action a, ZUICornerMask corners = ZUICornerMask.All) {
+                var b = EditVerbsTK.Button(v, tip, () => { a(); win.OnTimelineChanged(); }, corners, h);
                 b.AddToClassList("zs-timeline-header__control");
                 controls[key] = b; r.Add(b);
                 return b;
             }
-            ZuiToggleButton Tg(string text, string tip, float w, bool v, Action<bool> set, ZUICornerMask corners = ZUICornerMask.All) {
-                var t = ZS.Toggle(text, tip, v, x => { set(x); win.OnTimelineChanged(); }, "ZoundBtnFlatToggle", corners, w, h, new Color(0.22f, 0.45f, 0.75f, 1f));
+            ZuiToggleButton Tg(EditVerb v, string tip, bool val, Action<bool> set, ZUICornerMask corners = ZUICornerMask.All) {
+                var t = EditVerbsTK.Toggle(v, tip, val, x => { set(x); win.OnTimelineChanged(); }, corners, h, new Color(0.22f, 0.45f, 0.75f, 1f));
                 t.AddToClassList("zs-timeline-header__control");
                 r.Add(t);
                 return t;
             }
             VisualElement Gap() { var g = ZequenceEditorWindowTK.Gap(6f); r.Add(g); return g; }
 
-            B("fit", "Fit", "Show the whole Zequence.", 34f, () => TL.Fit(), ZUICornerMask.Left);
-            B("zsel", "Sel", "Zoom to the selected time range.", 34f, () => { if (TL.hasSel && TL.selB > TL.selA) TL.Show(TL.selA, TL.selB); }, ZUICornerMask.None);
-            B("ztrack", "Track", "Zoom to the selected track's whole source, the parts it does not play included, so a long recording can be searched for the part you want.", 44f, ZoomTrack, ZUICornerMask.Right);
+            B("fit", EditVerb.FitView, "Fit: show the whole Zequence.", () => TL.Fit(), ZUICornerMask.Left);
+            B("zsel", EditVerb.ZoomSelection, "Zoom to the selected time range.", () => { if (TL.hasSel && TL.selB > TL.selA) TL.Show(TL.selA, TL.selB); }, ZUICornerMask.None);
+            B("ztrack", EditVerb.ZoomTrack, "Zoom to the selected track's whole source, the parts it does not play included, so a long recording can be searched for the part you want.", ZoomTrack, ZUICornerMask.Right);
             Gap();
-            follow = Tg("Follow", "", 52f, TL.follow, v => TL.follow = v, ZUICornerMask.Left);
-            ripple = Tg("Ripple", "", 52f, TL.ripple, v => TL.ripple = v, ZUICornerMask.None);
-            loop = Tg("Loop", "", 42f, TL.loop, v => TL.loop = v, ZUICornerMask.Right);
+            follow = Tg(EditVerb.Follow, "", TL.follow, v => TL.follow = v, ZUICornerMask.Left);
+            ripple = Tg(EditVerb.Ripple, "", TL.ripple, v => TL.ripple = v, ZUICornerMask.None);
+            loop = Tg(EditVerb.Loop, "", TL.loop, v => TL.loop = v, ZUICornerMask.Right);
             Gap();
-            B("here", "▶ Here", "Play the whole Zequence from the moment you clicked on the ruler (or the selection's start). Tracks already sounding then start part-way through their audio.", 56f, win.PlayFromHere, ZUICornerMask.Left);
-            B("aud", "Audition", "Play only the selection (Space). With tracks selected, just those tracks, through their live effects; with only a time range, the whole Zequence over that range. Loop repeats it until stopped.", 64f, win.AuditionSelection, ZUICornerMask.Right);
+            B("here", EditVerb.PlayFromMarker, "Play the whole Zequence from the moment you clicked on the ruler (or the selection's start). Tracks already sounding then start part-way through their audio.", win.PlayFromHere, ZUICornerMask.Left);
+            B("aud", EditVerb.PlaySelection, "Play only the selection (Space). With tracks selected, just those tracks, through their live effects; with only a time range, the whole Zequence over that range. Loop repeats it until stopped.", win.AuditionSelection, ZUICornerMask.Right);
             Gap();
-            B("trim", "Trim", "Trim each selected track to the selected part (T). The kept audio stays exactly where it was; the piece's start moves. In a Zequence a trim never changes the sound anywhere else: a sound used elsewhere gets an excerpt of its own on this track.", 40f, () => win.Say(TimelineEdits.TrimToSelection(win, TL)), ZUICornerMask.Left);
-            B("untrim", "Untrim", "Play each selected track's whole source again, its audio staying where it was. Its curves come back with it.", 50f, () => win.Say(TimelineEdits.Untrim(win, TL)), ZUICornerMask.None);
-            B("split", "Split", "Split each selected track at the selection's start and end, or at the clicked moment (S). Each piece of a local sound gets a sound of its own; pieces of a library sound each play their part of it.", 40f, () => win.Say(TimelineEdits.Split(win, TL)), ZUICornerMask.None);
-            B("del", "Delete", "Delete the selected part of each selected track, or whole tracks when the selection covers them (Delete). With Ripple on, the tracks after it move up to close the gap.", 50f, () => win.Say(TimelineEdits.Delete(win, TL)), ZUICornerMask.Right);
+            B("trim", EditVerb.Trim, "Trim each selected track to the selected part (T). The kept audio stays exactly where it was; the piece's start moves. In a Zequence a trim never changes the sound anywhere else: a sound used elsewhere gets an excerpt of its own on this track.", () => win.Say(TimelineEdits.TrimToSelection(win, TL)), ZUICornerMask.Left);
+            B("untrim", EditVerb.Untrim, "Play each selected track's whole source again, its audio staying where it was. Its curves come back with it.", () => win.Say(TimelineEdits.Untrim(win, TL)), ZUICornerMask.None);
+            B("split", EditVerb.Split, "Split each selected track at the selection's start and end, or at the clicked moment (S). Each piece of a local sound gets a sound of its own; pieces of a library sound each play their part of it.", () => win.Say(TimelineEdits.Split(win, TL)), ZUICornerMask.None);
+            B("del", EditVerb.Delete, "Delete the selected part of each selected track, or whole tracks when the selection covers them (Delete). With Ripple on, the tracks after it move up to close the gap.", () => win.Say(TimelineEdits.Delete(win, TL)), ZUICornerMask.Right);
             Gap();
-            B("copy", "Copy", "Copy the selected part of each selected track (Ctrl+C).", 40f, () => win.Say(TimelineEdits.Copy(TL)), ZUICornerMask.Left);
-            B("paste", "Paste", "", 44f, () => win.Say(TimelineEdits.Paste(win, TL, win.PasteTime())), ZUICornerMask.Right);
+            B("copy", EditVerb.Copy, "Copy the selected part of each selected track (Ctrl+C).", () => win.Say(TimelineEdits.Copy(TL)), ZUICornerMask.Left);
+            B("paste", EditVerb.Paste, "", () => win.Say(TimelineEdits.Paste(win, TL, win.PasteTime())), ZUICornerMask.Right);
             Gap();
             readout = new Label { pickingMode = PickingMode.Position };
             readout.AddToClassList("zs-lbl"); readout.AddToClassList("zs-greymini");

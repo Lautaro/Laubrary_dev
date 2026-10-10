@@ -1036,6 +1036,21 @@
     opacity: 0.45;
 }
 
+/* A greyed item is inert but keeps its tooltip (it says why), so it must not light up on hover either. */
+.zui-menu__item--disabled:hover {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* A menu item's keyboard shortcut: greyed, pushed to the row's right end, never wrapped. */
+.zui-menu__shortcut {
+    margin-left: auto;
+    padding-left: 16px;
+    opacity: 0.6;
+    white-space: nowrap;
+    -unity-text-align: middle-right;
+    flex-shrink: 0;
+}
+
 /* A fixed check gutter so every label lines up whether or not the row carries a tick. */
 .zui-menu__check {
     width: 14px;
