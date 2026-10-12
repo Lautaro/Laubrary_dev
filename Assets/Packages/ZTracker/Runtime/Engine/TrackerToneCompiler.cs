@@ -72,7 +72,7 @@ namespace Laubrary.ZTracker.Engine
                 // only an explicit pattern Axy command may now arpeggiate a voice.
                 tone.arpNotes=tone.arpPoints=points.Count;tone.arpNoteCount=tone.arpPointCount=0;
                 if(q.arpeggioEnabled)diagnostics.Add("INSTRUMENT_ARPEGGIO_ARCHIVED_PATTERN_ONLY slot="+sm.instrument);
-                if(synth){sm.delaySend=q.instDelaySend;sm.reverbSend=q.instReverbSend;sm.delayDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Delay));sm.reverbDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Reverb));DiagnoseMissingSendDestinations(in sm,i);samples[si]=sm;}
+                if(synth){sm.delaySend=q.instDelaySend;sm.reverbSend=q.instReverbSend;sm.delayDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Delay));sm.reverbDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Reverb));DiagnoseMissingSendDestinations(in sm,sm.instrument);samples[si]=sm;}
                 tones.Add(tone);
             }
             foreach(var track in song.tracks)foreach(var device in ExternalDevices(track)){
