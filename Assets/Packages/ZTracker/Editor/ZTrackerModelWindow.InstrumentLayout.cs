@@ -38,7 +38,7 @@ namespace Laubrary.ZTracker.Editor
             void Show(string name, bool active)
             {
                 var control = root.Q<VisualElement>(name);
-                if (control != null) control.style.display = active ? DisplayStyle.Flex : DisplayStyle.None;
+                if (control != null) { var host = control is ZuiValueControl ? control.parent : control; host.style.display = active ? DisplayStyle.Flex : DisplayStyle.None; }
             }
             Show("synth-unisonDetune", q.unisonVoices > 1); Show("synth-unisonSpread", q.unisonVoices > 1);
             bool vibrato = q.vibratoDepth != 0 || q.GetParameterEnvelope("vibratoDepth")?.enabled == true;
