@@ -41,3 +41,7 @@ Use AgentHQ, group "ZTracker overhaul". Previously created tickets are done firs
 ## FM configurations image (sent later the same day)
 
 `FM_SINGLE_CARRIER_SETUPS.png` in this folder: "Single-carrier FM setups, 1 carrier, up to 4 operators". C is the carrier; A, B, D are modulators. The ten setups, in the image's order: 1. A→C. 2. A→B→C. 3. A+B→C. 4. A→B→D→C. 5. A+B+D→C. 6. A→B→C and D→C. 7. A+B→D→C. 8. A→B, A→D, and B+D→C. 9. A→B→C and A→C. 10. A→B→D→C and A→C. The owner's point: most useful setups use only 2 or 3 operators, so the editor must offer these (and the right operator count for each) rather than only four-operator layouts.
+
+## FM feedback (added later the same day)
+
+"Also for modulators, allow feedback." Every modulator (A, B, D) can feed back on itself: a per-operator feedback amount, usable in every one of the ten setups. Defaults to off so existing sounds do not change.
