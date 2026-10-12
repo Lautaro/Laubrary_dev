@@ -15,15 +15,16 @@ namespace Laubrary.ZTracker.Editor
             row.style.flexDirection = FlexDirection.Row; row.style.flexWrap = Wrap.Wrap;
             row.style.minWidth = 0; row.style.width = Length.Percent(100); row.style.alignItems = Align.FlexStart;
             root.Add(row);
-            void Layout(float width)
+            void Layout(float ignored)
             {
+                float width = row.contentRect.width; if (width <= 0) return;
                 int count = Math.Max(1, Math.Min(row.childCount, (int)(width / columnMinimum)));
                 foreach (var child in row.Children())
                 {
                     child.style.minWidth = 0; child.style.flexGrow = 0; child.style.flexShrink = 1;
                     float divisor = child.ClassListContains("tracker-instrument-wide") ? 1 : count;
                     float margins = child.resolvedStyle.marginLeft + child.resolvedStyle.marginRight;
-                    float childWidth = Math.Max(0, width / divisor - (float.IsNaN(margins) ? 0 : margins));
+                    float childWidth = Math.Max(0, (float)Math.Floor((width - 1) / divisor - (float.IsNaN(margins) ? 0 : margins)));
                     child.style.width = childWidth; child.style.maxWidth = childWidth;
                 }
             }

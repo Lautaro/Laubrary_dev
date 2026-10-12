@@ -38,6 +38,20 @@ namespace Laubrary.ZTracker.Editor
                     }
                     finally { host.RemoveFromHierarchy(); }
                 });
+                Check("actual synth cards and FM operator cards pack horizontally and stack narrow", () =>
+                {
+                    window.position = new Rect(160,120,1250,800); ins.model.synthMode = SynthMode.Subtractive; window.BuildPane(); Layout();
+                    var columns = window.rootVisualElement.Q<VisualElement>("synth-columns"); Need(columns != null && columns.childCount == 2, "Missing actual synth cards");
+                    Need(Math.Abs(columns[0].worldBound.y - columns[1].worldBound.y) < 2 && columns[1].worldBound.x > columns[0].worldBound.x + 300, "Actual wide Amplifier wrapped below Oscillators");
+                    window.position = new Rect(160,120,760,800); window.BuildPane(); Layout(); columns = window.rootVisualElement.Q<VisualElement>("synth-columns");
+                    Need(columns[1].worldBound.y > columns[0].worldBound.y + 20 && Math.Abs(columns[0].worldBound.x - columns[1].worldBound.x) < 2, "Actual narrow synth cards did not stack");
+                    window.position = new Rect(160,120,1250,800); ins.model.synthMode = SynthMode.FM; window.BuildPane(); Layout();
+                    var operators = window.rootVisualElement.Q<VisualElement>("fm-operators"); Need(operators != null && operators.childCount == 4, "Missing actual FM cards");
+                    Need(Math.Abs(operators[0].worldBound.y - operators[1].worldBound.y) < 2 && operators[1].worldBound.x > operators[0].worldBound.x + 300, "Actual wide FM cards leave an empty right column");
+                    window.position = new Rect(160,120,760,800); window.BuildPane(); Layout(); operators = window.rootVisualElement.Q<VisualElement>("fm-operators");
+                    Need(operators[1].worldBound.y > operators[0].worldBound.y + 20, "Actual narrow FM cards did not stack");
+                    ins.model.synthMode = SynthMode.Subtractive; window.position = new Rect(160,120,1250,800); window.BuildPane(); Layout();
+                });
                 Check("disabled envelope header cannot unfold or discard stages", () =>
                 {
                     var q = ins.model.parameters; q.blendEnvelope = false; q.blendAttack = .137f; window.BuildPane();

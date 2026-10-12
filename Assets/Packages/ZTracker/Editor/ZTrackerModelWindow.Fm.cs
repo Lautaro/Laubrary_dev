@@ -30,7 +30,7 @@ namespace Laubrary.ZTracker.Editor
             for (int i = 0; i < 4; i++)
             {
                 int at = i; var op = q.fmOperators[i]; bool carrier = FmCarriers[algorithm].Contains(i);
-                var box = InstrumentSection(operators, "Operator " + (i + 1) + (carrier ? " ? Carrier" : " ? Modulator"), "fm." + i, carrier ? "This sine operator reaches the audible output. Its level and envelope control loudness." : "This sine operator changes the phase of the operator its arrow points to. Its level and envelope control the timbre.");
+                var box = InstrumentSection(operators, "Operator " + (i + 1) + (carrier ? " - Carrier" : " - Modulator"), "fm." + i, carrier ? "This sine operator reaches the audible output. Its level and envelope control loudness." : "This sine operator changes the phase of the operator its arrow points to. Its level and envelope control the timbre.");
                 if (op.waveform != 0) box.Add(Diagnostic("Sine playback", "The imported waveform " + op.waveform + " is preserved; the runtime renders sine for FM operators."));
                 var row = Flow(); VisualElement ratioControl = null;
                 bool fixedEnvelope = q.GetParameterEnvelope("fmOperators." + at + ".freqFixed")?.enabled == true;
