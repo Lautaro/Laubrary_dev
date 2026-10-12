@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Synth note behavior uses None / Glide / Legato / Both with Glide ms alongside. Legato preserves envelopes across overlapping notes independently of pitch glide. Tune steps is additive to Tune cents, and all Vibrato settings remain visible at zero depth.
+- Waveforms, blend mode, synth/FM engine, unison, tuning, FM routing and sound parameters update held notes and playing songs without restarting the renderer. Modern FM honors the Amplifier envelope independently of its operator envelopes; legacy native envelope behavior stays compatible.
+- Switching to FM initializes missing operators within the same Undo action. Older incomplete FM instruments expose an explicit repair action that preserves existing operators. The routing diagram has bounded labels and stable height at narrow widths.
 - MIDI enablement, recording, device and keyboard/audio preferences survive window rebuilding and compilation; the selected missing device waits and reconnects instead of silently switching controllers.
 - Workspace tabs, selections, section folds, expanded value editors and scroll positions survive compilation. Pitch and Vibrato are direct Oscillators settings.
 - Pattern typing and transport recreate an audio stream closed by a device/buffer change. Retained synth sends without matching destinations preserve dry playback and their authored amounts.
