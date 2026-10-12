@@ -3,7 +3,7 @@ using Unity.Mathematics;
 
 namespace Laubrary.ZTracker.Engine
 {
-    // Live performance layer (MIDI keyboard and the like). Events arrive through the host's live ring and are applied at
+    // Live performance layer (a MIDI keyboard, the editor's computer keyboard). It is the engine's only held-note path. Events arrive through the host's live ring and are applied at
     // the start of each rendered block, before any sample of that block is produced. A live note plays through a real
     // track and note column, exactly like a pattern note there: it may cut the column's current note, and the track's
     // mute, solo, volume, pan and chains apply. A chord spreads over the track's note columns, starting at the cursor's
@@ -34,10 +34,13 @@ namespace Laubrary.ZTracker.Engine
             {
                 case TrackerLiveKind.NoteOn: LiveNoteOn(in e); break;
                 case TrackerLiveKind.NoteOff:
-                    if (e.note >= TrackerLiveRing.NoteSlots) break;
-                    if (live.control[9] != 0) { if (live.slots[e.note].active != 0) live.slots[e.note].held = 0; }
-                    else LiveReleaseSlot(e.note);
+                {
+                    if (e.note >= TrackerLiveRing.NotesPerSource || (int)e.source >= TrackerLiveRing.Sources) break;
+                    int key = TrackerLiveRing.Key(e.source, e.note);
+                    if (live.control[9] != 0) { if (live.slots[key].active != 0) live.slots[key].held = 0; }
+                    else LiveReleaseSlot(key);
                     break;
+                }
                 case TrackerLiveKind.Sustain:
                     live.control[9] = e.value >= .5f ? 1 : 0;
                     if (live.control[9] == 0) for (int n = 0; n < TrackerLiveRing.NoteSlots; n++) if (live.slots[n].active != 0 && live.slots[n].held == 0) LiveReleaseSlot(n);
@@ -54,16 +57,17 @@ namespace Laubrary.ZTracker.Engine
         void LiveNoteOn(in TrackerLiveEvent e)
         {
             int track = e.track, note = e.note;
-            if (track < 0 || track >= state.trackCount || note > 119 || e.velocity < 1 || e.velocity > 127) return;
+            if (track < 0 || track >= state.trackCount || note > 119 || e.velocity < 1 || e.velocity > 127 || (int)e.source >= TrackerLiveRing.Sources) return;
             if (e.instrument < 0 || e.instrument >= state.instrumentCount || !math.isfinite(e.value)) return;
             var t = state.tracks[track]; int count = t.columnCount; if (count <= 0) return;
-            ref var slot = ref live.slots[note];
+            int key = TrackerLiveRing.Key(e.source, note);
+            ref var slot = ref live.slots[key];
             int column = -1;
             // The same key again while it still sounds (held or pedal-sustained) retriggers in its own column.
             if (slot.active != 0 && slot.track == track && slot.column < count) column = slot.column;
             else
             {
-                if (slot.active != 0) LiveReleaseSlot(note);
+                if (slot.active != 0) LiveReleaseSlot(key);
                 int start = math.clamp((int)e.column, 0, count - 1);
                 for (int k = 0; k < count && column < 0; k++) { int c = (start + k) % count; if (!LiveColumnTaken(track, c)) column = c; }
                 if (column < 0)
@@ -90,9 +94,9 @@ namespace Laubrary.ZTracker.Engine
         }
 
         // Releases only the voices the live note started; a pattern note that later took the column is left alone.
-        void LiveReleaseSlot(int note)
+        void LiveReleaseSlot(int key)
         {
-            ref var slot = ref live.slots[note]; if (slot.active == 0) return;
+            ref var slot = ref live.slots[key]; if (slot.active == 0) return;
             long cohort = slot.cohort; slot.active = 0; slot.held = 0;
             for (int i = 0; i < state.voices.Length; i++) { var v = state.voices[i]; if (v.active && v.cohort == cohort && !state.samples[v.sample].oneShot) Release(i); }
         }

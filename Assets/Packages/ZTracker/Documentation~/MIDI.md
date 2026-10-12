@@ -4,7 +4,7 @@ ZTracker can be played from a USB MIDI keyboard on Windows. It needs no driver, 
 
 ## Using it
 
-Open **Laubrary > ZTracker** and press **MIDI** at the top right of the window. It is off until you turn it on, and it is off again after a script reload or when the window closes. The status beside it says which keyboard it listens to and where the keys go, for example `→ Lead col 1 · 01 Piano  ·  Keystation 61`. Hover it for the details (channel, last key and velocity, audio buffer). **Panic** silences every note played from the keyboard at once; the song keeps playing.
+Open **Laubrary > ZTracker** and press **MIDI** at the top right of the window. It is off until you turn it on, and it is off again after a script reload or when the window closes. The status beside it says which keyboard it listens to and where the keys go, for example `→ Lead col 1 · 01 Piano  ·  Keystation 61`. Hover it for the details (channel, last key and velocity, audio buffer). **Panic** silences every note played from the MIDI keyboard or the computer keyboard at once; the song keeps playing.
 
 Where the keys go depends on the workspace:
 
@@ -12,6 +12,10 @@ Where the keys go depends on the workspace:
 - **Instrument**: the keys play the instrument being edited on a clean preview channel of its own: no track settings, only the instrument's own effect chains. The preview can sound over a playing song (for jamming), and it never stops the song. Edits to the instrument are heard on the preview as you make them.
 
 Chords spread over the track's visible note columns, starting at the cursor's column: a three-key chord on a track with three note columns uses all three. The number of note columns is the polyphony. When more keys are held than there are columns, the oldest held note in that track gives way to the new key (it follows the instrument's new-note action, which by default lets it fade with its release). The clean preview channel has twelve columns, so twelve keys at once.
+
+## The computer keyboard plays the same way
+
+In the Instrument workspace (and its drum-kit view) the computer keyboard plays too, whether MIDI is on or off: Z to M and Q to U are two octaves, with the black keys on the row above each. Its keys go to the same clean preview channel as the MIDI keyboard, so both can play one chord, Panic silences both, and edits are heard the same way. A computer key and a MIDI key are always separate keys, even on the same pitch: each sounds, and each releases only its own note. Clicking a key on the drum map plays it until you let go. Typing into a text or number field types instead of playing, and switching to another window or workspace releases every held computer key.
 
 ## Settings (right-click the MIDI button or its status)
 

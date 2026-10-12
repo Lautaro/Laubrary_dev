@@ -16,7 +16,7 @@ Sampler controls distinguish **All samples**, **This sample** and **This sample 
 
 ## Play from a MIDI keyboard
 
-Press **MIDI** at the top of the ZTracker window (it is off by default). In the Pattern, Mixer, Automation and Song workspaces the keyboard plays the selected instrument through the track and note column under the pattern cursor; chords spread over that track's note columns, so the number of columns is the polyphony. In the Instrument workspace it plays the edited instrument on a clean preview channel that can sound over a playing song. **Panic** silences played notes; **Rec** writes what you play into the pattern. Right-click MIDI for the device, channel, octave, velocity curve, audio buffer, bend range and mod-wheel macro. Windows only, no driver or package needed. See [MIDI](Documentation~/MIDI.md).
+Press **MIDI** at the top of the ZTracker window (it is off by default). In the Pattern, Mixer, Automation and Song workspaces the keyboard plays the selected instrument through the track and note column under the pattern cursor; chords spread over that track's note columns, so the number of columns is the polyphony. In the Instrument workspace it plays the edited instrument on a clean preview channel that can sound over a playing song; the computer keyboard (Z–M, Q–U) plays the same channel there, with or without MIDI, and both keyboards can share one chord. **Panic** silences notes from both; **Rec** writes what you play into the pattern. Right-click MIDI for the device, channel, octave, velocity curve, audio buffer, bend range and mod-wheel macro. Windows only, no driver or package needed. See [MIDI](Documentation~/MIDI.md).
 
 ## Build a drum kit
 

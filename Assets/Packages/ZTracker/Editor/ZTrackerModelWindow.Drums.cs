@@ -19,7 +19,6 @@ namespace Laubrary.ZTracker.Editor
         DrumBrowserItem drumPicked;
         VisualElement drumCards, drumKeys, drumDetails, drumPads;
         Label drumBrowserStatus;
-        bool drumNeedsRefresh;
         Action redrawDrumMap, refreshDrumCategory;
         ZTrackerDrumPreview drumFilePreview;
         GameObject drumSourcePreview;
@@ -43,11 +42,7 @@ namespace Laubrary.ZTracker.Editor
             Undo.CollapseUndoOperations(group);
             Undo.SetCurrentGroupName("Tracker: create drum kit");
         }
-        void DrumEdit(string label, Action edit, bool rebuild = true)
-        {
-            InstrumentEdit(label, edit, rebuild);
-            drumNeedsRefresh = true;
-        }
+        void DrumEdit(string label, Action edit, bool rebuild = true) => InstrumentEdit(label, edit, rebuild);
         void BuildDrumKit(VisualElement root)
         {
             // Undo restores the authored mapping, while the selected id remains view state.
@@ -226,12 +221,6 @@ namespace Laubrary.ZTracker.Editor
                 else list.Remove(m);
             }
         }
-        void PlayDrum(int note)
-        {
-            StopDrumSourcePreview();
-            if (!playing && drumNeedsRefresh) { StopPreview(); drumNeedsRefresh = false; }
-            Audition(note);
-        }
         void BuildDrumKeyMap(VisualElement canvas)
         {
             int first = drumFirstOctave * 12;
@@ -267,13 +256,15 @@ namespace Laubrary.ZTracker.Editor
                 for (int i = 0; i < 24; i++) { int n = first + i; bool black = new[] { 1, 3, 6, 8, 10 }.Contains(n % 12); Box(new Rect(i * w, 66, w - 1, 70), n >= drumLow && n <= drumHigh ? new Color(.2f, .5f, .7f) : black ? new Color(.12f, .14f, .18f) : new Color(.32f, .35f, .4f), Color.gray); }
                 foreach (var m in Instrument.drumKit.mappings.Where(m => m.noteMax >= first && m.noteMin <= first + 23)) Box(MappingRect(m), new Color(.15f, .35f, .45f), m.id == drumId ? Color.yellow : Color.cyan);
             };
-            DrumMapping moving = null; int origin = -1, edge = 0, oldLow = 0, oldHigh = 0; bool selecting = false;
+            DrumMapping moving = null; int origin = -1, edge = 0, oldLow = 0, oldHigh = 0, sounding = -1; bool selecting = false;
+            // A clicked key plays like a typed one and is released when the pointer lifts.
+            void Lift() { if (sounding >= 0) midiRouter.ComputerKeyUp(sounding); sounding = -1; }
             canvas.RegisterCallback<PointerDownEvent>(e =>
             {
                 if (e.button != 0) return; canvas.Focus(); origin = Key(e.localPosition.x);
                 moving = e.localPosition.y < 60 ? Instrument.drumKit.mappings.Find(m => m.noteMin <= origin && m.noteMax >= origin) : null;
                 if (moving != null) { drumId = moving.id; drumLow = oldLow = moving.noteMin; drumHigh = oldHigh = moving.noteMax; var r = MappingRect(moving); edge = Math.Abs(e.localPosition.x - r.x) < 6 ? -1 : Math.Abs(e.localPosition.x - r.xMax) < 6 ? 1 : 0; BeginInstrumentGesture("drum range"); }
-                else { selecting = true; drumLow = drumHigh = origin; var hit = Instrument.drumKit.mappings.Find(m => m.noteMin <= origin && m.noteMax >= origin); drumId = hit?.id ?? ""; PlayDrum(origin); }
+                else { selecting = true; drumLow = drumHigh = origin; var hit = Instrument.drumKit.mappings.Find(m => m.noteMin <= origin && m.noteMax >= origin); drumId = hit?.id ?? ""; Lift(); PlayPreviewKey(origin); sounding = origin; }
                 canvas.CapturePointer(e.pointerId); canvas.MarkDirtyRepaint(); RefreshDrumDetails(); e.StopPropagation();
             });
             canvas.RegisterCallback<PointerMoveEvent>(e =>
@@ -286,10 +277,10 @@ namespace Laubrary.ZTracker.Editor
             canvas.RegisterCallback<PointerUpEvent>(e =>
             {
                 if (!canvas.HasPointerCapture(e.pointerId)) return;
-                if (moving != null) { CarveDrumRange(moving.noteMin, moving.noteMax, moving); drumLow = moving.noteMin; drumHigh = moving.noteMax; moving = null; EndInstrumentGesture(); drumNeedsRefresh = true; }
-                selecting = false; canvas.ReleasePointer(e.pointerId); PaintLabels(); canvas.MarkDirtyRepaint(); RefreshDrumDetails();
+                if (moving != null) { CarveDrumRange(moving.noteMin, moving.noteMax, moving); drumLow = moving.noteMin; drumHigh = moving.noteMax; moving = null; EndInstrumentGesture(); }
+                Lift(); selecting = false; canvas.ReleasePointer(e.pointerId); PaintLabels(); canvas.MarkDirtyRepaint(); RefreshDrumDetails();
             });
-            canvas.RegisterCallback<PointerCaptureOutEvent>(_ => { if (moving != null) { moving.noteMin = oldLow; moving.noteMax = oldHigh; moving = null; EndInstrumentGesture(); } selecting = false; });
+            canvas.RegisterCallback<PointerCaptureOutEvent>(_ => { if (moving != null) { moving.noteMin = oldLow; moving.noteMax = oldHigh; moving = null; EndInstrumentGesture(); } Lift(); selecting = false; });
             canvas.RegisterCallback<DragUpdatedEvent>(e => { if (DrumDropItem() != null) { DragAndDrop.visualMode = DragAndDropVisualMode.Copy; e.StopPropagation(); } });
             canvas.RegisterCallback<DragPerformEvent>(e => { var item = DrumDropItem(); if (item == null) return; int at = Key(canvas.WorldToLocal(e.mousePosition).x); int low = at >= drumLow && at <= drumHigh ? drumLow : at, high = at >= drumLow && at <= drumHigh ? drumHigh : at; DragAndDrop.AcceptDrag(); DragAndDrop.SetGenericData(DrumDrag, null); AssignDrumItem(item, low, high); e.StopPropagation(); });
         }
@@ -315,7 +306,7 @@ namespace Laubrary.ZTracker.Editor
             drumPads.Clear();
             foreach (var m in Instrument.drumKit.mappings.OrderBy(m => m.noteMin))
             {
-                var pad = Button(m.name + "  " + DrumNote(m.noteMin) + (m.noteMin == m.noteMax ? "" : "–" + DrumNote(m.noteMax)), m.tag + "\nClick to select and play this assignment.", () => { drumId = m.id; drumLow = m.noteMin; drumHigh = m.noteMax; drumFirstOctave = Mathf.Clamp(m.noteMin / 12, 0, 8); PlayDrum(m.noteMin); BuildPane(); }, "drum-pad-" + m.id);
+                var pad = Button(m.name + "  " + DrumNote(m.noteMin) + (m.noteMin == m.noteMax ? "" : "–" + DrumNote(m.noteMax)), m.tag + "\nClick to select and play this assignment.", () => { drumId = m.id; drumLow = m.noteMin; drumHigh = m.noteMax; drumFirstOctave = Mathf.Clamp(m.noteMin / 12, 0, 8); TapPreviewKey(m.noteMin); BuildPane(); }, "drum-pad-" + m.id);
                 pad.style.width = 235; pad.style.overflow = Overflow.Hidden; pad.style.textOverflow = TextOverflow.Ellipsis; pad.style.flexDirection = FlexDirection.Row; pad.Insert(0, ZTrackerDrumIcons.Create(m.tag, 16)); drumPads.Add(pad);
             }
         }

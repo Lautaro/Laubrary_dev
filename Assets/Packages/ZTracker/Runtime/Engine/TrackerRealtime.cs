@@ -49,10 +49,6 @@ namespace Laubrary.ZTracker.Engine
                     if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.c/127f;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c,-1,true);}break;
                 case TrackerCommandKind.AuditionNormalized:
                     if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127&&math.isfinite(c.value)&&c.value>=0&&c.value<=1){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.value;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c,-1,true);}break;
-                case TrackerCommandKind.AuditionKeyOn:
-                    if(c.generation>0&&c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0)NoteOn(c.d,0,c.a,c.b,127,-1,true,c.generation);break;
-                case TrackerCommandKind.AuditionKeyOff:
-                    if(c.generation>0)for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&state.voices[i].cohort==-c.generation&&!state.samples[state.voices[i].sample].oneShot)Release(i);break;
                 case TrackerCommandKind.ReleaseVoice:
                     if(c.a>=0&&c.a<state.voices.Length&&state.voices[c.a].active&&state.voices[c.a].cohort==c.generation)for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&state.voices[i].cohort==c.generation)Release(i);break;
                 case TrackerCommandKind.AuditionOff:
@@ -236,7 +232,7 @@ namespace Laubrary.ZTracker.Engine
         }
         // explicitNote: a note game code or the editor asked for (audition). A trigger-muted track silences its own
         // pattern notes but still plays these, so a game can keep a melody silent and release notes one at a time.
-        void NoteOn(int track,int column,int instrument,int note,int velocity,int parameterSet=-1,bool explicitNote=false,long auditionKey=0)
+        void NoteOn(int track,int column,int instrument,int note,int velocity,int parameterSet=-1,bool explicitNote=false)
         {
             if(instrument<0||instrument>=state.instrumentCount||note<0||note>119||(state.tracks[track].triggerMute&&!explicitNote)||!state.tracks[track].soloEnabled||state.sequenceMutes[state.sequence[state.sequenceIndex].muteOffset+track]!=0)return;
             var ins=state.instruments[instrument];if(parameterSet>=0){var preset=state.parameterSets[parameterSet];if(preset.instrument!=instrument)return;ins.zoneStart=preset.zones;ins.zoneCount=preset.zoneCount;}if(ins.zoneCount==0)return;
@@ -244,11 +240,9 @@ namespace Laubrary.ZTracker.Engine
             EvaluateParameters();
             // NNA applies only to the foreground cohort in this note column; layered siblings remain a bundle.
             int ci=state.tracks[track].columns+column;var col=state.columns[ci];
-            var savedColumn=col;
-            if(auditionKey>0)col=new TrackerColumn{volume=velocity/127f,pan=0,cohort=-auditionKey};
             bool previousHeld=false;for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&!state.voices[i].released&&state.voices[i].cohort==col.cohort)previousHeld=true;
             for(int i=0;i<state.voices.Length;i++){var old=state.voices[i];if(old.active&&old.track==track&&old.column==column&&old.cohort==col.cohort){var nna=state.samples[old.sample].nna;if(nna==NewNoteAction.Cut){old.active=false;state.voices[i]=old;}else if(nna==NewNoteAction.NoteOff)Release(i);}}
-            long cohort=auditionKey>0?-auditionKey:++state.cohort;col.cohort=cohort;col.instrument=instrument;if(auditionKey==0)state.columns[ci]=col;
+            long cohort=++state.cohort;col.cohort=cohort;col.instrument=instrument;state.columns[ci]=col;
             for(int z=0;z<ins.zoneCount;z++){
                 var zone=state.zones[ins.zoneStart+z];if(note<zone.minNote||note>zone.maxNote||velocity<zone.minVelocity||velocity>zone.maxVelocity)continue;
                 var sample=state.samples[zone.sample];var tone=state.tones[zone.sample];if(sample.pcm<0&&tone.kind==0)continue;
@@ -276,7 +270,7 @@ namespace Laubrary.ZTracker.Engine
                 voice.filterCutoff=-1;voice.filterQ=-1;state.voices[index]=voice;
                 }
             }
-            col.previousNote=note;col.hasPreviousNote=true;state.columns[ci]=auditionKey>0?savedColumn:col;
+            col.previousNote=note;col.hasPreviousNote=true;state.columns[ci]=col;
             Emit(TrackerEventKind.NoteOn,track,column,note,instrument);
         }
         int ChooseVoice(long newCohort=0)

@@ -164,7 +164,7 @@ namespace Laubrary.ZTracker.Editor
         }
         void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Pending: Stop/Play":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
         void OnEnable(){Undo.undoRedoPerformed+=OnUndo;Upgrade();}
-        void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();drumNeedsRefresh=true;RefreshLive();BuildPane();}
+        void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();RefreshLive();BuildPane();}
         protected override void OnDisable(){ReleaseInstrumentKeys();pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();MidiShutdown();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
         // ZuiWindow may rebuild on domain reload/view changes; it must not stop a healthy graph.
         protected override void OnBeforeRebuild(){pumpSchedule?.Pause();pumpSchedule=null;}

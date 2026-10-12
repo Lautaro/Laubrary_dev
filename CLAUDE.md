@@ -154,6 +154,7 @@ Background documents: the authoritative technical foundation is `D:/Claude@GDriv
 - A host closes its door before freeing the queue; a key-up goes to the renderer that got its key-down. Keep both when adding a new host or target.
 - A live note plays through a real track and note column (chords spread from the cursor column; columns are the polyphony). The clean preview is a separate renderer with its own one-track song; it must never stop or replace the song's renderer.
 - The Windows source must close its device before scripts reload and at quit; its callback stays a static method behind a delegate kept alive for the process.
+- **One held-note path.** The live-note layer is the engine's only mechanism for a note held while a key is down. The computer keyboard (and a clicked drum-map key) is a second source into the same router and queue, not a separate engine command; never add another "audition key" command or a note-on special case for held notes. A new input becomes a new `TrackerLiveSource` value, and a key is always identified by source and note.
 
 ## Cartographer and MetaMapper — developed HERE since 2026-10-02
 

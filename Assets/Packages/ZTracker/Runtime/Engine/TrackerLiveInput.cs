@@ -7,8 +7,12 @@ namespace Laubrary.ZTracker.Engine
 {
     public enum TrackerLiveKind : byte { None, NoteOn, NoteOff, Sustain, AllNotesOff, AllSoundOff, PitchBend, Macro }
 
+    /// <summary>Which input a live key came from. A key is identified by its source and note, so the same pitch held on
+    /// a MIDI keyboard and on the computer keyboard sounds twice and is released separately.</summary>
+    public enum TrackerLiveSource : byte { Midi, Computer }
+
     /// <summary>
-    /// One live performance event (a MIDI key, pedal, wheel or panic) on its way to the renderer. Fixed size, no references,
+    /// One live performance event (a key, pedal, wheel or panic) on its way to the renderer. Fixed size, no references,
     /// so any thread can copy it into the live ring without allocating.
     /// </summary>
     public struct TrackerLiveEvent
@@ -23,12 +27,14 @@ namespace Laubrary.ZTracker.Engine
         public byte note;
         /// <summary>Raw MIDI velocity 1..127, used for velocity zones.</summary>
         public byte velocity;
+        /// <summary>The input that played the key (note on/off).</summary>
+        public TrackerLiveSource source;
         /// <summary>Gain 0..1 (note on), semitones (pitch bend), 0/1 (sustain), normalized 0..1 (macro).</summary>
         public float value;
 
-        public static TrackerLiveEvent NoteOn(int track, int cursorColumn, int instrument, int note, int velocity, float gain)
-            => new TrackerLiveEvent { kind = TrackerLiveKind.NoteOn, track = (short)track, column = (short)cursorColumn, instrument = (short)instrument, note = (byte)note, velocity = (byte)velocity, value = gain };
-        public static TrackerLiveEvent NoteOff(int note) => new TrackerLiveEvent { kind = TrackerLiveKind.NoteOff, note = (byte)note };
+        public static TrackerLiveEvent NoteOn(int track, int cursorColumn, int instrument, int note, int velocity, float gain, TrackerLiveSource source = TrackerLiveSource.Midi)
+            => new TrackerLiveEvent { kind = TrackerLiveKind.NoteOn, track = (short)track, column = (short)cursorColumn, instrument = (short)instrument, note = (byte)note, velocity = (byte)velocity, value = gain, source = source };
+        public static TrackerLiveEvent NoteOff(int note, TrackerLiveSource source = TrackerLiveSource.Midi) => new TrackerLiveEvent { kind = TrackerLiveKind.NoteOff, note = (byte)note, source = source };
         public static TrackerLiveEvent Sustain(bool down) => new TrackerLiveEvent { kind = TrackerLiveKind.Sustain, value = down ? 1 : 0 };
         public static TrackerLiveEvent AllNotesOff() => new TrackerLiveEvent { kind = TrackerLiveKind.AllNotesOff };
         public static TrackerLiveEvent AllSoundOff() => new TrackerLiveEvent { kind = TrackerLiveKind.AllSoundOff };
@@ -36,7 +42,7 @@ namespace Laubrary.ZTracker.Engine
         public static TrackerLiveEvent Macro(int instrument, int macro, float normalized) => new TrackerLiveEvent { kind = TrackerLiveKind.Macro, instrument = (short)instrument, note = (byte)macro, value = normalized };
     }
 
-    /// <summary>One held (or pedal-sustained) live note, indexed by note number.</summary>
+    /// <summary>One held (or pedal-sustained) live key, indexed by <see cref="TrackerLiveRing.Key"/> (source and note).</summary>
     public struct TrackerLiveSlot
     {
         public long cohort, order;
@@ -53,7 +59,9 @@ namespace Laubrary.ZTracker.Engine
     /// </summary>
     public unsafe struct TrackerLiveRing : IDisposable
     {
-        public const int NoteSlots = 128;
+        public const int NotesPerSource = 128, Sources = 2, NoteSlots = NotesPerSource * Sources;
+        /// <summary>The live-note slot of a key: one bank of notes per source.</summary>
+        public static int Key(TrackerLiveSource source, int note) => (int)source * NotesPerSource + note;
         // Control words: 0 enqueue position, 1 dequeue position, 2 dropped (full), 3 serial counter,
         // 4 last applied serial, 5 drains with at least one event, 6 dropped count already handled by the renderer,
         // 7 blocks drained (every render call), 8 live order counter, 9 sustain pedal (0/1), 10 pitch bend (float bits).

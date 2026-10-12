@@ -10,10 +10,11 @@ using UnityEngine.UIElements;
 
 namespace Laubrary.ZTracker.Editor
 {
-    // MIDI keyboard input. Off until the user turns it on. In the Instrument workspace the keyboard plays the edited
-    // instrument on a clean preview channel of its own (no track settings, only the instrument's own effect chains),
-    // which may sound over a playing song. Everywhere else it plays the selected instrument through the cursor's track
-    // and note column, as a pattern note there would, spreading chords over that track's note columns.
+    // MIDI keyboard input and the live-key routing it shares with the computer keyboard. MIDI is off until the user
+    // turns it on. In the Instrument workspace keys from either keyboard play the edited instrument on a clean preview
+    // channel of its own (no track settings, only the instrument's own effect chains), which may sound over a playing
+    // song. Everywhere else MIDI plays the selected instrument through the cursor's track and note column, as a pattern
+    // note there would, spreading chords over that track's note columns.
     public sealed partial class ZTrackerModelWindow
     {
         const string MidiPrefs = "Laubrary.ZTracker.Midi.";
@@ -61,7 +62,7 @@ namespace Laubrary.ZTracker.Editor
             midiStatus.style.width = 300; midiStatus.style.height = 24; midiStatus.style.whiteSpace = WhiteSpace.NoWrap; midiStatus.style.overflow = Overflow.Hidden; midiStatus.style.textOverflow = TextOverflow.Ellipsis; midiStatus.style.unityTextAlign = TextAnchor.MiddleLeft; midiStatus.style.marginLeft = 4;
             midiStatus.RegisterCallback<PointerDownEvent>(e => { if (e.button == 1) { ShowMidiMenu(midiStatus); e.StopPropagation(); } });
             cluster.Add(midiStatus);
-            var panic = Named(Z.Button("Panic", "Silence every note played from the MIDI keyboard at once (the song keeps playing).", MidiPanic), "midi-panic");
+            var panic = Named(Z.Button("Panic", "Silence every note played from the MIDI keyboard or the computer keyboard at once (the song keeps playing).", MidiPanic), "midi-panic");
             panic.style.flexShrink = 0; panic.style.flexGrow = 0; cluster.Add(panic);
             RefreshMidiStatus();
             return cluster;
@@ -143,24 +144,28 @@ namespace Laubrary.ZTracker.Editor
         // Main thread, every pump: keep the device open, follow hot-plug, and point new notes at the current target.
         void MidiPump()
         {
-            if (!midiOn) { ReleaseIdleMidiPreview(true); return; }
-            double now = EditorApplication.timeSinceStartup;
-            if (now >= midiNextScan)
+            if (midiOn)
             {
-                midiNextScan = now + 2;
-                if (midiWindows != null && midiWindows.RefreshDevices() && midiWindows.IsOpen && !MidiDevices().Contains(midiWindows.OpenDevice)) { midiWindows.Close(); }
-                MidiSimulated.RefreshDevices();
-                if (OpenMidiDevice == null) ReopenMidi();
+                double now = EditorApplication.timeSinceStartup;
+                if (now >= midiNextScan)
+                {
+                    midiNextScan = now + 2;
+                    if (midiWindows != null && midiWindows.RefreshDevices() && midiWindows.IsOpen && !MidiDevices().Contains(midiWindows.OpenDevice)) { midiWindows.Close(); }
+                    MidiSimulated.RefreshDevices();
+                    if (OpenMidiDevice == null) ReopenMidi();
+                }
+                RouteLiveKeys();
+                var route = midiRouter.Current;
+                UpdateMidiCapture();
+                while (midiRouter.TryReadCaptured(out var key)) RecordKey(key, route);
             }
-            RouteMidi();
-            var route = midiRouter.Current;
-            UpdateMidiCapture();
-            while (midiRouter.TryReadCaptured(out var key)) RecordKey(key, route);
-            ReleaseIdleMidiPreview(false);
+            ReleaseIdleMidiPreview();
             RefreshMidiStatus();
         }
 
-        void RouteMidi()
+        // Points the router at where keys from either keyboard go now. The computer keyboard calls it on each key-down,
+        // so it works with MIDI off.
+        void RouteLiveKeys()
         {
             // A target that failed to start (an invalid song or instrument) is retried every two seconds, not every pump.
             if (EditorApplication.timeSinceStartup < midiRouteRetry) return;
@@ -227,14 +232,12 @@ namespace Laubrary.ZTracker.Editor
             finally { candidate?.Dispose(); next?.Dispose(); }
         }
 
-        // The preview channel exists only while it is used: it closes two seconds after the keyboard moved elsewhere
-        // and its notes have rung out, or at once when MIDI is turned off.
-        void ReleaseIdleMidiPreview(bool now)
+        // The preview channel exists only while it is used: it closes two seconds after the Instrument workspace (or the
+        // instrument it was made for) was left and its notes have rung out, or at once when MIDI is turned off.
+        void ReleaseIdleMidiPreview()
         {
             if (midiPreviewHost == null) return;
-            if (now) { DisposeMidiPreview(); return; }
-            var r = midiRouter.Current;
-            if (r != null && r.target == midiPreviewHost.LiveInput) { midiPreviewIdleSince = -1; return; }
+            if (pane == 3 && instrument == midiPreviewInstrument) { midiPreviewIdleSince = -1; return; }
             if (midiPreviewHost.LiveInput != null && midiPreviewHost.LiveInput.HeldNotes > 0) { midiPreviewIdleSince = -1; return; }
             double t = EditorApplication.timeSinceStartup;
             if (midiPreviewIdleSince < 0) midiPreviewIdleSince = t;

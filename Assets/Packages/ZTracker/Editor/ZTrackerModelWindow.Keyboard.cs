@@ -1,20 +1,22 @@
 using System;
 using System.Collections.Generic;
 using Laubrary.ZTracker.Model;
-using Laubrary.ZTracker.Engine;
 using Laubrary.Zui;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Laubrary.ZTracker.Editor
 {
+    // The computer keyboard in the Instrument and drum-kit views. It is one more source of keys into the live-note
+    // layer, beside the MIDI keyboard: the keys play the edited instrument on the clean preview channel, and Panic,
+    // chords over the channel's columns and per-key release work the same for both.
     public sealed partial class ZTrackerModelWindow
     {
-        readonly List<KeyCode> instrumentKeys = new List<KeyCode>();
-        readonly Dictionary<KeyCode, long> instrumentKeyTokens = new Dictionary<KeyCode, long>();
-        long nextInstrumentKey;
+        // Held keys and the note each one plays; a key already held is OS auto-repeat, not another strike.
+        readonly Dictionary<KeyCode, int> instrumentKeys = new Dictionary<KeyCode, int>();
         ZTrackerInstrument keyboardInstrument;
         Label keyboardStatus;
+        string keyboardProblem;
 
         void WireInstrumentKeyboard(VisualElement root)
         {
@@ -39,11 +41,12 @@ namespace Laubrary.ZTracker.Editor
         {
             if(keyboardStatus==null)return;
             bool typing=IsTyping(rootVisualElement.focusController?.focusedElement as VisualElement);
-            keyboardStatus.text=typing?"Typing":"Keyboard: Z–M / Q–U";
+            keyboardStatus.text=typing?"Typing":keyboardProblem!=null?"⚠ No preview":"Keyboard: Z–M / Q–U";
+            keyboardStatus.tooltip=keyboardProblem!=null?"The preview channel could not start: "+keyboardProblem:"The Instrument tab plays the selected sound with Z–M and Q–U, including chords, on the same clean preview channel as a MIDI keyboard; Panic silences both. S, D, G, H, J and 2, 3, 5, 6, 7 are black keys. Only editing text or a number temporarily uses keys for typing. Enter or Escape finishes typing; clicking elsewhere also returns to audition.";
         }
         VisualElement InstrumentKeyboardStatus()
         {
-            keyboardStatus=Z.Text("Keyboard: Z–M / Q–U",tooltip:"The Instrument tab plays the selected sound with Z–M and Q–U, including chords. S, D, G, H, J and 2, 3, 5, 6, 7 are black keys. Only editing text or a number temporarily uses keys for typing. Enter or Escape finishes typing; clicking elsewhere also returns to audition.");
+            keyboardStatus=Z.Text("Keyboard: Z–M / Q–U",tooltip:"");
             keyboardStatus.name="instrument-keyboard-status";
             keyboardStatus.style.width=170;
             RefreshKeyboardStatus();
@@ -76,33 +79,36 @@ namespace Laubrary.ZTracker.Editor
             int offset = PianoOffset(e.keyCode);
             if (offset < 0) return;
             e.StopPropagation(); e.PreventDefault();
-            if (instrumentKeys.Contains(e.keyCode)) return; // OS auto-repeat is not another strike.
+            if (instrumentKeys.ContainsKey(e.keyCode)) return;
             if (keyboardInstrument != instrument) ReleaseInstrumentKeys();
-            keyboardInstrument = instrument; instrumentKeys.Add(e.keyCode);
             int first = Instrument.family == InstrumentFamily.DrumKit ? drumFirstOctave : octave;
-            long token=++nextInstrumentKey;instrumentKeyTokens[e.keyCode]=token;
-            PlayEditingInstrument(Math.Min(119, first * 12 + offset),token);
+            int note = Math.Min(119, first * 12 + offset);
+            keyboardInstrument = instrument; instrumentKeys[e.keyCode] = note;
+            PlayPreviewKey(note);
         }
-        void PlayEditingInstrument(int note,long token)
+        // Instrument and drum-kit keys (typed or clicked on the drum map) all start here.
+        void PlayPreviewKey(int note)
         {
             StopDrumSourcePreview();
-            if(!playing&&drumNeedsRefresh) { StopPreview(); drumNeedsRefresh=false; }
-            // A refused structural refresh must not leave the next editing audition on old data.
-            if (!playing && lastError != null) StopPreview();
-            try { EnsurePreview(); if(entryInstrument>=0&&entryInstrument<Data.instruments.Count)host.SendCommand(TrackerCommand.AuditionKey(entryInstrument,note,token,FirstSequencer())); }
-            catch(Exception error) { lastError=error.Message; RefreshTransport(); }
+            RouteLiveKeys();
+            string problem = midiRouter.ComputerKeyDown(note) ? null : midiTargetText.TrimStart('→', ' ');
+            if (problem != keyboardProblem) { keyboardProblem = problem; RefreshKeyboardStatus(); }
+        }
+        // A button has no hold: the key sounds for half a second, unless the same note is held on the keyboard by then.
+        void TapPreviewKey(int note)
+        {
+            PlayPreviewKey(note);
+            rootVisualElement.schedule.Execute(() => { if (!instrumentKeys.ContainsValue(note)) midiRouter.ComputerKeyUp(note); }).StartingIn(500);
         }
         void InstrumentKeyUp(KeyUpEvent e)
         {
-            int at = instrumentKeys.IndexOf(e.keyCode);
-            if (at < 0) return;
-            instrumentKeys.RemoveAt(at); e.StopPropagation(); e.PreventDefault();
-            if(instrumentKeyTokens.TryGetValue(e.keyCode,out var token)) { host?.SendCommand(TrackerCommand.ReleaseKey(token)); instrumentKeyTokens.Remove(e.keyCode); }
+            if (!instrumentKeys.TryGetValue(e.keyCode, out int note)) return;
+            instrumentKeys.Remove(e.keyCode); e.StopPropagation(); e.PreventDefault();
+            midiRouter.ComputerKeyUp(note);
         }
         void ReleaseInstrumentKeys()
         {
-            foreach(var token in instrumentKeyTokens.Values)host?.SendCommand(TrackerCommand.ReleaseKey(token));
-            instrumentKeyTokens.Clear();
+            foreach (var note in instrumentKeys.Values) midiRouter.ComputerKeyUp(note);
             instrumentKeys.Clear(); keyboardInstrument = null;
         }
         void OnLostFocus() => ReleaseInstrumentKeys();

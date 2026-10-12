@@ -24,9 +24,10 @@ namespace Laubrary.ZTracker.Midi
     }
 
     /// <summary>
-    /// Turns raw MIDI messages into live engine events and sends them to the current target (a song track, or a clean
-    /// preview channel). Runs on the MIDI input thread: no allocation, no locks, settings are read from single fields.
-    /// Key-ups always go to the renderer that received the key-down, even after the target has moved.
+    /// Turns raw MIDI messages, and keys from the computer keyboard, into live engine events and sends them to the
+    /// current target (a song track, or a clean preview channel). MIDI arrives on the input thread: no allocation, no
+    /// locks, settings are read from single fields. Key-ups always go to the renderer that received the key-down, even
+    /// after the target has moved.
     /// </summary>
     public sealed class ZTrackerMidiRouter
     {
@@ -160,6 +161,31 @@ namespace Laubrary.ZTracker.Midi
             }
         }
 
+        // ---- The computer keyboard (main thread only) ----
+        // A second source of keys into the same route. Its keys are named by their final note (the caller applies its own
+        // octave) and are separate keys from MIDI keys of the same pitch.
+        readonly TrackerLiveTarget[] computerOwner = new TrackerLiveTarget[120];
+
+        /// <summary>Plays a computer key (note 0..119, full velocity) through the current route. False when there is no route.</summary>
+        public bool ComputerKeyDown(int note)
+        {
+            var r = route;
+            if (r == null || note < 0 || note > 119) return false;
+            computerOwner[note]?.Write(TrackerLiveEvent.NoteOff(note, TrackerLiveSource.Computer));
+            computerOwner[note] = null;
+            if (!r.target.Write(TrackerLiveEvent.NoteOn(r.track, r.column, r.instrument, note, 127, 1, TrackerLiveSource.Computer))) return false;
+            computerOwner[note] = r.target; lastNote = note; lastVelocity = 127;
+            return true;
+        }
+
+        /// <summary>Releases a computer key on the renderer that played it.</summary>
+        public void ComputerKeyUp(int note)
+        {
+            if (note < 0 || note > 119) return;
+            computerOwner[note]?.Write(TrackerLiveEvent.NoteOff(note, TrackerLiveSource.Computer));
+            computerOwner[note] = null;
+        }
+
         static TrackerLiveEvent Stamp(TrackerLiveEvent e, long stamp) { e.stamp = stamp; return e; }
 
         void Broadcast(Route r, TrackerLiveEvent e, long stamp)
@@ -172,13 +198,19 @@ namespace Laubrary.ZTracker.Midi
 
         void ForgetNotes() { for (int i = 0; i < noteOwner.Length; i++) noteOwner[i] = null; }
 
-        /// <summary>Silences every live note on every renderer that has one, immediately. Main thread or input thread.</summary>
+        /// <summary>Silences every live note, from either keyboard, on every renderer that has one, immediately. Main thread.</summary>
         public void Panic()
         {
             long stamp = System.Diagnostics.Stopwatch.GetTimestamp();
             var r = route; var e = TrackerLiveEvent.AllSoundOff(); e.stamp = stamp;
             r?.target.Write(e); var b = previous; if (b != null && b != r?.target) b.Write(e);
-            for (int i = 0; i < noteOwner.Length; i++) { var owner = noteOwner[i]; if (owner != null && owner != r?.target && owner != b) owner.Write(e); noteOwner[i] = null; }
+            Silence(noteOwner, e, r?.target, b); Silence(computerOwner, e, r?.target, b);
+        }
+
+        // Every other renderer still holding one of these keys gets the event too; the keys are forgotten.
+        static void Silence(TrackerLiveTarget[] owners, TrackerLiveEvent e, TrackerLiveTarget done, TrackerLiveTarget alsoDone)
+        {
+            for (int i = 0; i < owners.Length; i++) { var owner = owners[i]; if (owner != null && owner != done && owner != alsoDone) owner.Write(e); owners[i] = null; }
         }
     }
 }

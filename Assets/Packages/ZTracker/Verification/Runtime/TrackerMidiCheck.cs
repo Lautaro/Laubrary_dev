@@ -14,7 +14,8 @@ namespace Laubrary.ZTracker.Engine
 {
     /// <summary>
     /// Live-note layer and MIDI routing checks on the actual compiled renderer: chord spread over note columns,
-    /// oldest-first steal, per-note release, sustain pedal, panic, pitch bend, controllers, ring order/overflow with
+    /// oldest-first steal, per-note release, sustain pedal, panic, pitch bend, controllers, the computer keyboard as a
+    /// second key source beside MIDI, ring order/overflow with
     /// several producers, zero allocation on the input and render paths, block-start latency and source lifecycle.
     /// No Test Runner, menu, user asset or audio device. Run through eval: TrackerMidiCheck.Execute().
     /// </summary>
@@ -165,6 +166,36 @@ namespace Laubrary.ZTracker.Engine
                         sim.Controller(64, 0); a.Render(l, r, 64, 64); need(Active(a).Single().released, "Key-up/pedal did not reach the first renderer");
                         need(Active(b).Single().note == 64 && !Active(b).Single().released, "Second renderer disturbed");
                         router.Panic(); a.Render(l, r, 64, 64); b.Render(l, r, 64, 64); need(Active(a).Length == 0 && Active(b).Length == 0, "Panic missed a renderer");
+                    }
+                });
+                check("computer keyboard and MIDI: one chord from both, the same pitch from each, independent release, Panic silences both, no allocation", () =>
+                {
+                    using (var e = new TrackerOffline(TrackerPreparedSong.Prepare(song(6))))
+                    {
+                        var router = new ZTrackerMidiRouter(); var sim = new ZTrackerMidiSimulated(); need(sim.Open(ZTrackerMidiSimulated.Device, router, out _), "Simulated open failed");
+                        router.SetRoute(e.LiveInput, 0, 0, 0);
+                        Func<int, int> held = note => Active(e).Count(v => v.note == note && !v.released);
+                        sim.NoteOn(60, 100); need(router.ComputerKeyDown(60) && router.ComputerKeyDown(64), "Computer key refused"); sim.NoteOn(67, 100);
+                        e.Render(l, r, 256, 256); need(e.Compiled, "Renderer ran managed");
+                        var sounding = Active(e).Where(v => !v.released).ToArray();
+                        need(sounding.Length == 4 && held(60) == 2 && sounding.Select(v => v.column).Distinct().Count() == 4, "Chord from both keyboards: " + string.Join(",", sounding.Select(v => v.note + "@" + v.column)));
+                        sim.NoteOff(60); e.Render(l, r, 64, 64);
+                        need(held(60) == 1 && held(64) == 1 && held(67) == 1, "MIDI key-up released the computer key of the same pitch");
+                        router.ComputerKeyUp(60); e.Render(l, r, 64, 64);
+                        need(held(60) == 0 && held(64) == 1 && held(67) == 1, "Computer key-up released a MIDI key");
+                        router.ComputerKeyUp(64); e.Render(l, r, 64, 64);
+                        need(held(64) == 0 && held(67) == 1, "Computer key-up left its note or touched the MIDI key");
+                        router.ComputerKeyDown(72); sim.NoteOn(76, 100); e.Render(l, r, 64, 64);
+                        router.Panic(); e.Render(l, r, 64, 64);
+                        need(Active(e).Length == 0 && e.LiveInput.HeldNotes == 0, "Panic left a note from one of the keyboards");
+                        router.ComputerKeyUp(72); sim.NoteOff(76); sim.NoteOff(67); // keys lifted after Panic are harmless
+                        for (int i = 0; i < 50; i++) { router.ComputerKeyDown(48 + i % 12); router.ComputerKeyUp(48 + i % 12); e.Render(l, r, 64, 64); }
+                        long before = GC.GetAllocatedBytesForCurrentThread();
+                        for (int i = 0; i < 1000; i++) { router.ComputerKeyDown(48 + i % 24); sim.NoteOn(60 + i % 12, 90); if (i % 10 == 0) e.Render(l, r, 256, 256); router.ComputerKeyUp(48 + i % 24); sim.NoteOff(60 + i % 12); }
+                        long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+                        report.AppendLine("MEASURE twoSourceBytes=" + bytes + " (2000 computer key events, 2000 MIDI messages, 100 blocks)");
+                        need(bytes == 0, "Two-source keys or rendering allocated " + bytes);
+                        sim.Close();
                     }
                 });
                 check("ring: order, overflow drops newest without blocking, lost key-up releases everything", () =>

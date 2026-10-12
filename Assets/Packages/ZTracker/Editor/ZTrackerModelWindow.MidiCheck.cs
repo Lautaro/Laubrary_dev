@@ -21,7 +21,7 @@ namespace Laubrary.ZTracker.Editor
         /// MIDI in the real window with real pointer events and real audio graphs: turn MIDI on, pick the simulated
         /// keyboard from the right-click menu, play a chord through the cursor's track, play the song, measure
         /// arrival-to-applied latency at the project buffer and at 256 samples, record while playing and at the cursor, preview
-        /// on the clean channel over the playing song, Panic, unplug/replug and turn MIDI off. In-memory fixtures only; nothing is saved. Runs over
+        /// on the clean channel over the playing song with MIDI and computer keys in one chord, Panic, unplug/replug and turn MIDI off. In-memory fixtures only; nothing is saved. Runs over
         /// editor updates; read <see cref="MidiUiCheckReport"/> afterwards.
         /// </summary>
         public static void StartMidiUiCheck()
@@ -45,6 +45,7 @@ namespace Laubrary.ZTracker.Editor
                 window.SendEvent(new Event { type = EventType.MouseDown, button = button, mousePosition = at, clickCount = 1 });
                 window.SendEvent(new Event { type = EventType.MouseUp, button = button, mousePosition = at, clickCount = 1 });
             };
+            Action<KeyCode, bool> key = (code, down) => window.SendEvent(new Event { type = down ? EventType.KeyDown : EventType.KeyUp, keyCode = code });
             Func<string, Button> anyButton = text => window.rootVisualElement.panel.visualTree.Query<Button>().ToList().FirstOrDefault(b => b.text == text);
             double energySong = 0, energyPreview = 0; string savedDevice = EditorPrefs.GetString(MidiPrefs + "Device", null); int savedBuffer = EditorPrefs.GetInt(MidiPrefs + "Buffer", 0);
             steps.Enqueue(("MIDI toggle turns MIDI on (real click)", .3, () => { need(find("midi-status") is Label s && s.text == "Off", "Status not Off at start"); click(find("midi-toggle"), 0); need(window.midiOn, "Click did not turn MIDI on"); }));
@@ -142,8 +143,30 @@ namespace Laubrary.ZTracker.Editor
                 need(window.SongHost.LiveInput.HeldNotes == 0, "Preview notes leaked into the song track");
                 report.AppendLine("STATUS " + window.MidiStatusText);
             }));
-            steps.Enqueue(("Panic (real click) silences the preview, the song plays on", .3, () => { click(find("midi-panic"), 0); }));
-            steps.Enqueue(("panic result", .1, () => { need(window.MidiPreviewHost.LiveInput.HeldNotes == 0, "Panic left held notes"); need(window.playing, "Panic stopped the song"); }));
+            int typedLow = window.octave * 12 + PianoOffset(KeyCode.Z);
+            steps.Enqueue(("computer keys Z and C (real key events) join the MIDI chord on the same preview", .4, () =>
+            {
+                need(typedLow == 60, "Octave assumption: Z plays " + typedLow);
+                energyPreview = window.MidiPreviewHost.RenderedEnergy;
+                key(KeyCode.Z, true); key(KeyCode.C, true); key(KeyCode.Z, true);
+            }));
+            steps.Enqueue(("both keyboards sound together, the same pitch twice", .3, () =>
+            {
+                need(window.MidiPreviewHost.LiveInput.HeldNotes == 4, "Preview held " + window.MidiPreviewHost.LiveInput.HeldNotes + " (expected MIDI 60, 67 and typed 60, 64)");
+                need(window.MidiPreviewHost.RenderedEnergy > energyPreview && window.SongHost.LiveInput.HeldNotes == 0, "Typed keys silent or leaked into the song");
+                key(KeyCode.Z, false); sim.NoteOff(67);
+            }));
+            steps.Enqueue(("typed Z and MIDI 67 released, MIDI 60 and typed C still held", .3, () =>
+            {
+                need(window.MidiPreviewHost.LiveInput.HeldNotes == 2, "Preview held " + window.MidiPreviewHost.LiveInput.HeldNotes);
+                sim.NoteOn(67, 100);
+            }));
+            steps.Enqueue(("Panic (real click) silences both keyboards on the preview, the song plays on", .3, () => { need(window.MidiPreviewHost.LiveInput.HeldNotes == 3, "Re-pressed key not held"); click(find("midi-panic"), 0); }));
+            steps.Enqueue(("panic result", .1, () =>
+            {
+                need(window.MidiPreviewHost.LiveInput.HeldNotes == 0, "Panic left held notes"); need(window.playing, "Panic stopped the song");
+                key(KeyCode.C, false); sim.NoteOff(60); sim.NoteOff(67); need(window.instrumentKeys.Count == 0, "Typed key still listed after its key-up");
+            }));
             steps.Enqueue(("unplugged keyboard is reported and comes back on its own", 2.5, () => { sim.Unplugged = true; window.midiNextScan = 0; }));
             steps.Enqueue(("unplug status", 2.5, () => { need(!sim.IsOpen && !window.MidiStatusText.Contains(ZTrackerMidiSimulated.Device), "Unplug not noticed: " + window.MidiStatusText); report.AppendLine("STATUS " + window.MidiStatusText); sim.Unplugged = false; window.midiNextScan = 0; }));
             steps.Enqueue(("replug", .5, () => { need(sim.IsOpen && window.MidiStatusText.Contains(ZTrackerMidiSimulated.Device), "Not reopened: " + window.MidiStatusText); }));
