@@ -21,14 +21,14 @@ namespace Laubrary.ZTracker.Editor
         const string MidiPrefs = "Laubrary.ZTracker.Midi.";
         readonly ZTrackerMidiRouter midiRouter = new ZTrackerMidiRouter();
         ZTrackerMidiWindows midiWindows;
-        bool midiOn, midiStarted;
+        [NonSerialized] bool midiOn, midiStarted;
         [SerializeField] bool midiPreferenceRestoreEnabled;
-        internal bool midiPersistPreferences;
-        bool midiSettingsInitialized;
+        [NonSerialized] internal bool midiPersistPreferences;
+        [NonSerialized] bool midiSettingsInitialized;
         string midiDevice, midiProblem, midiTargetText = "";
         double midiNextScan, midiRouteRetry;
         ZuiToggleButton midiToggleButton, midiRecordButton;
-        bool midiRecord;
+        [NonSerialized] bool midiRecord;
         ZTrackerSongClock midiClock;
         readonly List<int> recordHeld = new List<int>();
         Label midiStatus;
@@ -40,7 +40,7 @@ namespace Laubrary.ZTracker.Editor
         ZTrackerInstrument midiPreviewInstrument;
         double midiPreviewIdleSince = -1;
         // Checks list only the simulated keyboard, so they never open a real device on this machine.
-        bool midiSimulatedOnly;
+        [NonSerialized] bool midiSimulatedOnly;
         static readonly string[] midiBufferLabels = { "Project", "1024", "512", "256" };
         static readonly int[] midiBufferSizes = { 0, 1024, 512, 256 };
         int midiBuffer;
