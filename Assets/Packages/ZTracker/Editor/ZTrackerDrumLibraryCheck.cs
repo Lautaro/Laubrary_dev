@@ -17,18 +17,20 @@ namespace Laubrary.ZTracker.Editor
                 File.WriteAllBytes(Path.Combine(root, "Bass Drum", "kick.WAV"), Array.Empty<byte>());
                 File.WriteAllBytes(Path.Combine(root, "Bass Drum", "Deep", "nested.ogg"), Array.Empty<byte>());
                 File.WriteAllBytes(Path.Combine(root, "SnareDrum", "snare.aif"), Array.Empty<byte>());
+                File.WriteAllBytes(Path.Combine(root, "SnareDrum", "lossless.FLAC"), Array.Empty<byte>());
                 File.WriteAllBytes(Path.Combine(root, "SnareDrum", "ignored.txt"), Array.Empty<byte>());
 
                 var all = ZTrackerDrumLibrary.ScanRoot(root);
                 Need(all.errors.Count == 0, "Unexpected scan errors: " + all.errors.Count);
-                Need(all.files.Count == 3, "Expected all three supported clips, got " + all.files.Count);
+                Need(all.files.Count == 4, "Expected all four supported clips, including FLAC, got " + all.files.Count);
                 Need(all.files.Exists(f => f.name == "nested" && f.parentFolderTag == "Deep"), "Nested clip did not use its immediate parent folder.");
+                Need(all.files.Exists(f => f.name == "lossless" && f.extension.Equals(".FLAC", StringComparison.OrdinalIgnoreCase)), "FLAC clip was not catalogued.");
                 Need(DrumTags.Category("Bass Drum") == DrumCategory.Kick, "Space-insensitive folder alias did not classify as Kick.");
                 Need(DrumTags.Category("SNARE DRUM") == DrumCategory.Snare, "Case/space-insensitive folder alias did not classify as Snare.");
 
                 var filtered = ZTrackerDrumLibrary.ScanRoot(root, "Bass Drum");
                 Need(filtered.files.Count == 1 && filtered.files[0].name == "kick", "Folder search did not match the parent folder.");
-                return "PASS recursive supported-file scan, immediate-parent tags, aliases and folder search; 3 clips found.";
+                return "PASS recursive supported-file scan (including FLAC), immediate-parent tags, aliases and folder search; 4 clips found.";
             }
             finally
             {

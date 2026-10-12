@@ -13,7 +13,7 @@ namespace Laubrary.ZTracker.Editor {
         const string RootPrefPrefix = "ZTracker.DrumLibrary.Root.";
         const string SampleFolder = "Assets/ZTracker/DrumSamples";
         const string ProvenanceKey = "ZTrackerSourceUri=";
-        const string SupportedExtensions = ".wav;.ogg;.mp3;.aiff;.aif";
+        const string SupportedExtensions = ".wav;.ogg;.mp3;.aiff;.aif;.flac";
 
         [Serializable]
         public sealed class DrumFile {
