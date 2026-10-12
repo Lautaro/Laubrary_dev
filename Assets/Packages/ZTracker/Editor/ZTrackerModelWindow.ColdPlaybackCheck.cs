@@ -102,6 +102,41 @@ namespace Laubrary.ZTracker.Editor
             }
             return "Retained sends: " + pass + " passed / " + fail + " failed\n" + report;
         }
+        public static string CheckAuthoredColdPlaybackPcm(ZTrackerSong original)
+        {
+            if (original == null) throw new ArgumentNullException(nameof(original));
+            var originals = new Dictionary<UnityEngine.Object,string> { [original] = JsonUtility.ToJson(original) };
+            int count;
+            using (var snapshot = PlaybackSnapshot.Create(original,null,-1))
+            {
+                count = snapshot.Data.instruments.Count;
+                var source = original.schemaVersion == 0 ? original.instruments : original.model.instruments;
+                foreach (var ins in source) if (ins != null) originals[ins] = JsonUtility.ToJson(ins);
+            }
+            var report = new StringBuilder();
+            for (int slot = 0; slot < count; slot++) foreach (string path in new[] { "typed audition", "MIDI audition", "transport" })
+            {
+                if (path == "transport" && slot != 0) continue;
+                try
+                {
+                    using (var snapshot = PlaybackSnapshot.Create(original,null,-1)) using (var engine = new TrackerOffline(TrackerPreparedSong.Prepare(snapshot.Data)))
+                    using (var left = new NativeArray<float>(4096,Allocator.TempJob)) using (var right = new NativeArray<float>(4096,Allocator.TempJob))
+                    {
+                        int track = snapshot.Data.tracks.FindIndex(t => t.kind == TrackKind.Sequencer);
+                        if (path == "transport") engine.SendCommand(TrackerCommand.Play());
+                        else if (path == "typed audition") engine.SendCommand(TrackerCommand.Audition(slot,69,127,track));
+                        else { var router = new ZTrackerMidiRouter(); router.SetRoute(engine.LiveInput,track,0,slot); router.Receive((uint)(0x90 | 69 << 8 | 110 << 16),Stopwatch.GetTimestamp()); }
+                        // One render respects the production block limit; accumulate enough time for authored envelopes.
+                        double energy = 0;
+                        for (int block = 0; block < 4; block++) { engine.Render(left,right,4096); for (int frame = 0; frame < 4096; frame++) energy += (double)left[frame]*left[frame] + (double)right[frame]*right[frame]; }
+                        report.AppendLine((energy > .0001 ? "AUDIBLE " : "SILENT ") + path + " slot=" + slot + " energy=" + energy.ToString("F6"));
+                    }
+                }
+                catch (Exception ex) { report.AppendLine("ERROR " + path + " slot=" + slot + ": " + ex.Message); }
+            }
+            foreach (var pair in originals) if (pair.Value != JsonUtility.ToJson(pair.Key)) throw new Exception("Read-only authored playback changed " + pair.Key.name);
+            return report.ToString();
+        }
         // Actual SAP graph startup without any Instrument preview or hardware MIDI device. Poll the report after completion.
         public static void StartColdPlaybackUiCheck(bool stoppedByConfiguration = false)
         {
