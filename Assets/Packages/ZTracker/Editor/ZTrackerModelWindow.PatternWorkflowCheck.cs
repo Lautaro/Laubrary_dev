@@ -60,7 +60,7 @@ namespace Laubrary.ZTracker.Editor
                     var cell=window.gridCanvas.Q<Label>("cell-0-3");Need(cell!=null&&cell.worldBound.width>0,"Nonfirst cell was not laid out");
                     using(var click=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,mousePosition=cell.worldBound.center})){click.target=cell;cell.SendEvent(click);}
                     Need(window.sub==3,"Retained cell pointer did not select column 3");
-                    int fx=window.fields.FindIndex(f=>f.kind==FieldKind.EffectId||f.kind==FieldKind.LocalId);Need(fx>0,"No FX identifier field");
+                    int fx=window.fields.FindIndex(1,f=>f.kind==FieldKind.EffectId||f.kind==FieldKind.LocalId);Need(fx>0,"No nonfirst FX identifier field");
                     window.grid.scrollOffset=new Vector2(Mathf.Max(0,window.fieldX[fx]-30),0);window.BuildVisibleCells();LayoutChain(window);
                     cell=window.gridCanvas.Q<Label>("cell-0-"+fx);Need(cell!=null&&cell.worldBound.width>0,"FX cell was not laid out");
                     using(var click=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,mousePosition=cell.worldBound.center})){click.target=cell;cell.SendEvent(click);}
