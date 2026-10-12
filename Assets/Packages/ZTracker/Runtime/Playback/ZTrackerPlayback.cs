@@ -329,6 +329,21 @@ namespace Laubrary.ZTracker
                 Data.patterns.Add(pattern); Data.sequence.Add(new SequenceSlot { id = "audition-slot", patternId = pattern.id });
             }
             for (int i = 0; i < slots.Length; i++) Data.instruments[i] = Copy(slots[i], previous, instrument == null || slots[i] == instrument);
+            // Capture synth dependencies too: a playing kit never reads a mutable authoring asset,
+            // and an edit to a referenced synth participates in the existing safe refresh path.
+            foreach (var kit in Data.instruments)
+            {
+                if (kit == null || kit.model.family != InstrumentFamily.DrumKit) continue;
+                foreach (var mapping in kit.model.drumKit.mappings)
+                {
+                    var dependency = mapping.synth;
+                    if (dependency == null) continue;
+                    if (previous != null)
+                        foreach (var pair in previous.copies)
+                            if (pair.Value == dependency) { dependency = pair.Key; break; }
+                    mapping.synth = Copy(dependency, previous, instrument == null || dependency == instrument);
+                }
+            }
             // The engine validates before publication, retaining its existing
             // policy of diagnosing optional malformed lanes/commands separately.
         }

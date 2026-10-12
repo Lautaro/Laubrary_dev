@@ -147,6 +147,7 @@ namespace Laubrary.ZTracker.Engine
         public int legacyFilter;
         public int delayDestination, reverbDestination;
         public float delaySend, reverbSend;
+        public float drumGateSeconds;
     }
     public struct TrackerZone { public int sample, minNote, maxNote, minVelocity, maxVelocity, baseNote; public bool tracking; }
     public struct TrackerInstrument { public int zoneStart, zoneCount, chainStart, chainCount; public NewNoteAction nna; }

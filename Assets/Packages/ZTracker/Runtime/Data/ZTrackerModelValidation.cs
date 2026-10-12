@@ -143,6 +143,18 @@ namespace Laubrary.ZTracker.Model
         {
             if (data == null || data.parameters == null || data.sampler == null || data.macros == null || data.macros.Length != 8) return "Instrument requires parameters, sampler and exactly eight macros";
             if (data.parameters.presets != null && data.parameters.presets.Exists(p => p == null)) return "Null legacy preset retained; explicit repair required before migration or playback";
+            if (data.family == InstrumentFamily.DrumKit)
+            {
+                if (data.drumKit?.mappings == null || data.drumKit.mappings.Count > 120) return "Drum kit requires at most 120 mappings";
+                var occupied = new bool[120];
+                foreach (var m in data.drumKit.mappings)
+                {
+                    if (m == null || m.noteMin < 0 || m.noteMax > 119 || m.noteMin > m.noteMax || m.baseNote < 0 || m.baseNote > 119 || !Finite(m.volume) || m.volume < 0 || m.volume > 16 || !Finite(m.gateSeconds) || m.gateSeconds <= 0 || m.gateSeconds > 60) return "Invalid drum mapping range, pitch, level or gate";
+                    if (m.synth != null && (m.synth.schemaVersion != 1 || m.synth.model == null || m.synth.model.family != InstrumentFamily.Synth)) return "Drum synth mappings require a schema-1 synth instrument";
+                    if (m.synth != null && m.pcm != null) return "Choose one sample or synth per drum mapping";
+                    for (int note = m.noteMin; note <= m.noteMax; note++) { if (occupied[note]) return "Drum key ranges overlap"; occupied[note] = true; }
+                }
+            }
             if (!Enum.IsDefined(typeof(InstrumentFamily),data.family) || !Enum.IsDefined(typeof(SynthMode),data.synthMode) || !Enum.IsDefined(typeof(NewNoteAction),data.sampler.nna)) return "Unknown instrument family/engine/NNA";
             if (data.modulation == null || data.fxChains == null || data.externalParameters == null || data.archivedMacros == null || data.sampler.samples == null || data.sampler.zones == null) return "Instrument collections missing";
             var q=data.parameters;

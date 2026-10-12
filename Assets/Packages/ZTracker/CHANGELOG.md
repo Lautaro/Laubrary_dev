@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Drum kits have a source browser for recursively scanning an external folder, existing project audio clips, and synth instruments. Click to audition, then drag a source onto the key map or select a key range and assign it; drag mapped ranges to move or resize them. External and project audio are copied into `Assets/ZTracker/DrumSamples` only on assignment, with the original file URI retained and Decompress On Load enabled on the copy.
 - Instrument Effects and Mixer Devices use the shared Zounds chain editor, including searchable effect/modifier pickers and compact expandable rows. Continuous drags remain one Undo step. Write-back preserves the chain object, repairs send taps by effect identity, and flags removed automation targets within the same undo transaction.
 - Chain regressions exercise attached controls, restored values, reorder/send identity and removal/automation Undo/Redo. Existing editor checks target the surviving shared controls.
 

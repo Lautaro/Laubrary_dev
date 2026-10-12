@@ -104,6 +104,7 @@ namespace Laubrary.ZTracker.Model
         public static InstrumentParameters Project(InstrumentData model)
         {
             Require(ZTrackerModelValidation.Validate(model));
+            if(model.family==InstrumentFamily.DrumKit)throw new InvalidOperationException("Drum kits require the Burst backend; their sample and synth mappings cannot be projected to legacy playback.");
             if((model.parameters.parameterEnvelopes?.Count??0)>0||model.parameters.presets!=null&&model.parameters.presets.Exists(p=>p!=null&&(p.parameterEnvelopes?.Count??0)>0))throw new InvalidOperationException("Per-note parameter envelopes require the Burst backend; retained without legacy projection.");
             if(model.parameters.envelopeEnumDomain!=SoundEnumDomain.SavedAuthoring)throw new InvalidOperationException("Direct native envelope enums require the new backend.");
             if(model.parameters.enumDomain!=SoundEnumDomain.SavedAuthoring||model.parameters.glideEnabled||(model.parameters.arpeggioSpeedPoints?.Count??0)>0||!model.parameters.arpeggioSpeedIsPerNote||model.sampler.zones.Exists(z=>z.blend!=null&&z.blend.loopB!=SampleLoop.Off)||Array.Exists(model.macros,m=>m.mappings.Exists(map=>(map.curvePoints?.Count??0)>0)))throw new InvalidOperationException("Typed P4 sound extensions require the new backend; preserved without legacy projection.");

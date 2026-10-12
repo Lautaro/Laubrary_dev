@@ -86,7 +86,54 @@ namespace Laubrary.ZTracker.Editor
         EventCell Event(int r,FieldSlot f)=>Read(r,f).events.Find(n=>n.column==f.column)??new EventCell{column=f.column};
         string Text(int r,FieldSlot f){var n=Note(r,f);switch(f.kind){case FieldKind.Note:return n.note==NoteKind.Note?noteNames[Mathf.Clamp(n.pitch,0,119)%12]+(n.pitch/12):n.note==NoteKind.Off?"OFF":n.note==NoteKind.Legacy?"RAW":"---";case FieldKind.Instrument:return n.instrumentPresent?n.instrument.ToString("X2"):"..";case FieldKind.Volume:return ValueText(n.volume);case FieldKind.Pan:return ValueText(n.pan);case FieldKind.Delay:return n.delayPresent?n.delay.ToString("X2"):"..";case FieldKind.LocalId:return n.sampleFx.present?n.sampleFx.identifier:"..";case FieldKind.LocalValue:return n.sampleFx.valuePresent?n.sampleFx.value.ToString("X2"):"..";case FieldKind.EffectId:return Effect(r,f).command.present?Effect(r,f).command.identifier:"..";case FieldKind.EffectValue:return Effect(r,f).command.valuePresent?Effect(r,f).command.value.ToString("X2"):"..";default:var e=Event(r,f);return e.present?e.payload:"·";}}
         static string ValueText(ColumnValue v)=>v.kind==ValueKind.Value?v.value.ToString("X2"):v.kind==ValueKind.Command?v.command.identifier:v.kind==ValueKind.Legacy?"RAW":"..";
-        void RefreshCells(){if(Pattern==null)return;foreach(var pair in labels){var p=pair.Key;if(p.y>=fields.Count||p.x>=Pattern.lineCount)continue;pair.Value.text=Text(p.x,fields[p.y]);pair.Value.EnableInClassList("tracker-picked",p.x==row&&p.y==sub);pair.Value.EnableInClassList("tracker-playing",p.x==playingRow);pair.Value.EnableInClassList("tracker-selected",anchorRow>=0&&p.x>=Math.Min(row,anchorRow)&&p.x<=Math.Max(row,anchorRow)&&p.y>=Math.Min(sub,anchorSub)&&p.y<=Math.Max(sub,anchorSub));}RefreshHelp();}
+        void RefreshCells(){if(Pattern==null)return;foreach(var pair in labels){var p=pair.Key;if(p.y>=fields.Count||p.x>=Pattern.lineCount)continue;RefreshNoteDisplay(pair.Value,p.x,fields[p.y]);pair.Value.EnableInClassList("tracker-picked",p.x==row&&p.y==sub);pair.Value.EnableInClassList("tracker-playing",p.x==playingRow);pair.Value.EnableInClassList("tracker-selected",anchorRow>=0&&p.x>=Math.Min(row,anchorRow)&&p.x<=Math.Max(row,anchorRow)&&p.y>=Math.Min(sub,anchorSub)&&p.y<=Math.Max(sub,anchorSub));}RefreshHelp();}
+        internal DrumMapping ResolveDrumMapping(int line,int trackIndex,int column,int pitch)
+        {
+            if(Pattern==null||trackIndex<0||trackIndex>=Data.tracks.Count)return null;
+            int instrument=-1;
+            string trackId=Data.tracks[trackIndex].id;
+            int selectedOrder=Mathf.Clamp(order,0,Data.sequence.Count-1);
+            // Instrument memory belongs to a column and survives ordinary pattern boundaries.
+            // Search the selected sequence occurrence, not just the reusable pattern asset.
+            for(int slot=selectedOrder;slot>=0&&instrument<0;slot--)
+            {
+                var pattern=Data.patterns.Find(p=>p.id==Data.sequence[slot].patternId);
+                var records=pattern?.tracks.Find(t=>t.trackId==trackId);
+                if(records==null)continue;
+                int latest=-1,limit=slot==selectedOrder?Math.Min(line,pattern.lineCount-1):pattern.lineCount-1;
+                foreach(var entry in records.lines)
+                {
+                    if(entry==null||entry.line<0||entry.line>limit||entry.line<latest)continue;
+                    var note=entry.notes?.Find(n=>n!=null&&!n.inactive&&n.column==column&&n.instrumentPresent);
+                    if(note==null||note.instrument<0||note.instrument>=Data.instruments.Count||Data.instruments[note.instrument]==null)continue;
+                    latest=entry.line;instrument=note.instrument;
+                }
+            }
+            if(instrument<0||instrument>=Data.instruments.Count)return null;
+            var data=ReadInstrument(Data.instruments[instrument]);
+            return data?.family==InstrumentFamily.DrumKit?data.drumKit?.Find(pitch):null;
+        }
+        void RefreshNoteDisplay(Label label,int line,FieldSlot field)
+        {
+            label.text=Text(line,field);label.tooltip=FieldTooltip(field);
+            var previous=label.Q<VisualElement>("drum-icon");
+            var note=Note(line,field);
+            bool drum=field.kind==FieldKind.Note&&Data.tracks[field.track].drumTrack&&note.note==NoteKind.Note;
+            if(!drum){previous?.RemoveFromHierarchy();return;}
+            var mapping=ResolveDrumMapping(line,field.track,field.column,note.pitch);
+            if(mapping==null)
+            {
+                previous?.RemoveFromHierarchy();label.text="?";
+                label.tooltip=$"{Text(line,field)}: no drum sound mapped for this key in this column's instrument. "+FieldTooltip(field);return;
+            }
+            string category=DrumTags.Category(mapping.tag).ToString();
+            if(previous==null||previous.userData as string!=category)
+            {
+                previous?.RemoveFromHierarchy();previous=ZTrackerDrumIcons.Create(mapping.tag,18);previous.userData=category;
+                previous.style.position=Position.Absolute;previous.style.left=2;previous.style.top=1;label.Add(previous);
+            }
+            label.text="";label.tooltip=$"{mapping.name} ({DrumTags.Canonical(mapping.tag)}) · {Text(line,field)}. "+FieldTooltip(field);
+        }
         void Select(int r,int c,bool extend){if(extend){if(anchorRow<0){anchorRow=row;anchorSub=sub;}}else anchorRow=-1;row=Mathf.Clamp(r,0,Pattern.lineCount-1);sub=Mathf.Clamp(c,0,Math.Max(0,fields.Count-1));if(fields.Count>0)track=fields[sub].track;hexDigit=0;pendingId="";EnsureCursorVisible();RefreshCells();RefreshCellDetails();}
         void EnsureCursorVisible(){if(grid==null||fields.Count==0)return;var offset=grid.scrollOffset;float x=fieldX[sub],y=(row+2)*20,width=grid.contentViewport.layout.width,height=grid.contentViewport.layout.height;if(width<=0||height<=0)return;if(x<offset.x)offset.x=x;if(x+Width(fields[sub].kind)>offset.x+width)offset.x=x+Width(fields[sub].kind)-width;if(y<offset.y+40)offset.y=Mathf.Max(0,y-40);if(y+20>offset.y+height)offset.y=y+20-height;grid.scrollOffset=offset;}
         void HighlightPlaying(int r){playingRow=r;foreach(var pair in labels)pair.Value.EnableInClassList("tracker-playing",pair.Key.x==r);if(pane==0&&grid!=null){float y=(r+2)*20;var offset=grid.scrollOffset;if(y<offset.y+40)offset.y=Mathf.Max(0,y-40);else if(y+20>offset.y+grid.contentViewport.layout.height)offset.y=y+20-grid.contentViewport.layout.height;grid.scrollOffset=offset;}}

@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Laubrary.ZTracker.Model
 {
-    public enum InstrumentFamily { Sampler, Synth }
+    public enum InstrumentFamily { Sampler, Synth, DrumKit }
     public enum SynthMode { Subtractive, FM }
     // Saved editor integers and direct native fixture integers have different meanings.
     public enum SoundEnumDomain { SavedAuthoring, NativeDirect }
@@ -194,6 +194,7 @@ namespace Laubrary.ZTracker.Model
         public SynthMode synthMode;
         public InstrumentParameters parameters = new InstrumentParameters();
         public SamplerData sampler = new SamplerData();
+        public DrumKitData drumKit = new DrumKitData();
         public List<ModulationSet> modulation = new List<ModulationSet>();
         public List<AudioEffectChainData> fxChains = new List<AudioEffectChainData>();
         public InstrumentMacro[] macros = new InstrumentMacro[8];

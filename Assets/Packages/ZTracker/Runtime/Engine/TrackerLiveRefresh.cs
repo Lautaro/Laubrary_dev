@@ -39,6 +39,7 @@ namespace Laubrary.ZTracker.Engine
                 key.Append(JsonUtility.ToJson(data));}
             for(int i=0;i<state.chainCount;i++){var l=state.chains[i].layout;key.Append('|').Append(l.stateFloats).Append(':').Append(l.paramCount);for(int j=0;j<l.nodeCount;j++)key.Append(':').Append((int)l.nodeType[j]).Append('/').Append(l.stateOffset[j]);for(int j=0;j<l.derivedFlat.Length;j++)key.Append('/').Append(l.derivedFlat[j]);}
             liveIdentity=key.ToString();
+            foreach(var link in drumLinks)liveIdentity+="|drum:"+link.kit+":"+link.source+":"+link.mapping.noteMin+":"+link.mapping.noteMax+":"+link.mapping.baseNote+":"+link.mapping.keyTracking+":"+link.mapping.gateSeconds;
             // Each delayed note has at most three local commands (volume, pan, local FX).
             state.carryCells=state.cells.Length;state.carryOps=state.ops.Length;
             Expand(ref state.cells,state.carryCells+state.columnCount);

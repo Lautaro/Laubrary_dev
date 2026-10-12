@@ -249,7 +249,7 @@ namespace Laubrary.ZTracker.Engine
                 if(sample.muteGroup>0)for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.active&&v.track==track&&v.instrument==instrument&&v.cohort!=cohort&&state.samples[v.sample].muteGroup==sample.muteGroup){v.active=false;state.voices[i]=v;}}
                 for(int member=0;member<tone.members;member++){
                 int index=ChooseVoice(cohort);var clip=sample.pcm>=0?state.clips[sample.pcm]:default;
-                int bus=-1;if(sample.fxChain>=0)for(int b=0;b<state.busCount;b++){var route=state.buses[b];if(route.track==track&&route.instrument==instrument&&route.fx==sample.fxChain){bus=b;break;}}
+                int bus=-1;if(sample.fxChain>=0)for(int b=0;b<state.busCount;b++){var route=state.buses[b];if(route.track==track&&route.instrument==sample.instrument&&route.fx==sample.fxChain){bus=b;break;}}
                 var voice=new TrackerVoice{active=true,sample=zone.sample,instrument=instrument,track=track,column=column,note=note,velocity=velocity,cohort=cohort,volume=col.volume,pan=col.pan,bus=bus,direction=sample.loop==SampleLoop.Backward?-1:1,position=sample.loop==SampleLoop.Backward?sample.loopEnd-1:0,step=SafeInitialStep((clip.frequency/(double)state.sampleRate),((zone.tracking?note-zone.baseNote:0)+sample.tune)/12d),commandGain=1,commandTremolo=1,retriggerGain=1,regionStart=sample.regionStart,regionEnd=sample.regionEnd,selectedStart=sample.regionStart};
                 if(sample.legacySamplePitch&&zone.tracking){
                     // MSVC /O2 /fp:fast folds native MidiToFreq(note)/MidiToFreq(base)*fineMul
@@ -258,10 +258,13 @@ namespace Laubrary.ZTracker.Engine
                     float ne=((zone.tracking?note:zone.baseNote)+sample.legacyTranspose-69)*(1f/12f),be=(zone.baseNote-69)*(1f/12f),fe=sample.legacyFineTuneCents*(1f/1200f);
                     double exponent=(ne-be)+fe;double rate=clip.frequency/(double)state.sampleRate;voice.step=math.abs(exponent)<19?(math.pow(2f,(float)exponent)*math.asfloat(0x3f7fffff))*rate:SafeInitialStep(rate,exponent);
                 }
+                // Drum zones borrow a separately prepared source's parameters and fixed synth pitch.
+                voice.instrument=sample.instrument;
+                if(tone.kind!=0&&!zone.tracking)voice.note=zone.baseNote;
                 voice.modulationOffset=index*state.modStride;
                 for(int m=0;m<state.modStride;m++)state.modulationState[voice.modulationOffset+m]=default;
                 for(int m=0;m<sample.modCount;m++){var mod=state.mods[sample.modStart+m];if(mod.parameterEnvelope)state.modulationState[voice.modulationOffset+m]=new TrackerModState{output=Curve(in mod,0)};}
-                InitTone(ref voice,in tone,in sample,member,col.hasPreviousNote?col.previousNote:note,previousHeld);
+                InitTone(ref voice,in tone,in sample,member,!zone.tracking?voice.note:col.hasPreviousNote?col.previousNote:note,previousHeld);
                 double sourceExponent=tone.kind==0?math.log2(clip.frequency/(double)state.sampleRate)+((zone.tracking?note-zone.baseNote:0)+(double)sample.tune)/12d:math.log2(440d/state.sampleRate)+(note-69)/12d+((double)tone.baseGlobalTune+voice.memberSpread*voice.detuneCurrent)/1200d;
                 if(math.isfinite(sourceExponent)&&(sourceExponent<-20||sourceExponent>20))ReportPitchLimit(ref voice);
                 voice.filterCutoff=-1;voice.filterQ=-1;state.voices[index]=voice;
@@ -335,6 +338,7 @@ namespace Laubrary.ZTracker.Engine
                 if(Written(v.instrument,TrackerParameter.FilterCutoff))s.cutoff=VoiceParameter(in v,TrackerParameter.FilterCutoff);
                 if(Written(v.instrument,TrackerParameter.FilterResonance))s.resonance=VoiceParameter(in v,TrackerParameter.FilterResonance);
                 for(int f=0;f<count;f++){
+                    if(s.drumGateSeconds>0&&!v.released&&v.age>=s.drumGateSeconds*state.sampleRate){state.voices[i]=v;Release(i);v=state.voices[i];}
                     if(!v.active)break;Envelope(ref v,in s);if(!v.active)break;
                     float volume=1,pan=0,pitch=0,cutoff=s.cutoff,resonance=s.resonance,drive=1;
                     volume=s.orderedVolume?1:v.envelope;EvaluateMods(i,ref v,in s,ref volume,ref pan,ref pitch,ref cutoff,ref resonance,ref drive);

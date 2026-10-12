@@ -132,6 +132,7 @@ namespace Laubrary.ZTracker.Model
     {
         public string id = "", name = "", parentGroupId = "", outputTrackId = "";
         public TrackKind kind;
+        public bool drumTrack;
         public Color color = Color.gray;
         public int visibleNoteColumns = 1, visibleEffectColumns = 1;
         public List<ColumnVisibility> columns = new List<ColumnVisibility>();

@@ -38,8 +38,9 @@ namespace Laubrary.ZTracker.Engine
             if(error!=null)throw new ArgumentException(error);
             if(rate<8000||rate>192000||maxFrames<64||maxFrames>65536||song.voiceCapacity>4096||song.tracks.Count>128||song.instruments.Count>4096||song.patterns.Count>4096||song.sequence.Count>65536)throw new ArgumentException("Engine preparation capacity exceeded");
             if(song.bpm<32||song.bpm>999||song.linesPerBeat>256||song.ticksPerLine>16||rate*60d/(song.bpm*song.linesPerBeat)<1)throw new ArgumentException("INVALID_CLOCK");
-            var owner=new TrackerPreparedSong();var chains=new List<TrackerChain>();
+            var owner=new TrackerPreparedSong();var chains=new List<TrackerChain>();var temporary=new List<ZTrackerInstrument>();
             try {
+                song=owner.ExpandDrumKits(song,temporary);
                 owner.Build(song,rate,maxFrames,chains);
                 owner.BuildLiveIdentity(song);
                 return owner;
@@ -49,6 +50,7 @@ namespace Laubrary.ZTracker.Engine
                 if(owner.state.chains==null)foreach(var c in chains){var p=c.processor;var l=c.layout;p.Dispose();l.Dispose();if(c.authoredParameters.IsCreated)c.authoredParameters.Dispose();}
                 owner.Dispose();throw;
             }
+            finally { foreach(var asset in temporary)UnityEngine.Object.DestroyImmediate(asset); }
         }
         static NativeArray<T> Native<T>(IList<T> list) where T:unmanaged
         {
@@ -159,6 +161,7 @@ namespace Laubrary.ZTracker.Engine
 
             }
             BuildP4(song,rate,samples,zones,insts,pcm,clips,pcmMap,mods,points);
+            LinkDrumZones(samples,zones,insts);
             BuildParameterSets(song,rate,maxFrames,samples,zones,insts,pcm,clips,mods,points,ref stride);
             state.pcm=Native(pcm);state.clips=Native(clips);state.pcmCount=clips.Count;state.samples=Native(samples);state.sampleCount=samples.Count;state.zones=Native(zones);state.instruments=Native(insts);state.instrumentCount=insts.Count;state.mods=Native(mods);state.points=Native(points);state.modStride=Math.Max(1,stride);state.modulationState=Buffer<TrackerModState>(checked(song.voiceCapacity*state.modStride));state.voices=Buffer<TrackerVoice>(song.voiceCapacity);
             // Every (track,instrument,FX-chain) partition has independent effect history.

@@ -161,8 +161,8 @@ namespace Laubrary.ZTracker.Editor
         }
         void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Pending: Stop/Play":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
         void OnEnable(){Undo.undoRedoPerformed+=OnUndo;Upgrade();}
-        void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();RefreshLive();BuildPane();}
-        protected override void OnDisable(){pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
+        void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();drumNeedsRefresh=true;RefreshLive();BuildPane();}
+        protected override void OnDisable(){pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
         // ZuiWindow may rebuild on domain reload/view changes; it must not stop a healthy graph.
         protected override void OnBeforeRebuild(){pumpSchedule?.Pause();pumpSchedule=null;}
         void Save(){if(song!=null)AssetDatabase.SaveAssetIfDirty(song);if(Data!=null)foreach(var linked in Data.instruments.Where(i=>i!=null).Distinct())AssetDatabase.SaveAssetIfDirty(linked);if(instrument!=null)AssetDatabase.SaveAssetIfDirty(instrument);}
@@ -205,7 +205,7 @@ namespace Laubrary.ZTracker.Editor
         void BuildInstrumentSelector(VisualElement root)
         {
             var box=Z.BoxKeyed("Instruments","Choose the instrument used by note entry and audition.","tracker.model.instruments");
-            box.Add(Flow(Button("New instrument","Create and add a new instrument.",CreateInstrument,"new-instrument"),Named(Z.Object<ZTrackerInstrument>(null,"Add an existing instrument.",v=>{if(v==null)return;SongEdit("add instrument",()=>Data.instruments.Add(v),true);},155),"add-instrument")));
+            box.Add(Flow(Button("New instrument","Create and add a new instrument.",CreateInstrument,"new-instrument"),Button("New drum kit","Create a drum kit and open its key map.",CreateDrumKit,"new-drum-kit"),Named(Z.Object<ZTrackerInstrument>(null,"Add an existing instrument.",v=>{if(v==null)return;SongEdit("add instrument",()=>Data.instruments.Add(v),true);},155),"add-instrument")));
             if(Data.instruments.Count>0)box.Add(Named(Z.MiniRadio(entryInstrument,Data.instruments.Select((v,i)=>$"{i:X2} {InstrumentTitle(v)}").ToArray(),"Select an instrument; the preview button auditions it.",v=>{entryInstrument=v;instrument=Data.instruments[v];if(pane==3)BuildPane();},wrap:true),"instrument-selector"));
             box.Add(Flow(Button("Edit","Open the selected instrument.",()=>{if(Data.instruments.Count>0){instrument=Data.instruments[Mathf.Clamp(entryInstrument,0,Data.instruments.Count-1)];pane=3;Rebuild();}}),Button("▶","Audition the selected instrument at the current octave.",()=>Audition(octave*12)),Button("■","Release instrument audition notes.",AuditionOff)));root.Add(box);
         }

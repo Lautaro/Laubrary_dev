@@ -26,6 +26,7 @@ namespace Laubrary.ZTracker.Editor
             BuildTrackSelector(controls);
             var scroll=AuthoringScroll(root,"mixer."+mixerTab);var t=SelectedTrack;if(t==null)return;
             scroll.Add(Flow(Named(Z.TextInput(t.name,"Track name.",v=>SongEdit("track name",()=>t.name=v),175),"track-name"),Z.Color(t.color,"Track colour.",v=>SongEdit("track colour",()=>t.color=v),90),Z.Text(t.kind.ToString(),tooltip:"Track role. The Master is the final output; other roles own their pattern records and devices.")));
+            if(t.kind==TrackKind.Sequencer)scroll.Add(Named(Z.Segmented(t.drumTrack?1:0,new[]{"Notes","Drums"},"Show note pitches or percussion icons from the note's drum-kit mapping. Switching keeps every note intact.",v=>SongEdit("track display",()=>t.drumTrack=v==1,true)),"track-note-display"));
             scroll.Add(Z.Segmented(mixerTab,new[]{"Levels","Devices","Sources"},"Choose this track's controls.",v=>{mixerTab=v;BuildPane();}));
             if(mixerTab==1)
             {
@@ -64,13 +65,13 @@ namespace Laubrary.ZTracker.Editor
         }
         void BuildTrackSelector(VisualElement root)
         {
-            var types=Enum.GetNames(typeof(TrackKind));root.Add(Named(Z.MiniRadio(newTrackKind,types,"Choose the role of the new track.",v=>newTrackKind=v,wrap:true),"new-track-kind"));root.Add(Flow(Button("Add track","Add the selected track role. Only one Master is allowed.",()=>AddTrack((TrackKind)newTrackKind),"add-track"),Button("Clone","Clone this track and all its pattern records.",CloneTrack,"clone-track"),Button("Remove","Remove this track, clear routes and flag references; Undo restores everything.",RemoveTrack,"remove-track")));
+            var types=Enum.GetNames(typeof(TrackKind)).Concat(new[]{"Drums"}).ToArray();root.Add(Named(Z.MiniRadio(newTrackKind,types,"Choose the role of the new track. Drums shows percussion icons instead of pitches.",v=>newTrackKind=v,wrap:true),"new-track-kind"));root.Add(Flow(Button("Add track","Add the selected track role. Only one Master is allowed.",()=>AddTrack(newTrackKind==types.Length-1?TrackKind.Sequencer:(TrackKind)newTrackKind,newTrackKind==types.Length-1),"add-track"),Button("Clone","Clone this track and all its pattern records.",CloneTrack,"clone-track"),Button("Remove","Remove this track, clear routes and flag references; Undo restores everything.",RemoveTrack,"remove-track")));
             var list=Z.BoxKeyed("Tracks","Select a track; drag a row to reorder it.","tracker.mixer.tracks");for(int i=0;i<Data.tracks.Count;i++){int at=i;var t=Data.tracks[i];var b=Button(t.name,"Select "+t.kind+" track; drag to reorder.",()=>{track=at;BuildPane();},"track-select-"+i);b.AddToClassList("tracker-track-row");b.style.width=Length.Percent(100);b.style.borderLeftWidth=4;b.style.borderLeftColor=t.color;b.style.backgroundColor=at==track?new Color(.18f,.42f,.62f):new Color(.14f,.14f,.14f);b.style.color=Color.white;b.EnableInClassList("tracker-picked",at==track);Reorder(b,"tracks",at,(a,z)=>SongEdit("reorder tracks",()=>{var selected=SelectedTrack;Move(Data.tracks,a,z);track=Data.tracks.IndexOf(selected);},true));list.Add(b);}root.Add(list);
         }
-        void AddTrack(TrackKind kind)
+        void AddTrack(TrackKind kind,bool drums=false)
         {
             if(kind==TrackKind.Master&&Data.tracks.Any(x=>x.kind==TrackKind.Master)){lastError="A song has exactly one Master";RefreshTransport();return;}
-            SongEdit("add track",()=>{var t=new TrackData{id=Id(),name=kind+" "+(Data.tracks.Count+1),kind=kind,visibleNoteColumns=kind==TrackKind.Sequencer?1:0};Data.tracks.Add(t);foreach(var p in Data.patterns)p.tracks.Add(new PatternTrack{trackId=t.id});track=Data.tracks.Count-1;},true);
+            SongEdit("add track",()=>{var t=new TrackData{id=Id(),name=(drums?"Drums":kind.ToString())+" "+(Data.tracks.Count+1),kind=kind,drumTrack=drums,visibleNoteColumns=kind==TrackKind.Sequencer?1:0};Data.tracks.Add(t);foreach(var p in Data.patterns)p.tracks.Add(new PatternTrack{trackId=t.id});track=Data.tracks.Count-1;},true);
         }
         void CloneTrack()
         {
