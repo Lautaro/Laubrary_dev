@@ -1,10 +1,11 @@
 .tracker-cell { height: 20px; min-height: 20px; margin: 0; padding: 0; font-size: 11px; white-space: nowrap; overflow: hidden; -unity-text-align: middle-center; }
 .tracker-row-number { width: 28px; min-width: 28px; height: 20px; font-size: 11px; margin: 0; padding: 0; -unity-text-align: middle-center; }
 .tracker-track-header { font-size: 11px; margin: 0; padding-left: 3px; white-space: nowrap; overflow: hidden; -unity-text-align: middle-left; }
-.tracker-cell.tracker-picked, .tracker-picked { background-color: var(--zui-accent); color: white; }
-.tracker-selected { background-color: rgba(90, 145, 200, 0.3); }
-.tracker-playing { border-bottom-width: 1px; border-bottom-color: var(--zui-accent); }
+/* A beat row's tint must lose to the selection, and the selection to the cursor (.tracker-compact .tracker-picked below). */
 .tracker-beat { background-color: rgba(130, 130, 130, 0.08); }
+.tracker-selected, .tracker-cell.tracker-selected { background-color: rgba(90, 145, 200, 0.3); }
+.tracker-cell.tracker-picked, .tracker-picked { background-color: var(--zui-accent); color: white; }
+.tracker-playing { border-bottom-width: 1px; border-bottom-color: var(--zui-accent); }
 .tracker-grid-row { flex-direction: row; flex-wrap: nowrap; flex-shrink: 0; height: 22px; }
 .tracker-track-gap { margin-right: 12px; }
 .tracker-compact .tracker-flow { margin: 0; padding: 0; }

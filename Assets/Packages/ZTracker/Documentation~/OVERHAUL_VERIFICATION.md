@@ -94,3 +94,13 @@ Verified by probe: compilation clean. Pattern overhaul 10/0, including a new gro
 Verified by eye: a disposable walk window was dragged with real panel pointer events and captured with PrintWindow mid-drag: in the Pattern view the Lead column (header and cells) floats between Drums 3 and Sequencer 4 while Master and Drums 3 have shifted left to show the gap; in the Mixer the dragged row sits under the pointer with the rows above moved up.
 
 Not verified: a drag with the physical mouse. Injected OS mouse input reached the cursor position but not the editor window (the session appeared not to accept synthetic clicks), so no native-input claim is made. No auto-scroll while dragging past the edge of a scrolled Pattern view: dropping onto a track that is off screen needs scrolling first.
+
+## First row of a selection (2026-10-13, T-0593)
+
+Cause, reproduced before fixing: the pattern grid tints every beat row (each Lines-per-beat row, 0, 4, 8 … by default), and that style was declared after the selection colour with equal weight, so on a beat row the faint beat tint replaced the selection. Selections usually start on a beat row, so the first row looked unselected; every later beat row inside a larger selection had the same fault. Probe before the fix: rows 0 and 4 of a rows 0–5 block resolved to the beat grey (alpha 0.08) while rows 1–3 and 5 resolved to the selection blue. The fix orders the styles so the selection beats the beat tint and the cursor beats both. Mouse block selection did not exist in this window; pressing a cell and dragging now selects a block, so all three ways the owner might select are covered.
+
+Verified by probe: compilation clean; Pattern overhaul 11/0, Mixer 13/0. The new group builds a track with every column type present today (note, instrument, volume, pan, delay, sample effect id/value, track effect id/value, event), selects a block that starts on a beat row by Shift+arrows, by Shift+click and by a mouse drag through the panel, and checks every visible cell in the block carries the selection and resolves to the same selection colour (cursor excepted), with nothing outside selected. With the old stylesheet restored the group fails exactly on row 0 ("draws RGBA(0.510, 0.510, 0.510, 0.080) instead of the selection colour"); with the fix it passes.
+
+Verified by eye: a PrintWindow capture of the real grid before and after: rows 0 and 4 of the block were unhighlighted before and are highlighted after, with the cursor cell still brighter.
+
+Not verified: a physical-mouse drag selection (same injected-input limit as T-0572).

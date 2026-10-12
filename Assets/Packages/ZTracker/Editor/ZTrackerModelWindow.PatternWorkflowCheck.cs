@@ -78,6 +78,38 @@ namespace Laubrary.ZTracker.Editor
                     Need(song.model.tracks[1].id==before[0]&&song.model.tracks[0].id==before[1]&&window.SelectedTrack.id==before[0],"Drop did not swap the tracks or lost selection");
                     Undo.PerformUndo();Need(song.model.tracks.Select(t=>t.id).SequenceEqual(before),"One Undo did not restore the order");window.BuildPane();
                 });
+                Check("block selection paints every row, beat rows included, for keys, shift-click and mouse drag on every column type",()=>{
+                    var t0=song.model.tracks.First(t=>t.kind==TrackKind.Sequencer);t0.columns=new System.Collections.Generic.List<ColumnVisibility>{new ColumnVisibility{volume=true,pan=true,delay=true,sampleFx=true}};t0.visibleEffectColumns=1;
+                    if(!song.model.tracks.Any(t=>t.kind==TrackKind.Event))window.AddTrack(TrackKind.Event);
+                    window.pane=0;window.BuildPane();LayoutChain(window);
+                    var kinds=window.fields.Select(f=>f.kind).Distinct().ToList();Need(kinds.Count==Enum.GetValues(typeof(FieldKind)).Length,"Fixture lacks a column type: "+string.Join(",",kinds));
+                    int lastVisible=window.labels.Keys.Where(k=>k.x==0).Max(k=>k.y);int bottom=Math.Max(5,song.model.linesPerBeat+1);
+                    void Painted(string how){LayoutChain(window);Color selected=default;bool found=false;
+                        foreach(var pair in window.labels){var p=pair.Key;bool inside=p.x<=bottom&&p.y<=lastVisible;bool cursor=p.x==window.row&&p.y==window.sub;var l=pair.Value;
+                            if(!inside){Need(!l.ClassListContains("tracker-selected"),how+": cell outside the block is selected "+p);continue;}
+                            Need(l.ClassListContains("tracker-selected"),how+": row "+p.x+" field "+p.y+" ("+window.fields[p.y].kind+") is not selected");
+                            if(cursor||p.x%Math.Max(1,song.model.linesPerBeat)==0)continue;if(!found){selected=l.resolvedStyle.backgroundColor;found=true;}}
+                        Need(found&&selected.a>.2f,how+": no selection colour resolved");
+                        foreach(var pair in window.labels){var p=pair.Key;if(p.x>bottom||p.y>lastVisible||(p.x==window.row&&p.y==window.sub))continue;
+                            Need(pair.Value.resolvedStyle.backgroundColor==selected,how+": row "+p.x+" field "+p.y+" ("+window.fields[p.y].kind+") draws "+pair.Value.resolvedStyle.backgroundColor+" instead of the selection colour");}}
+                    // Keyboard: Shift+arrows from the first cell.
+                    window.Select(0,0,false);
+                    for(int i=0;i<bottom;i++)using(var e=KeyDownEvent.GetPooled(new Event{type=EventType.KeyDown,keyCode=KeyCode.DownArrow,modifiers=EventModifiers.Shift})){e.target=window.grid;window.grid.SendEvent(e);}
+                    for(int i=0;i<lastVisible;i++)using(var e=KeyDownEvent.GetPooled(new Event{type=EventType.KeyDown,keyCode=KeyCode.RightArrow,modifiers=EventModifiers.Shift})){e.target=window.grid;window.grid.SendEvent(e);}
+                    Need(window.anchorRow==0&&window.row==bottom&&window.sub==lastVisible,"Shift+arrows did not extend the block");Painted("keyboard");
+                    // Shift-click: click the first cell, shift-click the last.
+                    window.Select(3,3,false);LayoutChain(window);
+                    var first=window.gridCanvas.Q<Label>("cell-0-0");using(var e=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,mousePosition=first.worldBound.center})){e.target=first;first.SendEvent(e);}
+                    using(var e=PointerUpEvent.GetPooled(new Event{type=EventType.MouseUp,button=0,mousePosition=first.worldBound.center}))first.panel.visualTree.SendEvent(e);
+                    var last=window.gridCanvas.Q<Label>("cell-"+bottom+"-"+lastVisible);using(var e=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,modifiers=EventModifiers.Shift,mousePosition=last.worldBound.center})){e.target=last;last.SendEvent(e);}
+                    using(var e=PointerUpEvent.GetPooled(new Event{type=EventType.MouseUp,button=0,mousePosition=last.worldBound.center}))last.panel.visualTree.SendEvent(e);
+                    Need(window.anchorRow==0&&window.anchorSub==0&&window.row==bottom&&window.sub==lastVisible,"Shift-click did not extend the block");Painted("shift-click");
+                    // Mouse drag from the first cell to the last.
+                    window.Select(3,3,false);LayoutChain(window);first=window.gridCanvas.Q<Label>("cell-0-0");last=window.gridCanvas.Q<Label>("cell-"+bottom+"-"+lastVisible);var end=last.worldBound.center;
+                    PointerDrag(first,end,10,finish:false);
+                    Need(window.anchorRow==0&&window.anchorSub==0&&window.row==bottom&&window.sub==lastVisible,"Mouse drag did not select the block: anchor "+window.anchorRow+","+window.anchorSub+" cursor "+window.row+","+window.sub);Painted("mouse drag");
+                    window.Select(0,0,false);
+                });
                 Check("retained cell click selects after reorder and first FX character opens suggestions",()=>{
                     foreach(var t in song.model.tracks)t.visibleEffectColumns=Math.Max(1,t.visibleEffectColumns);
                     window.pane=0;window.row=0;window.BuildPane();LayoutChain(window);
