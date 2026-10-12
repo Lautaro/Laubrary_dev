@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using Laubrary.ZTracker.Engine;
 using Laubrary.ZTracker.Model;
 using Laubrary.Zui;
 using UnityEditor;
@@ -45,7 +46,7 @@ namespace Laubrary.ZTracker.Editor
                 bool Visible(VisualElement element)
                 {
                     for (var current = element; current != null; current = current.parent)
-                        if (current.resolvedStyle.display == DisplayStyle.None || current.resolvedStyle.visibility == Visibility.Hidden) return false;
+                        if (current.resolvedStyle.display == DisplayStyle.None || current.resolvedStyle.visibility == UnityEngine.UIElements.Visibility.Hidden) return false;
                     return element.panel != null;
                 }
                 VisualElement Find(string name)
@@ -71,7 +72,8 @@ namespace Laubrary.ZTracker.Editor
                 }
                 void SetSlider(string name, float value)
                 {
-                    var slider = Find(name) as ZuiMicroSlider;
+                    var control = Find(name);
+                    var slider = control as ZuiMicroSlider ?? control.Q<ZuiMicroSlider>();
                     Need(slider != null && Visible(slider), "Missing visible scalar " + name);
                     typeof(ZuiMicroSlider).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic)
                         .Invoke(slider, new object[] { value, true });
