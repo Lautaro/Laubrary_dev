@@ -6,12 +6,51 @@ using Laubrary.ZTracker.Engine;
 using Laubrary.ZTracker.Midi;
 using Laubrary.ZTracker.Model;
 using Unity.Collections;
+using UnityEditor;
 using UnityEngine;
 
 namespace Laubrary.ZTracker.Editor
 {
     public sealed partial class ZTrackerModelWindow
     {
+        public static string LiveSynthUiCheckReport {get;private set;}="";
+        public static void StartLiveSynthUiCheck()
+        {
+            LiveSynthUiCheckReport="RUNNING";var previous=focusedWindow;
+            var asset=LiveSynthAsset();var song=ColdSong(asset);var window=CreateInstance<ZTrackerModelWindow>();
+            window.song=song;window.instrument=asset;window.entryInstrument=0;window.pane=3;window.midiSimulatedOnly=true;
+            window.position=new Rect(120,120,1100,760);window.Show();window.CreateGUI();
+            TrackerSapGenerator original=null;double energy=0;long frames=0;int step=0;
+            double deadline=EditorApplication.timeSinceStartup+.15;
+            EditorApplication.CallbackFunction update=null;
+            void Need(bool ok,string message){if(!ok)throw new Exception(message);}
+            void Cleanup(){EditorApplication.update-=update;window.StopPreview();window.DisposeMidiPreview();window.Close();DestroyImmediate(song);DestroyImmediate(asset);if(previous!=null)previous.Focus();}
+            update=()=>{
+                if(EditorApplication.timeSinceStartup<deadline)return;
+                try{
+                    switch(step++){
+                        case 0:window.Play(false);original=window.host;Need(original!=null,"No transport renderer");break;
+                        case 1:
+                            Need(original.RenderedFrames>0&&original.RenderedEnergy>.0001,"No baseline actual SAP PCM");
+                            window.InstrumentEdit("live waveform check",()=>asset.model.parameters.waveA=1,true);
+                            window.InstrumentEdit("live transpose check",()=>asset.model.parameters.transpose=7);
+                            window.InstrumentEdit("live volume check",()=>asset.model.parameters.volume=0);
+                            Need(window.host==original&&!window.pendingLive&&window.lastError==null,"Instrument edits replaced renderer or became pending: "+window.lastError);break;
+                        case 2:energy=original.RenderedEnergy;frames=original.RenderedFrames;break;
+                        case 3:
+                            Need(original.RenderedFrames>frames,"Muted transport stopped rendering");
+                            Need(Math.Abs(original.RenderedEnergy-energy)<.00001,"Live zero volume did not silence actual SAP PCM");
+                            window.InstrumentEdit("live restore volume check",()=>asset.model.parameters.volume=.25f);
+                            Need(window.host==original&&window.playing&&window.lastError==null,"Restore restarted or failed transport");energy=original.RenderedEnergy;break;
+                        default:
+                            Need(original.RenderedEnergy>energy+.0001,"Live restore produced no actual SAP PCM");
+                            LiveSynthUiCheckReport="PASS same SAP host, continued transport, waveform/transpose edits accepted, live volume silenced/restored actual PCM";Cleanup();return;
+                    }
+                    deadline=EditorApplication.timeSinceStartup+.25;
+                }catch(Exception ex){LiveSynthUiCheckReport="FAIL "+ex.Message;Cleanup();}
+            };
+            EditorApplication.update+=update;
+        }
         static ZTrackerInstrument LiveSynthAsset(bool fm=false)
         {
             var asset=CreateInstance<ZTrackerInstrument>();asset.schemaVersion=1;asset.model=NewInstrumentData();
