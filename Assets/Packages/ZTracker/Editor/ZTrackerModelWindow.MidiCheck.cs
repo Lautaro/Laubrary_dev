@@ -122,7 +122,13 @@ namespace Laubrary.ZTracker.Editor
                 need(window.row == 10, "Cursor did not step: " + window.row);
                 Undo.PerformUndo(); var line = asset.model.patterns[0].tracks[0].ReadLine(9);
                 need(line.notes.Any(n => n.pitch == 62) && !line.notes.Any(n => n.pitch == 65), "Undo did not remove exactly the last note");
+            }));
+            steps.Enqueue(("Rec turns off after Undo rebuilds its control", .4, () =>
+            {
                 click(find("midi-record"), 0); need(!window.midiRecord, "Rec did not turn off");
+            }));
+            steps.Enqueue(("Play resumes after Undo rebuild", .3, () =>
+            {
                 click(find("play"), 0);
             }));
             steps.Enqueue(("Instrument workspace (real click) moves the keyboard to the clean preview over the playing song", .6, () =>
