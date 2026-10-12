@@ -104,6 +104,8 @@ namespace Laubrary.ZTracker.Engine
             if(tone.glide&&(!tone.legato||held)&&previousNote!=v.note)v.glideCurrent=math.pow(2d,(previousNote-v.note)/12d);else v.glideCurrent=1;
             float speed=PointCurve(tone.arpPoints,tone.arpPointCount,0,false);v.arpStep=math.max(1,speed*state.sampleRate/(tone.arpPerNote?1:math.max(1,tone.arpNoteCount)));
             if(tone.arpNoteCount>=2){float first=state.points[tone.arpNotes].value;v.step*=math.pow(2d,first/12d);}
+            // A new note starts at the current feedback amount; only later edits glide.
+            if(tone.kind==2)v.fmFeedbackAmount=FMFeedbackTarget(in v);
             // Main ADSR remains per voice. Macros alter its rates without touching the saved asset.
         }
         static uint Seed(uint cohort,uint member,uint oscillator){uint s=cohort*0x9e3779b9u+member*0x85ebca6bu+oscillator*0xc2b2ae35u;s^=s>>16;s*=0x7feb352du;s^=s>>15;return s==0?1:s;}
@@ -180,6 +182,48 @@ namespace Laubrary.ZTracker.Engine
                 default:a=math.sin((v.fmPhase.x+feedback)*2*math.PI)*level.x;output=(a+b+c+d)*.25f;break;
             }
             v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);v.fmPrevious=output;return output;
+        }
+        // A voice playing one of the ten single-carrier setups (fmAlgorithm 101..110). The
+        // operator envelope loop is a copy of the one in FM() on purpose: the older routings
+        // keep their own function untouched, so their compiled code and output stay
+        // bit-identical to before the setups existed.
+        float FMSetupVoice(ref TrackerVoice v,in TrackerTone tone,float increment)
+        {
+            float4 level=default,inc=default;
+            for(int op=0;op<4;op++){
+                int p=v.instrument*TrackerParameters.Stride+(int)TrackerParameter.Op0Ratio+op*7;float attack=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+3)),decay=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+4)),sustain=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+5)),release=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+6));
+                if(v.released){if(v.fmStage[op]!=4){v.fmReleaseStart[op]=v.fmLevel[op];v.fmStage[op]=4;}v.fmLevel[op]=math.max(0,v.fmLevel[op]-(release>0?v.fmReleaseStart[op]/(release*state.sampleRate):1));}
+                else if(v.fmStage[op]==0){v.fmLevel[op]+=attack>0?1/(attack*state.sampleRate):1;if(v.fmLevel[op]>=1){v.fmLevel[op]=1;v.fmStage[op]=2;}}
+                else if(v.fmStage[op]==2){v.fmLevel[op]-=decay>0?(1-sustain)/(decay*state.sampleRate):1;if(v.fmLevel[op]<=sustain){v.fmLevel[op]=sustain;v.fmStage[op]=3;}}
+                level[op]=v.fmLevel[op]*VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+2));inc[op]=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+1))>0?VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+1))/state.sampleRate:increment*VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride));
+            }
+            float feedback=VoiceParameter(in v,TrackerParameter.FMFeedback)*v.fmPrevious;
+            float output=FMSetup(ref v,tone.algorithm-TrackerFmSetups.Base,level,feedback);
+            v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);v.fmPrevious=output;return output;
+        }
+        float3 FMFeedbackTarget(in TrackerVoice v)=>new float3(VoiceParameter(in v,TrackerParameter.Op0Feedback),VoiceParameter(in v,TrackerParameter.Op1Feedback),VoiceParameter(in v,TrackerParameter.Op2Feedback));
+        // One single-carrier setup: modulators A, B, D (slots 0..2) feed carrier C (slot 3)
+        // along the setup's routes. Phases accumulate in the same order as the older Stack
+        // and Merge code (setups 4 and 7 match them to float rounding). Each modulator's own
+        // feedback is added only when its amount is non-zero, so 0 is bit-identical to
+        // having no feedback at all.
+        float FMSetup(ref TrackerVoice v,int setup,float4 level,float feedback)
+        {
+            int r=TrackerFmSetups.Routes(setup);
+            // A changed amount glides over a few milliseconds (sample-rate independent)
+            // rather than stepping, so live edits on a held note do not click.
+            float3 target=FMFeedbackTarget(in v),amount=v.fmFeedbackAmount;
+            if(math.any(amount!=target)){amount+=(target-amount)*math.min(1f,1f/(TrackerFmSetups.FeedbackGlideSeconds*state.sampleRate));amount=math.select(amount,target,math.abs(target-amount)<1e-6f);v.fmFeedbackAmount=amount;}
+            float3 shift=amount*TrackerFmSetups.MaxFeedbackCycles*.5f*(v.fmFeedbackLast+v.fmFeedbackBefore);
+            float pa=v.fmPhase.x;if(amount.x!=0)pa+=shift.x;
+            float ra=math.sin(pa*2*math.PI+feedback),a=ra*level.x;
+            float pb=v.fmPhase.y;if((r&TrackerFmSetups.AtoB)!=0)pb+=a;if(amount.y!=0)pb+=shift.y;
+            float rb=math.sin(pb*2*math.PI),b=rb*level.y;
+            float pd=v.fmPhase.z;if((r&TrackerFmSetups.AtoD)!=0)pd+=a;if((r&TrackerFmSetups.BtoD)!=0)pd+=b;if(amount.z!=0)pd+=shift.z;
+            float rd=math.sin(pd*2*math.PI),d=rd*level.z;
+            float pc=v.fmPhase.w;if((r&TrackerFmSetups.AtoC)!=0)pc+=a;if((r&TrackerFmSetups.BtoC)!=0)pc+=b;if((r&TrackerFmSetups.DtoC)!=0)pc+=d;
+            v.fmFeedbackBefore=v.fmFeedbackLast;v.fmFeedbackLast=new float3(ra,rb,rd);
+            return math.sin(pc*2*math.PI)*level.w;
         }
         void Paired(ref TrackerVoice v,in TrackerTone tone,in TrackerSample sample,float aL,float aR,ref float l,ref float r)
         {

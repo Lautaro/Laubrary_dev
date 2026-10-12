@@ -375,7 +375,7 @@ namespace Laubrary.ZTracker.Engine
                     double increment=ModulatedStep(ref v,in tone,pitch+liveBend+v.commandArp+(tone.kind==0?v.commandPitch+v.commandVibrato:0));
                     if(!math.isfinite(increment)||increment<=0){v.active=false;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.InvalidPitch);break;}
                     float l,r;
-                    if(tone.kind!=0){l=tone.kind==2?FM(ref v,in tone,(float)increment):Synth(ref v,in tone,(float)increment);r=l;}
+                    if(tone.kind!=0){l=tone.kind==2?(tone.algorithm>TrackerFmSetups.Base?FMSetupVoice(ref v,in tone,(float)increment):FM(ref v,in tone,(float)increment)):Synth(ref v,in tone,(float)increment);r=l;}
                     else {s.regionStart=v.regionStart;s.regionEnd=v.regionEnd;l=Pcm(in clip,in s,v.position,0,v.released);r=Pcm(in clip,in s,v.position,clip.channels==2?1:0,v.released);if(tone.pcmB>=0)Paired(ref v,in tone,in s,l,r,ref l,ref r);}
                     float globalVolume=VoiceParameter(in v,TrackerParameter.Volume);
                     float sampleVolume=VoiceParameterActive(in v,TrackerParameter.Volume)?tone.localVolume*globalVolume:s.volume;

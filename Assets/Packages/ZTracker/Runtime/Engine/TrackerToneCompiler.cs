@@ -45,6 +45,7 @@ namespace Laubrary.ZTracker.Engine
                 for(int op=0;op<4;op++){
                     var o=q.fmOperators!=null&&op<q.fmOperators.Length?q.fmOperators[op]:new ZTrackerInstrument.FMOperatorData{freqRatio=1,level=1,attack=.001f,decay=.1f,sustain=.8f,release=.3f};
                     int at=(int)TrackerParameter.Op0Ratio+op*7;values[at]=o.freqRatio;values[at+1]=o.freqFixed;values[at+2]=o.level;values[at+3]=o.attack;values[at+4]=o.decay;values[at+5]=o.sustain;values[at+6]=o.release;
+                    if(op<TrackerFmSetups.Modulators)values[(int)TrackerParameter.Op0Feedback+op]=o.feedback;
                     if(data?.family==InstrumentFamily.Synth&&data.synthMode==SynthMode.FM&&o.waveform!=0)diagnostics.Add("FM_SINE_OPERATORS_ONLY slot="+i+" op="+op);
                 }
                 foreach(float x in values)if(!math.isfinite(x))throw new ArgumentException("Nonfinite tone parameter slot="+i);
@@ -58,12 +59,12 @@ namespace Laubrary.ZTracker.Engine
                 var sm=samples[si];var data=song.instruments[sm.instrument].model;var q=data.parameters;bool synth=data.family==InstrumentFamily.Synth;blends.TryGetValue(si,out var b);
                 bool subtractive=synth&&data.synthMode==SynthMode.Subtractive;
                 if(subtractive&&(q.unisonVoices<1||q.unisonVoices>8))throw new ArgumentException("Unison member capacity");
-                if(synth&&!subtractive&&(q.fmAlgorithm<0||q.fmAlgorithm>7))throw new ArgumentException("Unknown FM algorithm");
-                var tone=new TrackerTone{kind=synth?(data.synthMode==SynthMode.FM?2:1):0,waveA=subtractive?CompileWave(q.waveA,q.enumDomain):0,waveB=subtractive?CompileWave(q.waveB,q.enumDomain):0,blendMode=subtractive?q.blendMode:b?.mode??0,members=subtractive?q.unisonVoices:1,pcmB=-1,envelopes=envs.Count,algorithm=q.fmAlgorithm>=0&&q.fmAlgorithm<=5?q.fmAlgorithm:5,glide=q.glideEnabled,legato=q.glideLegato,legatoEnvelopes=synth&&q.legatoEnabled,transposeCents=synth?q.transpose*100f:0,arpPerNote=q.arpeggioSpeedIsPerNote,baseGlobalVolume=synth?q.volume:data.sampler.volume,baseGlobalPan=synth?q.pan:data.sampler.pan,baseGlobalTune=synth?q.fineTune:data.sampler.fineTuneCents,blendEnvelope=b?.envelopeEnabled??(subtractive&&q.blendEnvelope),blendAttack=b?.attack??q.blendAttack,blendDecay=b?.decay??q.blendDecay,blendSustain=b?.sustain??q.blendSustain,blendRelease=b?.release??q.blendRelease};
+                if(synth&&!subtractive&&(q.fmAlgorithm<0||q.fmAlgorithm>7)&&TrackerFmSetups.SetupOf(q.fmAlgorithm)==0)throw new ArgumentException("Unknown FM algorithm");
+                var tone=new TrackerTone{kind=synth?(data.synthMode==SynthMode.FM?2:1):0,waveA=subtractive?CompileWave(q.waveA,q.enumDomain):0,waveB=subtractive?CompileWave(q.waveB,q.enumDomain):0,blendMode=subtractive?q.blendMode:b?.mode??0,members=subtractive?q.unisonVoices:1,pcmB=-1,envelopes=envs.Count,algorithm=CompiledFmAlgorithm(data),glide=q.glideEnabled,legato=q.glideLegato,legatoEnvelopes=synth&&q.legatoEnabled,transposeCents=synth?q.transpose*100f:0,arpPerNote=q.arpeggioSpeedIsPerNote,baseGlobalVolume=synth?q.volume:data.sampler.volume,baseGlobalPan=synth?q.pan:data.sampler.pan,baseGlobalTune=synth?q.fineTune:data.sampler.fineTuneCents,blendEnvelope=b?.envelopeEnabled??(subtractive&&q.blendEnvelope),blendAttack=b?.attack??q.blendAttack,blendDecay=b?.decay??q.blendDecay,blendSustain=b?.sustain??q.blendSustain,blendRelease=b?.release??q.blendRelease};
                 if(tone.blendMode<0||tone.blendMode>3)throw new ArgumentException("Unknown blend mode");
                 for(int m=0;m<sm.modCount;m++){var mod=mods[sm.modStart+m];if(mod.parameterEnvelope)tone.parameterEnvelopeSlots[(int)mod.parameter]=(byte)(m+1);}
                 tone.baseBlend=b?.amount??q.blend;tone.basePM=b?.pmDepth??q.pmDepth;tone.localVolume=synth?1:sm.localVolume;tone.localPan=synth?0:sm.localPan;tone.vibratoRandomness=math.saturate(q.vibratoRandomness);
-                if(synth&&!subtractive&&q.fmAlgorithm>5)diagnostics.Add("FM_ALGORITHM_FALLBACK authored="+q.fmAlgorithm+" compiled=5 slot="+sm.instrument);
+                if(synth&&!subtractive&&q.fmAlgorithm>5&&q.fmAlgorithm<=7)diagnostics.Add("FM_ALGORITHM_FALLBACK authored="+q.fmAlgorithm+" compiled=5 slot="+sm.instrument);
                 if(subtractive&&q.enumDomain==SoundEnumDomain.SavedAuthoring)diagnostics.Add("SAVED_WAVE_MAPPING slot="+sm.instrument+" original="+q.waveA+" compiled="+tone.waveA);
                 var envelopes=subtractive?new[]{q.blendEnvelopeData,q.pulseWidthEnvelopeData,q.waveBRatioEnvelopeData,q.pmDepthEnvelopeData,q.unisonDetuneEnvelopeData}:b!=null?new[]{b.blendEnvelope??q.blendEnvelopeData,null,null,b.pmEnvelope??q.pmDepthEnvelopeData,null}:new ZUIEnvelopeData[5];
                 foreach(var env in envelopes)envs.Add(CompileEnvelope(env,q.envelopeEnumDomain,points));
@@ -90,6 +91,22 @@ namespace Laubrary.ZTracker.Engine
             macroRouteCount=routes.Count;externalRouteCount=external.Count;state.macroRouteCount=routes.Count;state.externalRouteCount=external.Count;
         }
         public int macroRouteCount,externalRouteCount;
+        // Stack (0) and Merge (2) are setups 4 and 7. They keep the older code path, and so
+        // their exact older output, until a modulator's feedback is in use (authored, curved
+        // or mapped); feedback exists only on the setup path.
+        static int CompiledFmAlgorithm(InstrumentData data)
+        {
+            var q=data.parameters;int a=q.fmAlgorithm;
+            if(a>TrackerFmSetups.Base&&a<=TrackerFmSetups.Base+TrackerFmSetups.Count)return a;
+            if(a<0||a>5)return 5;
+            if(a!=0&&a!=2)return a;
+            bool UsesFeedback(string key)=>key!=null&&key.StartsWith("fmOperators.",StringComparison.Ordinal)&&key.EndsWith(".feedback",StringComparison.Ordinal);
+            bool feedback=q.fmOperators!=null&&q.fmOperators.Take(TrackerFmSetups.Modulators).Any(o=>o.feedback!=0);
+            feedback|=q.parameterEnvelopes!=null&&q.parameterEnvelopes.Any(e=>e!=null&&e.envelope!=null&&e.envelope.enabled&&UsesFeedback(e.parameter));
+            feedback|=data.macros!=null&&data.macros.Any(m=>m?.mappings!=null&&m.mappings.Any(map=>UsesFeedback(map?.target?.parameter)));
+            feedback|=data.externalParameters!=null&&data.externalParameters.Any(x=>UsesFeedback(x?.mapping?.target?.parameter));
+            return feedback?TrackerFmSetups.Base+TrackerFmSetups.SetupOf(a):a;
+        }
         static IEnumerable<ExternalSourceDevice> ExternalDevices(TrackData track)
         {
             foreach(var device in track.externalSources)yield return device;

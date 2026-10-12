@@ -14,6 +14,9 @@ namespace Laubrary.ZTracker.Engine
         Op1Ratio, Op1FixedHz, Op1Level, Op1Attack, Op1Decay, Op1Sustain, Op1Release,
         Op2Ratio, Op2FixedHz, Op2Level, Op2Attack, Op2Decay, Op2Sustain, Op2Release,
         Op3Ratio, Op3FixedHz, Op3Level, Op3Attack, Op3Decay, Op3Sustain, Op3Release,
+        // Self-feedback of the modulators A, B and D (operator slots 0..2), 0..1.
+        // Kept after the seven-field operator blocks so their indices do not move.
+        Op0Feedback, Op1Feedback, Op2Feedback,
         Count
     }
     public struct TrackerMacroValue { public float value, target, step, authored; public bool sliding; }
@@ -40,6 +43,7 @@ namespace Laubrary.ZTracker.Engine
             if(p==TrackerParameter.FineTune||p==TrackerParameter.UnisonDetune||p==TrackerParameter.VibratoDepth)return "cents";
             if(p==TrackerParameter.VibratoRate||p==TrackerParameter.FilterCutoff)return "Hz";
             if(p==TrackerParameter.Attack||p==TrackerParameter.Decay||p==TrackerParameter.Release||p==TrackerParameter.GlideSeconds||p==TrackerParameter.VibratoFadeIn)return "seconds";
+            if(IsOperatorFeedback(p))return "normalized";
             if(p>=TrackerParameter.Op0Ratio){int n=((int)p-(int)TrackerParameter.Op0Ratio)%7;return n==1?"Hz":n==3||n==4||n==6?"seconds":n==0?"ratio":n==2?"linear gain":"normalized";}
             return p==TrackerParameter.WaveBRatio?"ratio":p==TrackerParameter.PMDepth?"phase cycles or sample frames":"normalized";
         }
@@ -57,10 +61,15 @@ namespace Laubrary.ZTracker.Engine
                 case "glideSeconds":parameter=TrackerParameter.GlideSeconds;return true;case "fmFeedback":parameter=TrackerParameter.FMFeedback;return true;
             }
             if(name!=null&&name.StartsWith("fmOperators.",StringComparison.Ordinal)){
-                var bits=name.Split('.');if(bits.Length==3&&int.TryParse(bits[1],out int op)&&op>=0&&op<4){int field=Array.IndexOf(new[]{"freqRatio","freqFixed","level","attack","decay","sustain","release"},bits[2]);if(field>=0){parameter=(TrackerParameter)((int)TrackerParameter.Op0Ratio+op*7+field);return true;}}
+                var bits=name.Split('.');
+                if(bits.Length==3&&bits[2]=="feedback"&&int.TryParse(bits[1],out int fb)&&fb>=0&&fb<TrackerFmSetups.Modulators){parameter=TrackerParameter.Op0Feedback+fb;return true;}
+                if(bits.Length==3&&int.TryParse(bits[1],out int op)&&op>=0&&op<4){int field=Array.IndexOf(new[]{"freqRatio","freqFixed","level","attack","decay","sustain","release"},bits[2]);if(field>=0){parameter=(TrackerParameter)((int)TrackerParameter.Op0Ratio+op*7+field);return true;}}
             }
             parameter=default;return false;
         }
+        public static bool IsOperatorFeedback(TrackerParameter p)=>p>=TrackerParameter.Op0Feedback&&p<=TrackerParameter.Op2Feedback;
+        // Operator slot (0..3) of an operator parameter, or -1.
+        public static int OperatorOf(TrackerParameter p)=>IsOperatorFeedback(p)?p-TrackerParameter.Op0Feedback:p>=TrackerParameter.Op0Ratio&&p<TrackerParameter.Op0Feedback?((int)p-(int)TrackerParameter.Op0Ratio)/7:-1;
         public static float Clamp(TrackerParameter p,float v)
         {
             switch(p){case TrackerParameter.Volume:return math.clamp(v,0,16);case TrackerParameter.Pan:return math.clamp(v,-1,1);case TrackerParameter.FineTune:return math.clamp(v,-12000,12000);
@@ -70,6 +79,7 @@ namespace Laubrary.ZTracker.Engine
                 case TrackerParameter.Attack:case TrackerParameter.Decay:case TrackerParameter.Release:case TrackerParameter.GlideSeconds:case TrackerParameter.VibratoFadeIn:return math.clamp(v,0,3600);
                 case TrackerParameter.FMFeedback:return math.clamp(v,0,16);
             }
+            if(IsOperatorFeedback(p))return math.saturate(v);
             if(p>=TrackerParameter.Op0Ratio){int n=((int)p-(int)TrackerParameter.Op0Ratio)%7;return math.clamp(v,0,n==1?96000:n==0?64:n==3||n==4||n==6?3600:n==2?16:1);}
             return math.saturate(v);
         }

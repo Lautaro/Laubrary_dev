@@ -114,6 +114,9 @@ public class ZTrackerInstrument : ScriptableObject, ISerializationCallbackReceiv
         public float decay;
         [Range(0f, 1f)] public float sustain;
         public float release;
+        // Self-feedback amount 0..1 for a modulator (A, B, D); the carrier ignores it.
+        // 0 (the default for older assets) renders exactly as before feedback existed.
+        [Range(0f, 1f)] public float feedback;
     }
 
     // Kit (drum map)

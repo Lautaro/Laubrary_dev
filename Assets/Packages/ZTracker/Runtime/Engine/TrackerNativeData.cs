@@ -188,6 +188,8 @@ namespace Laubrary.ZTracker.Engine
         public float4 fmPhase, fmLevel, fmReleaseStart;
         public int4 fmStage;
         public float fmPrevious;
+        // Modulator self-feedback (A, B, D): the gliding amount and the last two raw outputs.
+        public float3 fmFeedbackAmount, fmFeedbackLast, fmFeedbackBefore;
         public float vibratoPhase, vibratoFade;
         public double vibratoSmooth, arpSmooth;
         public float amplitudeDepth, amplitudePhase, amplitudeRate;

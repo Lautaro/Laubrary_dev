@@ -780,6 +780,7 @@ namespace Laubrary.ZTracker.Engine
             v.stage = 0;
             v.envelope = 0;
             v.phaseA = v.phaseB = v.fmPrevious = 0;
+            v.fmFeedbackLast = v.fmFeedbackBefore = default;
             v.fmPhase = v.fmLevel = default;
             v.fmStage = default;
             v.blendStage = 0;
