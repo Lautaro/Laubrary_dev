@@ -28,13 +28,14 @@ namespace Laubrary.ZTracker.Editor
         {
             MidiUiCheckReport = "RUNNING";
             var report = new StringBuilder(); int pass = 0, fail = 0;
+            var prefsBefore = ReadCurrentMidiPrefs();
             var clip = AudioClip.Create("midi-ui-check", 96000, 1, 48000, false); var raw = new float[96000]; for (int i = 0; i < raw.Length; i++) raw[i] = .05f * Mathf.Sin(i * .05f); clip.SetData(raw, 0);
             var inst = TrackerEngineCheck.FixtureInstrument(clip); inst.name = "Check sine";
             // A synth needs no sample data, so the audio restart of the buffer step cannot invalidate the fixture.
             inst.model.family = InstrumentFamily.Synth;
             var asset = CreateInstance<ZTrackerSong>(); asset.schemaVersion = 1; asset.model = TrackerEngineCheck.FixtureSong(inst, 3, 16); asset.model.voiceCapacity = 64; asset.model.tracks[0].name = "Lead";
             asset.model.patterns[0].tracks[0].WriteLine(new PatternLine { line = 0, notes = new List<NoteCell> { TrackerEngineCheck.Note(48, 2) } });
-            var window = CreateInstance<ZTrackerModelWindow>(); window.song = asset; window.titleContent = new GUIContent("ZTracker MIDI check"); window.midiSimulatedOnly = true; window.Show(); window.position = new Rect(120, 120, 1100, 760); window.CreateGUI();
+            var window = CreateInstance<ZTrackerModelWindow>(); window.song = asset; window.titleContent = new GUIContent("ZTracker MIDI check"); window.midiSimulatedOnly = true; window.midiPersistPreferences = false; window.Show(); window.position = new Rect(120, 120, 1100, 760); window.CreateGUI();
             var sim = ZTrackerMidiSimulated.Shared; sim.Unplugged = false; sim.SimulateInUse = false;
             var steps = new Queue<(string name, double wait, Action run)>();
             Action<bool, string> need = (c, m) => { if (!c) throw new Exception(m); };
@@ -47,7 +48,7 @@ namespace Laubrary.ZTracker.Editor
             };
             Action<KeyCode, bool> key = (code, down) => window.SendEvent(new Event { type = down ? EventType.KeyDown : EventType.KeyUp, keyCode = code });
             Func<string, Button> anyButton = text => window.rootVisualElement.panel.visualTree.Query<Button>().ToList().FirstOrDefault(b => b.text == text);
-            double energySong = 0, energyPreview = 0; string savedDevice = EditorPrefs.GetString(MidiPrefs + "Device", null); int savedBuffer = EditorPrefs.GetInt(MidiPrefs + "Buffer", 0);
+            double energySong = 0, energyPreview = 0;
             steps.Enqueue(("MIDI toggle turns MIDI on (real click)", .3, () => { need(find("midi-status") is Label s && s.text == "Off", "Status not Off at start"); click(find("midi-toggle"), 0); need(window.midiOn, "Click did not turn MIDI on"); }));
             steps.Enqueue(("right-click menu lists the simulated keyboard; picking it opens it", .5, () =>
             {
@@ -192,12 +193,20 @@ namespace Laubrary.ZTracker.Editor
                 try { window.MidiShutdown(); window.StopPreview(); window.Close(); } catch (Exception ex) { report.AppendLine("CLEANUP " + ex.Message); }
                 DestroyImmediate(window); Undo.ClearUndo(asset); DestroyImmediate(asset); DestroyImmediate(inst); DestroyImmediate(clip);
                 sim.Unplugged = false; sim.SimulateInUse = false; sim.Close();
-                if (savedDevice == null) EditorPrefs.DeleteKey(MidiPrefs + "Device"); else EditorPrefs.SetString(MidiPrefs + "Device", savedDevice);
-                EditorPrefs.SetInt(MidiPrefs + "Buffer", savedBuffer);
+                var prefsAfter = ReadCurrentMidiPrefs();
+                bool prefsPreserved = prefsBefore.enabled == prefsAfter.enabled && prefsBefore.record == prefsAfter.record && prefsBefore.device == prefsAfter.device && prefsBefore.channel == prefsAfter.channel && prefsBefore.octave == prefsAfter.octave && prefsBefore.curve == prefsAfter.curve && prefsBefore.bend == prefsAfter.bend && prefsBefore.modWheel == prefsAfter.modWheel && prefsBefore.buffer == prefsAfter.buffer;
+                if (prefsPreserved) { pass++; report.AppendLine("PASS simulated UI check left every MIDI preference unchanged"); }
+                else { fail++; report.AppendLine("FAIL simulated UI check changed MIDI preferences"); }
                 MidiUiCheckReport = $"MidiUiCheck passed={pass} failed={fail}\n" + report;
             };
             EditorApplication.update += tick;
         }
+
+        static MidiPreferenceSnapshot ReadCurrentMidiPrefs() => MidiPreferenceSnapshot.Read(MidiPrefs,
+            (key, fallback) => EditorPrefs.GetString(key, fallback),
+            (key, fallback) => EditorPrefs.GetInt(key, fallback),
+            (key, fallback) => EditorPrefs.GetFloat(key, fallback),
+            (key, fallback) => EditorPrefs.GetBool(key, fallback));
 
     }
 }

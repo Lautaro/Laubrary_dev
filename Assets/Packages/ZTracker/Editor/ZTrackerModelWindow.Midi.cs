@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Laubrary.ZTracker.Engine;
 using Laubrary.ZTracker.Midi;
 using Laubrary.ZTracker.Model;
@@ -20,7 +21,8 @@ namespace Laubrary.ZTracker.Editor
         const string MidiPrefs = "Laubrary.ZTracker.Midi.";
         readonly ZTrackerMidiRouter midiRouter = new ZTrackerMidiRouter();
         ZTrackerMidiWindows midiWindows;
-        bool midiOn;
+        bool midiOn, midiStarted;
+        internal bool midiPersistPreferences = true;
         string midiDevice, midiProblem, midiTargetText = "";
         double midiNextScan, midiRouteRetry;
         ZuiToggleButton midiToggleButton, midiRecordButton;
@@ -55,7 +57,7 @@ namespace Laubrary.ZTracker.Editor
             toggle.name = "midi-toggle"; toggle.style.flexShrink = 0; midiToggleButton = toggle;
             toggle.RegisterCallback<PointerDownEvent>(e => { if (e.button == 1) { ShowMidiMenu(toggle); e.StopPropagation(); } }, TrickleDown.TrickleDown);
             cluster.Add(toggle);
-            midiRecordButton = Z.ToggleButton("Rec", "Record keys into the pattern. While the song plays, each key is written at the row you heard when you pressed it (rounded to the nearest row); while stopped, keys are written at the cursor, which moves on by the edit step when every key is up. Chords fill the track's next note columns. Each recorded note is one Undo step.", midiRecord, v => { midiRecord = v; recordHeld.Clear(); UpdateMidiCapture(); RefreshMidiStatus(); });
+            midiRecordButton = Z.ToggleButton("Rec", "Record keys into the pattern. While the song plays, each key is written at the row you heard when you pressed it (rounded to the nearest row); while stopped, keys are written at the cursor, which moves on by the edit step when every key is up. Chords fill the track's next note columns. Each recorded note is one Undo step.", midiRecord, v => { midiRecord = v; SaveMidiBool("Record", v); recordHeld.Clear(); UpdateMidiCapture(); RefreshMidiStatus(); });
             midiRecordButton.name = "midi-record"; midiRecordButton.style.flexShrink = 0; midiRecordButton.style.marginLeft = 2; midiRecordButton.style.visibility = midiOn ? UnityEngine.UIElements.Visibility.Visible : UnityEngine.UIElements.Visibility.Hidden;
             cluster.Add(midiRecordButton);
             midiStatus = Z.Text("", tooltip: ""); midiStatus.name = "midi-status";
@@ -65,18 +67,26 @@ namespace Laubrary.ZTracker.Editor
             var panic = Named(Z.Button("Panic", "Silence every note played from the MIDI keyboard or the computer keyboard at once (the song keeps playing).", MidiPanic), "midi-panic");
             panic.style.flexShrink = 0; panic.style.flexGrow = 0; cluster.Add(panic);
             RefreshMidiStatus();
+            if (midiOn && !midiSimulatedOnly) SetMidiEnabled(true);
             return cluster;
         }
 
         void LoadMidiPrefs()
         {
-            midiDevice = EditorPrefs.GetString(MidiPrefs + "Device", "");
-            midiRouter.Channel = EditorPrefs.GetInt(MidiPrefs + "Channel", -1);
-            midiRouter.OctaveShift = EditorPrefs.GetInt(MidiPrefs + "Octave", 0);
-            midiRouter.VelocityCurve = (ZTrackerVelocityCurve)EditorPrefs.GetInt(MidiPrefs + "Curve", 0);
-            midiRouter.BendRange = EditorPrefs.GetFloat(MidiPrefs + "Bend", 2);
-            midiRouter.ModWheelMacro = EditorPrefs.GetInt(MidiPrefs + "ModWheel", 0);
-            midiBuffer = Mathf.Clamp(EditorPrefs.GetInt(MidiPrefs + "Buffer", 0), 0, midiBufferSizes.Length - 1);
+            var saved = MidiPreferenceSnapshot.Read(MidiPrefs,
+                (key, fallback) => EditorPrefs.GetString(key, fallback),
+                (key, fallback) => EditorPrefs.GetInt(key, fallback),
+                (key, fallback) => EditorPrefs.GetFloat(key, fallback),
+                (key, fallback) => EditorPrefs.GetBool(key, fallback));
+            midiDevice = saved.device;
+            midiOn = !midiSimulatedOnly && saved.enabled;
+            midiRecord = !midiSimulatedOnly && saved.record;
+            midiRouter.Channel = saved.channel;
+            midiRouter.OctaveShift = saved.octave;
+            midiRouter.VelocityCurve = (ZTrackerVelocityCurve)saved.curve;
+            midiRouter.BendRange = saved.bend;
+            midiRouter.ModWheelMacro = saved.modWheel;
+            midiBuffer = Mathf.Clamp(saved.buffer, 0, midiBufferSizes.Length - 1);
         }
 
         List<string> MidiDevices()
@@ -93,33 +103,34 @@ namespace Laubrary.ZTracker.Editor
             var devices = MidiDevices();
             var menu = Z.Menu(anchor).Width(300).Section("Device", "MIDI inputs Windows reports. A device held by another program (a DAW) cannot be opened until that program releases it.");
             if (devices.Count == 0) menu.Item("No MIDI input found", "Plug in a MIDI keyboard; the list refreshes on its own.", null, enabled: false);
-            else menu.Radio("", devices.ToArray(), Math.Max(-1, devices.IndexOf(CurrentMidiDevice(devices))), "The MIDI input to listen to. Simulated keyboard is driven by checks only.", i => { midiDevice = devices[i]; EditorPrefs.SetString(MidiPrefs + "Device", midiDevice); ReopenMidi(); });
+            else menu.Radio("", devices.ToArray(), Math.Max(-1, devices.IndexOf(CurrentMidiDevice(devices))), "The MIDI input to listen to. Simulated keyboard is driven by checks only.", i => { midiDevice = devices[i]; SaveMidiString("Device", midiDevice); ReopenMidi(); });
             menu.Item("Refresh devices", "Read the device list again now (it also refreshes on its own every two seconds).", () => { midiWindows.RefreshDevices(); ReopenMidi(); });
             menu.Section("Keyboard");
             var channels = new string[17]; channels[0] = "Omni"; for (int i = 1; i <= 16; i++) channels[i] = i.ToString();
-            menu.Radio("Channel", channels, midiRouter.Channel + 1, "Listen to every MIDI channel (Omni) or only one.", i => { midiRouter.Channel = i - 1; EditorPrefs.SetInt(MidiPrefs + "Channel", i - 1); });
-            menu.Custom((body, close) => body.Add(Z.MicroSlider("Octave", midiRouter.OctaveShift, -4, 4, "Shift every played key by whole octaves.", v => { midiRouter.OctaveShift = Mathf.RoundToInt(v); EditorPrefs.SetInt(MidiPrefs + "Octave", midiRouter.OctaveShift); }, 200, defaultValue: 0, decimals: 0)));
-            menu.Radio("Velocity", new[] { "Linear", "Soft", "Hard" }, (int)midiRouter.VelocityCurve, "How key velocity becomes loudness: Linear follows the key; Soft makes gentle playing louder; Hard needs a firmer touch.", i => { midiRouter.VelocityCurve = (ZTrackerVelocityCurve)i; EditorPrefs.SetInt(MidiPrefs + "Curve", i); });
-            menu.Radio("Buffer", midiBufferLabels, midiBuffer, "Audio buffer size in samples for this editor session. Smaller answers keys sooner (256 is about 5 ms per buffer) but costs more processor time; if you hear crackles, pick a larger size. Changing it restarts the editor's audio, so a playing song stops. It lasts while MIDI is on; turning MIDI off, a script reload or quitting puts back the project's own setting (Project), which is never saved with the session value.", i => { midiBuffer = i; EditorPrefs.SetInt(MidiPrefs + "Buffer", i); ApplyMidiBuffer(); });
+            menu.Radio("Channel", channels, midiRouter.Channel + 1, "Listen to every MIDI channel (Omni) or only one.", i => { midiRouter.Channel = i - 1; SaveMidiInt("Channel", i - 1); });
+            menu.Custom((body, close) => body.Add(Z.MicroSlider("Octave", midiRouter.OctaveShift, -4, 4, "Shift every played key by whole octaves.", v => { midiRouter.OctaveShift = Mathf.RoundToInt(v); SaveMidiInt("Octave", midiRouter.OctaveShift); }, 200, defaultValue: 0, decimals: 0)));
+            menu.Radio("Velocity", new[] { "Linear", "Soft", "Hard" }, (int)midiRouter.VelocityCurve, "How key velocity becomes loudness: Linear follows the key; Soft makes gentle playing louder; Hard needs a firmer touch.", i => { midiRouter.VelocityCurve = (ZTrackerVelocityCurve)i; SaveMidiInt("Curve", i); });
+            menu.Radio("Buffer", midiBufferLabels, midiBuffer, "Audio buffer size for MIDI. Smaller answers keys sooner (256 is about 5 ms per buffer) but costs more processor time; if you hear crackles, pick a larger size. Changing it restarts the editor's audio, so a playing song stops. Your choice is reapplied when MIDI is enabled, including after a script reload; turning MIDI off or quitting restores the project's setting.", i => { midiBuffer = i; SaveMidiInt("Buffer", i); ApplyMidiBuffer(); });
             menu.Section("Controllers", "Sustain pedal holds notes; All Notes Off (controller 123) releases them. Knobs sending controllers 21 to 28 drive macros 1 to 8 of the instrument being played. Program changes are ignored.");
-            menu.Custom((body, close) => body.Add(Z.MicroSlider("Bend range", midiRouter.BendRange, 0, 12, "How far the pitch wheel bends live notes, in semitones each way.", v => { midiRouter.BendRange = Mathf.Round(v); EditorPrefs.SetFloat(MidiPrefs + "Bend", midiRouter.BendRange); }, 200, defaultValue: 2, decimals: 0)));
-            menu.Radio("Mod wheel", new[] { "1", "2", "3", "4", "5", "6", "7", "8" }, midiRouter.ModWheelMacro, "The macro of the played instrument that the mod wheel moves.", i => { midiRouter.ModWheelMacro = i; EditorPrefs.SetInt(MidiPrefs + "ModWheel", i); });
+            menu.Custom((body, close) => body.Add(Z.MicroSlider("Bend range", midiRouter.BendRange, 0, 12, "How far the pitch wheel bends live notes, in semitones each way.", v => { midiRouter.BendRange = Mathf.Round(v); SaveMidiFloat("Bend", midiRouter.BendRange); }, 200, defaultValue: 2, decimals: 0)));
+            menu.Radio("Mod wheel", new[] { "1", "2", "3", "4", "5", "6", "7", "8" }, midiRouter.ModWheelMacro, "The macro of the played instrument that the mod wheel moves.", i => { midiRouter.ModWheelMacro = i; SaveMidiInt("ModWheel", i); });
             midiMenu = menu.Show();
         }
 
         string CurrentMidiDevice(List<string> devices)
         {
-            if (!string.IsNullOrEmpty(midiDevice) && devices.Contains(midiDevice)) return midiDevice;
-            foreach (var d in devices) if (d != ZTrackerMidiSimulated.Device) return d;
-            return null;
+            return MidiPreferenceSnapshot.ResolveDevice(midiDevice, devices, ZTrackerMidiSimulated.Device);
         }
 
         void SetMidiEnabled(bool on)
         {
+            if (midiPersistPreferences) EditorPrefs.SetBool(MidiPrefs + "Enabled", on);
             if (!on) MidiShutdown();
             else
             {
+                if (midiStarted) { RefreshMidiStatus(); return; }
                 midiOn = true;
+                midiStarted = true;
                 if (midiRecordButton != null) midiRecordButton.style.visibility = UnityEngine.UIElements.Visibility.Visible;
                 if (midiWindows == null) midiWindows = new ZTrackerMidiWindows();
                 if (midiBuffer != 0) ApplyMidiBuffer();
@@ -137,6 +148,7 @@ namespace Laubrary.ZTracker.Editor
             string error;
             bool ok = device == ZTrackerMidiSimulated.Device ? MidiSimulated.Open(device, midiRouter, out error) : midiWindows.Open(device, midiRouter, out error);
             if (!ok) midiProblem = device + ": " + error;
+            else if (string.IsNullOrEmpty(midiDevice)) { midiDevice = device; SaveMidiString("Device", device); }
         }
 
         string OpenMidiDevice => MidiSimulated.IsOpen ? ZTrackerMidiSimulated.Device : midiWindows != null && midiWindows.IsOpen ? midiWindows.OpenDevice : null;
@@ -268,19 +280,19 @@ namespace Laubrary.ZTracker.Editor
 
         static bool midiBufferChanged, midiBufferHooked;
 
-        // Session only. AudioSettings.Reset changes the running editor's audio, and Unity mirrors it in the in-memory
-        // audio settings; they are put back to the project's saved size when MIDI turns off, before scripts reload and
-        // when the editor quits, so the project's audio settings file never takes the session value.
+        // The selected MIDI buffer is persisted separately; Unity's project buffer is restored on shutdown/reload and
+        // the selected value is applied again when the window rebuilds.
         void ApplyMidiBuffer()
         {
             int want = midiBuffer == 0 ? ProjectDspBuffer() : midiBufferSizes[midiBuffer];
-            if (AudioSettings.GetConfiguration().dspBufferSize == want) return;
-            if (!SetDspBuffer(want)) midiProblem = "Audio buffer " + want + " was refused";
+            bool changed = AudioSettings.GetConfiguration().dspBufferSize != want;
+            if (changed && !SetDspBuffer(want)) midiProblem = "Audio buffer " + want + " was refused";
+            midiBufferChanged = midiBuffer != 0 && want != ProjectDspBuffer();
+            if (midiBuffer != 0 && !midiBufferHooked) { midiBufferHooked = true; AssemblyReloadEvents.beforeAssemblyReload += RestoreProjectBuffer; EditorApplication.quitting += RestoreProjectBuffer; }
+            if (!changed) return;
             // A script-made audio restart silences existing audio sources without telling them; start fresh renderers
             // (the pump makes new ones at once).
             StopPreview(); DisposeMidiPreview();
-            midiBufferChanged = midiBuffer != 0;
-            if (!midiBufferHooked) { midiBufferHooked = true; AssemblyReloadEvents.beforeAssemblyReload += RestoreProjectBuffer; EditorApplication.quitting += RestoreProjectBuffer; }
             playing = false; RefreshTransport();
         }
 
@@ -310,13 +322,13 @@ namespace Laubrary.ZTracker.Editor
 
         void MidiShutdown()
         {
-            if (!midiOn) { DisposeMidiPreview(); return; }
+            if (!midiOn && !midiStarted) { DisposeMidiPreview(); return; }
             RestoreProjectBuffer();
             midiRouter.Panic();
             midiRouter.SetRoute(null, 0, 0, 0);
             midiWindows?.Close(); MidiSimulated.Close();
             DisposeMidiPreview();
-            midiOn = false; midiProblem = null; midiRouter.Capturing = false; recordHeld.Clear();
+            midiOn = false; midiStarted = false; midiProblem = null; midiRouter.Capturing = false; recordHeld.Clear();
             if (midiRecordButton != null) midiRecordButton.style.visibility = UnityEngine.UIElements.Visibility.Hidden;
             midiToggleButton?.SetValueWithoutNotify(false);
         }
@@ -375,6 +387,44 @@ namespace Laubrary.ZTracker.Editor
         }
 
         static string MidiInstrumentName(ZTrackerInstrument value) { var t = InstrumentTitle(value); return string.IsNullOrEmpty(t) && value != null ? value.name : t; }
+        void SaveMidiString(string key, string value) { if (midiPersistPreferences) EditorPrefs.SetString(MidiPrefs + key, value ?? ""); }
+        void SaveMidiInt(string key, int value) { if (midiPersistPreferences) EditorPrefs.SetInt(MidiPrefs + key, value); }
+        void SaveMidiFloat(string key, float value) { if (midiPersistPreferences) EditorPrefs.SetFloat(MidiPrefs + key, value); }
+        void SaveMidiBool(string key, bool value) { if (midiPersistPreferences) EditorPrefs.SetBool(MidiPrefs + key, value); }
         static string NoteName(int note) => note < 0 ? "---" : noteNames[note % 12] + (note / 12);
+    }
+
+    internal struct MidiPreferenceSnapshot
+    {
+        internal bool enabled, record;
+        internal string device;
+        internal int channel, octave, curve, modWheel, buffer;
+        internal float bend;
+
+        internal static MidiPreferenceSnapshot Read(string prefix, Func<string, string> getString, Func<string, int> getInt, Func<string, float> getFloat, Func<string, bool> getBool)
+            => new MidiPreferenceSnapshot
+            {
+                enabled = getBool(prefix + "Enabled", false), record = getBool(prefix + "Record", false),
+                device = getString(prefix + "Device", ""), channel = getInt(prefix + "Channel", -1),
+                octave = getInt(prefix + "Octave", 0), curve = getInt(prefix + "Curve", 0),
+                bend = getFloat(prefix + "Bend", 2), modWheel = getInt(prefix + "ModWheel", 0),
+                buffer = getInt(prefix + "Buffer", 0)
+            };
+
+        internal static void Write(string prefix, MidiPreferenceSnapshot value, Action<string, string> setString, Action<string, int> setInt, Action<string, float> setFloat, Action<string, bool> setBool)
+        {
+            setBool(prefix + "Enabled", value.enabled); setBool(prefix + "Record", value.record);
+            setString(prefix + "Device", value.device ?? ""); setInt(prefix + "Channel", value.channel);
+            setInt(prefix + "Octave", value.octave); setInt(prefix + "Curve", value.curve);
+            setFloat(prefix + "Bend", value.bend); setInt(prefix + "ModWheel", value.modWheel);
+            setInt(prefix + "Buffer", value.buffer);
+        }
+
+        internal static string ResolveDevice(string preferred, IList<string> available, string simulatedName)
+        {
+            if (!string.IsNullOrEmpty(preferred)) return available.Contains(preferred) ? preferred : null;
+            foreach (var name in available) if (name != simulatedName) return name;
+            return null;
+        }
     }
 }
