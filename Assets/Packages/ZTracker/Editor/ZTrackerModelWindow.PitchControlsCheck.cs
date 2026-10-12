@@ -1,0 +1,157 @@
+using System;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using Laubrary.ZTracker.Model;
+using Laubrary.Zui;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace Laubrary.ZTracker.Editor
+{
+    public sealed partial class ZTrackerModelWindow
+    {
+        /// <summary>Exercises the Synth pitch controls on a disposable, attached window without touching MIDI preferences.</summary>
+        public static string CheckPitchControls()
+        {
+            var report = new StringBuilder(); int passed = 0, failed = 0;
+            var window = CreateInstance<ZTrackerModelWindow>();
+            var songAsset = CreateInstance<ZTrackerSong>();
+            var instrumentAsset = CreateInstance<ZTrackerInstrument>();
+            void Need(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
+            void Check(string title, Action action)
+            {
+                try { action(); passed++; report.AppendLine("PASS " + title); }
+                catch (Exception ex) { failed++; report.AppendLine("FAIL " + title + ": " + (ex.InnerException ?? ex).Message); }
+            }
+
+            instrumentAsset.schemaVersion = songAsset.schemaVersion = 1;
+            instrumentAsset.model = NewInstrumentData();
+            songAsset.model = TrackerEngineCheck.FixtureSong(instrumentAsset);
+            window.song = songAsset; window.instrument = instrumentAsset; window.pane = 3;
+            window.midiSimulatedOnly = true;
+            window.position = new Rect(120, 120, 1250, 800);
+            try
+            {
+                window.Show(); window.CreateGUI();
+                void Layout()
+                {
+                    var panel = window.rootVisualElement.panel;
+                    Need(panel != null, "Pitch fixture has no attached panel");
+                    var validate = panel.GetType().GetMethod("ValidateLayout", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                    for (int i = 0; i < 4; i++) validate?.Invoke(panel, null);
+                }
+                bool Visible(VisualElement element)
+                {
+                    for (var current = element; current != null; current = current.parent)
+                        if (current.resolvedStyle.display == DisplayStyle.None || current.resolvedStyle.visibility == Visibility.Hidden) return false;
+                    return element.panel != null;
+                }
+                VisualElement Find(string name)
+                {
+                    var element = window.rootVisualElement.Q<VisualElement>(name);
+                    Need(element != null, "Missing control " + name);
+                    return element;
+                }
+                void ChooseMode(string label)
+                {
+                    var mode = Find("synth-note-mode");
+                    var button = mode.Query<Button>().ToList().FirstOrDefault(b => b.text == label);
+                    Need(button != null && Visible(button), "Missing visible Notes choice " + label);
+                    typeof(Clickable).GetMethod("SimulateSingleClick", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                        .Invoke(button.clickable, new object[] { null, 0 });
+                    Layout();
+                }
+                void NeedModeSelected(string label)
+                {
+                    var mode = Find("synth-note-mode");
+                    var selected = mode.Query<Button>().ToList().Where(b => b.ClassListContains("zui-radio__on") || b.ClassListContains("zui-segmented__on")).ToList();
+                    Need(selected.Count == 1 && selected[0].text == label, "Notes choice did not restore " + label + " after rebuild");
+                }
+                void SetSlider(string name, float value)
+                {
+                    var slider = Find(name) as ZuiMicroSlider;
+                    Need(slider != null && Visible(slider), "Missing visible scalar " + name);
+                    typeof(ZuiMicroSlider).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic)
+                        .Invoke(slider, new object[] { value, true });
+                    Layout();
+                }
+                var q = instrumentAsset.model.parameters;
+
+                Check("Notes choices set independent Glide and Legato bits, preserve time, and Undo/Redo after rebuild", () =>
+                {
+                    q.glideEnabled = false; q.legatoEnabled = false; q.glideLegato = false; q.glideSeconds = .37f;
+                    Undo.ClearUndo(instrumentAsset); window.BuildPane(); Layout();
+                    var mode = Find("synth-note-mode"); var time = Find("synth-glideSeconds");
+                    Need(Visible(time) && !time.enabledSelf, "Glide time should be visible but disabled in None mode");
+                    Need(ReferenceEquals(mode.parent, time.parent) && Math.Abs(mode.worldBound.yMin - time.worldBound.yMin) < 2 && mode.worldBound.xMax <= time.worldBound.xMin + 1,
+                        "Notes choice and Glide time do not share a horizontal row");
+                    ChooseMode("Glide");
+                    Need(q.glideEnabled && !q.legatoEnabled && Math.Abs(q.glideSeconds - .37f) < .00001f, "Glide choice changed the wrong flags or glide time");
+                    Need(Find("synth-glideSeconds").enabledSelf, "Glide time did not enable with Glide mode");
+                    ChooseMode("Legato");
+                    Need(!q.glideEnabled && q.legatoEnabled && Math.Abs(q.glideSeconds - .37f) < .00001f, "Legato choice changed Glide or its time");
+                    Need(!Find("synth-glideSeconds").enabledSelf, "Glide time stayed enabled in Legato-only mode");
+                    ChooseMode("Both");
+                    Need(q.glideEnabled && q.legatoEnabled && Math.Abs(q.glideSeconds - .37f) < .00001f, "Both choice did not set both flags while preserving time");
+                    Undo.PerformUndo(); Layout();
+                    Need(!q.glideEnabled && q.legatoEnabled && Math.Abs(q.glideSeconds - .37f) < .00001f, "Undo after rebuild did not restore Legato-only state");
+                    NeedModeSelected("Legato");
+                    Undo.PerformRedo(); Layout();
+                    Need(q.glideEnabled && q.legatoEnabled && Math.Abs(q.glideSeconds - .37f) < .00001f, "Redo after rebuild did not restore Both state");
+                    NeedModeSelected("Both");
+                    ChooseMode("None");
+                    Need(!q.glideEnabled && !q.legatoEnabled && Math.Abs(q.glideSeconds - .37f) < .00001f, "None choice changed glide time or left a mode enabled");
+                });
+
+                Check("Pitch and all Vibrato controls remain directly visible and editable at zero depth", () =>
+                {
+                    q.vibratoDepth = 0; q.vibratoRate = 5; q.vibratoFadeIn = 0; q.vibratoRandomness = 0;
+                    window.BuildPane(); Layout();
+                    foreach (var name in new[] { "synth-fineTune", "synth-transpose", "synth-vibratoDepth", "synth-vibratoRate", "synth-vibratoFadeIn", "synth-vibratoRandomness" })
+                        Need(Visible(Find(name)), name + " is hidden at zero Vibrato depth");
+                    SetSlider("synth-vibratoRate", 7);
+                    SetSlider("synth-vibratoFadeIn", 480);
+                    SetSlider("synth-vibratoRandomness", 35);
+                    SetSlider("synth-vibratoDepth", 25);
+                    SetSlider("synth-vibratoDepth", 0);
+                    Need(Math.Abs(q.vibratoRate - 7) < .00001f && Math.Abs(q.vibratoFadeIn - .48f) < .00001f && Math.Abs(q.vibratoRandomness - .35f) < .00001f && q.vibratoDepth == 0,
+                        "Vibrato controls were not independently editable at zero depth");
+                });
+
+                Check("Tune cents and semitone steps share a row and edit independent stored values", () =>
+                {
+                    q.fineTune = 17.25f; q.transpose = 4; window.BuildPane(); Layout();
+                    var cents = Find("synth-fineTune"); var steps = Find("synth-transpose");
+                    Need(ReferenceEquals(cents.parent, steps.parent), "Tune cents and Tune steps are not in the same row");
+                    Need(Math.Abs(cents.worldBound.yMin - steps.worldBound.yMin) < 2 && cents.worldBound.xMax <= steps.worldBound.xMin + 1,
+                        "Tune controls do not fit side-by-side in the wide Synth layout");
+                    SetSlider("synth-fineTune", 38.5f);
+                    Need(Math.Abs(q.fineTune - 38.5f) < .00001f && q.transpose == 4, "Cents edit changed semitone steps or stored the wrong cents");
+                    SetSlider("synth-transpose", 9);
+                    Need(q.transpose == 9 && Math.Abs(q.fineTune - 38.5f) < .00001f, "Semitone-step edit changed cents or stored the wrong steps");
+                });
+
+                Check("Transpose double-click resets to its declared default with Undo/Redo", () =>
+                {
+                    Undo.ClearUndo(instrumentAsset); q.transpose = 7; window.BuildPane(); Layout();
+                    var slider = Find("synth-transpose");
+                    using (var down = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0, clickCount = 2, mousePosition = slider.worldBound.center }))
+                    { down.target = slider; slider.SendEvent(down); }
+                    Layout();
+                    Need(q.transpose == 0, "Double-click did not reset semitone steps to the declared zero default");
+                    Undo.PerformUndo(); Layout(); Need(q.transpose == 7, "Undo did not restore the authored semitone steps");
+                    Undo.PerformRedo(); Layout(); Need(q.transpose == 0, "Redo did not restore the declared semitone default");
+                });
+            }
+            finally
+            {
+                window.StopPreview(); window.Close(); Undo.ClearUndo(instrumentAsset); Undo.ClearUndo(songAsset);
+                DestroyImmediate(window); DestroyImmediate(instrumentAsset); DestroyImmediate(songAsset);
+            }
+            report.Append("Pitch controls: ").Append(passed).Append(" passed, ").Append(failed).Append(" failed");
+            return report.ToString();
+        }
+    }
+}
