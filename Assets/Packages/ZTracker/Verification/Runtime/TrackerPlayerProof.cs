@@ -39,6 +39,8 @@ namespace Laubrary.ZTracker.Proof
             public bool p4ToneCoverage,macroOperationObserved,p5CommandAutomationCoverage;
             public bool publicClipless,publicEvents,liveEdits,pcmPending,pcmApplied,controlledRates,configurationStopped,hardwareVerified,quitRefused;
             public double trackerEnergy; public int publicStarts,publicStops;
+            // MIDI live input: keys, pedal, wheels written from a separate thread through the router during forced GC.
+            public long midiMessages,midiApplied,midiDropped; public bool midiLive; public double midiLatencyMedianMs,midiLatencyP95Ms,midiLatencyMaxMs; public int midiLatencySamples;
             public List<Interval> intervals=new List<Interval>();
         }
         public static Result result=new Result();
@@ -109,6 +111,7 @@ namespace Laubrary.ZTracker.Proof
             yield return new WaitForSecondsRealtime(.2f);result.macroOperationObserved=Math.Abs(tracker.ObserveMacro(1,7)-.31f)<1e-6&&Math.Abs(tracker.ObserveMacro(2,7)-.6f)<1e-6;
             DrainEvents();lastEvent=-1;
             yield return Measure("baseline",3,false);
+            var latency=TrackerMidiCheck.MeasureAppliedLatency(tracker.LiveInput,40,62);Array.Sort(latency);result.midiLatencySamples=latency.Length;if(latency.Length>0){result.midiLatencyMedianMs=latency[latency.Length/2];result.midiLatencyP95Ms=latency[(int)(latency.Length*.95)];result.midiLatencyMaxMs=latency[latency.Length-1];}
             yield return Measure("forced-full-GC",6,true);
             yield return Measure("recovery",3,false);
             result.zoundsWitness=result.intervals.Count==3&&result.intervals.TrueForAll(s=>s.zoundsBlocks>0&&s.managedBlocks==0&&s.guardBlocks>=s.trackerBlocks+s.zoundsBlocks-2);
@@ -270,7 +273,10 @@ namespace Laubrary.ZTracker.Proof
         {
             var s=new Interval{name=name};double start=Time.realtimeSinceStartupAsDouble;long tf=tracker.RenderedFrames,tb=tracker.RenderedBlocks,zf=ZFrames(),zb=zounds.RenderTicket/2,gb=AudioThreadGuard.Blocks,gm=AudioThreadGuard.ManagedBlocks;
             double nextGc=start;
+            var stopMidi=new ManualResetEventSlim(false);Thread midi=null;var router=new Laubrary.ZTracker.Midi.ZTrackerMidiRouter();var keyboard=new Laubrary.ZTracker.Midi.ZTrackerMidiSimulated();long appliedBefore=tracker.LiveInput.LastAppliedSerial;
+            if(forceGc){router.SetRoute(tracker.LiveInput,0,0,0);keyboard.Open(Laubrary.ZTracker.Midi.ZTrackerMidiSimulated.Device,router,out _);midi=new Thread(()=>{int n=0;while(!stopMidi.IsSet){int key=48+n%20;keyboard.NoteOn(key,100);keyboard.Controller(64,n%8<4?127:0);keyboard.Bend((n*389)&16383);keyboard.Controller(1,n&127);stopMidi.Wait(2);keyboard.NoteOff(key);n++;stopMidi.Wait(3);}}){IsBackground=true};midi.Start();}
             while(Time.realtimeSinceStartupAsDouble-start<duration){DrainEvents();if(forceGc&&Time.realtimeSinceStartupAsDouble>=nextGc){double begin=Time.realtimeSinceStartupAsDouble;GC.Collect(GC.MaxGeneration,GCCollectionMode.Forced,true,true);GC.WaitForPendingFinalizers();GC.Collect(GC.MaxGeneration,GCCollectionMode.Forced,true,true);double took=Time.realtimeSinceStartupAsDouble-begin;s.maxGcSeconds=Math.Max(s.maxGcSeconds,took);s.collections++;result.gcCount++;nextGc=Time.realtimeSinceStartupAsDouble+.15;}yield return null;}
+            if(midi!=null){stopMidi.Set();midi.Join(1000);keyboard.Controller(123,0);result.midiMessages=router.Messages;result.midiDropped=tracker.LiveInput.Dropped;result.midiApplied=tracker.LiveInput.LastAppliedSerial-appliedBefore;result.midiLive=result.midiApplied>100&&result.midiDropped==0;}
             s.seconds=Time.realtimeSinceStartupAsDouble-start;s.expectedFrames=s.seconds*rate;s.trackerFrames=tracker.RenderedFrames-tf;s.zoundsFrames=ZFrames()-zf;s.trackerBlocks=tracker.RenderedBlocks-tb;s.zoundsBlocks=zounds.RenderTicket/2-zb;s.guardBlocks=AudioThreadGuard.Blocks-gb;s.managedBlocks=AudioThreadGuard.ManagedBlocks-gm;s.trackerRate=s.trackerFrames/s.seconds;s.zoundsRate=s.zoundsFrames/s.seconds;s.trackerCompiled=tracker.RenderCompiled;
             // Wall-clock expectation allows device startup/observation jitter of three DSP blocks, capped at 3%.
             double tolerance=Math.Max(3*result.dspFrames,s.expectedFrames*.03);s.passed=Math.Abs(s.trackerFrames-s.expectedFrames)<=tolerance&&Math.Abs(s.zoundsFrames-s.expectedFrames)<=tolerance&&s.managedBlocks==0&&s.trackerCompiled&&s.trackerBlocks>0&&s.zoundsBlocks>0;
@@ -281,6 +287,6 @@ namespace Laubrary.ZTracker.Proof
         bool ObserveQuit(){result.quitRefused=TrackerSapRegistry.RefuseNewRendering&&!tracker.SendCommand(TrackerCommand.Play());return true;}
         void Update(){if(quitStarted>0){result.quitFrames=Time.frameCount-quitFrame;result.quitSeconds=Time.realtimeSinceStartupAsDouble-quitStarted;}if(quitStarted==0&&(result.errors>0||Time.realtimeSinceStartupAsDouble-processStarted>180)){quitStarted=Time.realtimeSinceStartupAsDouble;quitFrame=Time.frameCount;Save();Application.Quit();}}
         static void Save(){File.WriteAllText(output,JsonUtility.ToJson(result,true));}
-        static void Finished(){result.quitPassed=result.quitFrames>=2&&result.quitSeconds>=.3;result.passed=result.publicClipless&&result.publicEvents&&result.liveEdits&&result.pcmPending&&result.pcmApplied&&result.controlledRates&&result.configurationStopped&&result.quitRefused&&result.trackerEnergy>0&&result.offlineWitness&&result.zoundsWitness&&result.p4ToneCoverage&&result.p5CommandAutomationCoverage&&result.macroOperationObserved&&result.errors==0&&result.eventContinuity&&result.lifecyclePassed&&result.quitPassed&&result.intervals.TrueForAll(s=>s.passed);Save();}
+        static void Finished(){result.quitPassed=result.quitFrames>=2&&result.quitSeconds>=.3;result.passed=result.publicClipless&&result.midiLive&&result.midiLatencySamples>=30&&result.publicEvents&&result.liveEdits&&result.pcmPending&&result.pcmApplied&&result.controlledRates&&result.configurationStopped&&result.quitRefused&&result.trackerEnergy>0&&result.offlineWitness&&result.zoundsWitness&&result.p4ToneCoverage&&result.p5CommandAutomationCoverage&&result.macroOperationObserved&&result.errors==0&&result.eventContinuity&&result.lifecyclePassed&&result.quitPassed&&result.intervals.TrueForAll(s=>s.passed);Save();}
     }
 }

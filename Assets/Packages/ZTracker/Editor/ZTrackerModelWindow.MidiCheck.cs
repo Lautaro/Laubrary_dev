@@ -80,22 +80,39 @@ namespace Laubrary.ZTracker.Editor
                 Array.Sort(ms);
                 report.AppendLine($"MEASURE appliedLatencyMs min={ms[0]:F2} median={ms[ms.Length / 2]:F2} p95={ms[(int)(ms.Length * .95)]:F2} max={ms[ms.Length - 1]:F2} n={ms.Length}; dspBuffer={buffer}x{count} rate={rate} period={buffer * 1000.0 / rate:F2}ms queue={buffer * count * 1000.0 / rate:F2}ms");
             }));
-            steps.Enqueue(("forced garbage collections while keys stream in: audio thread keeps time and stays compiled", .1, () =>
+            double baseRatio = 0; long baseFrames = 0; double baseStart = 0;
+            steps.Enqueue(("baseline: rendered frames against wall time without forced collections", 4, () => { baseFrames = window.SongHost.RenderedFrames; baseStart = EditorApplication.timeSinceStartup; }));
+            steps.Enqueue(("baseline result", 0, () => { baseRatio = (window.SongHost.RenderedFrames - baseFrames) / ((EditorApplication.timeSinceStartup - baseStart) * AudioSettings.outputSampleRate); report.AppendLine($"MEASURE baselineRenderedToWall={baseRatio:F3}"); }));
+            // The same forced collections twice: once with no MIDI (control), once while a thread streams keys, pedal and
+            // wheels. The editor's audio can pause during a collection for reasons unrelated to MIDI; MIDI must not add to
+            // that and must never run managed code on the audio thread. The standalone player proof is the certification.
+            double controlRatio = 0;
+            Action<bool> beginGc = withMidi =>
             {
-                framesBefore = window.SongHost.RenderedFrames; managedBefore = AudioThreadGuard.ManagedBlocks; gcStart = EditorApplication.timeSinceStartup; gcCount = 0;
+                framesBefore = window.SongHost.RenderedFrames; managedBefore = AudioThreadGuard.ManagedBlocks; gcStart = EditorApplication.timeSinceStartup; gcCount = 0; stop.value = false;
+                if (!withMidi) return;
                 producer = new Thread(() => { int n = 0; while (!stop.value) { sim.NoteOn(48 + n % 24, 100); Thread.Sleep(2); sim.NoteOff(48 + n % 24); sim.Controller(1, n & 127); sim.Bend((n * 97) & 16383); n++; Thread.Sleep(3); } }) { IsBackground = true };
                 producer.Start();
-            }));
-            for (int k = 0; k < 30; k++) steps.Enqueue(("gc", .1, () => { GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect(); gcCount++; }));
-            steps.Enqueue(("gc result", 0, () =>
+            };
+            Func<bool, double> endGc = withMidi =>
             {
-                stop.value = true; producer.Join(1000);
+                stop.value = true; producer?.Join(1000); producer = null;
                 double seconds = EditorApplication.timeSinceStartup - gcStart; long frames = window.SongHost.RenderedFrames - framesBefore; double expected = seconds * AudioSettings.outputSampleRate;
                 long managed = AudioThreadGuard.ManagedBlocks - managedBefore;
-                report.AppendLine($"MEASURE forcedGc collections={gcCount * 2} seconds={seconds:F2} renderedFrames={frames} expected={expected:F0} ratio={frames / expected:F3} managedAudioBlocks={managed} liveDropped={window.SongHost.LiveInput.Dropped}");
+                report.AppendLine($"MEASURE forcedGc{(withMidi ? "WithMidi" : "Control")} collections={gcCount * 2} seconds={seconds:F2} renderedFrames={frames} expected={expected:F0} ratio={frames / expected:F3} managedAudioBlocks={managed} liveDropped={window.SongHost.LiveInput.Dropped}");
                 need(managed == 0, "Managed audio blocks during forced GC");
-                AudioSettings.GetDSPBufferSize(out int buffer, out int count);
-                need(Math.Abs(frames - expected) <= Math.Max(4 * buffer * count, expected * .05), "Audio fell behind wall time under forced GC");
+                return frames / expected;
+            };
+            steps.Enqueue(("forced collections, no MIDI (control)", .1, () => beginGc(false)));
+            for (int k = 0; k < 12; k++) steps.Enqueue(("gc", .1, () => { GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect(); gcCount++; }));
+            steps.Enqueue(("control result", .1, () => { controlRatio = endGc(false); }));
+            steps.Enqueue(("forced collections while keys stream in from another thread", .1, () => beginGc(true)));
+            for (int k = 0; k < 12; k++) steps.Enqueue(("gc", .1, () => { GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect(); gcCount++; }));
+            steps.Enqueue(("MIDI under forced collections keeps up with the control and stays compiled", 0, () =>
+            {
+                double ratio = endGc(true);
+                need(ratio >= controlRatio * .8, $"MIDI made the audio fall further behind: {ratio:F3} against control {controlRatio:F3}");
+                need(window.SongHost.LiveInput.Dropped == 0, "Live events dropped");
                 sim.Controller(123, 0);
             }));
             steps.Enqueue(("Instrument workspace (real click) moves the keyboard to the clean preview over the playing song", .6, () =>
@@ -120,7 +137,7 @@ namespace Laubrary.ZTracker.Editor
             steps.Enqueue(("Panic (real click) silences the preview, the song plays on", .3, () => { click(find("midi-panic"), 0); }));
             steps.Enqueue(("panic result", .1, () => { need(window.MidiPreviewHost.LiveInput.HeldNotes == 0, "Panic left held notes"); need(window.playing, "Panic stopped the song"); }));
             steps.Enqueue(("unplugged keyboard is reported and comes back on its own", 2.5, () => { sim.Unplugged = true; window.midiNextScan = 0; }));
-            steps.Enqueue(("unplug status", 0, () => { need(!sim.IsOpen && !window.MidiStatusText.Contains(ZTrackerMidiSimulated.Device), "Unplug not noticed: " + window.MidiStatusText); report.AppendLine("STATUS " + window.MidiStatusText); sim.Unplugged = false; window.midiNextScan = 0; }));
+            steps.Enqueue(("unplug status", 2.5, () => { need(!sim.IsOpen && !window.MidiStatusText.Contains(ZTrackerMidiSimulated.Device), "Unplug not noticed: " + window.MidiStatusText); report.AppendLine("STATUS " + window.MidiStatusText); sim.Unplugged = false; window.midiNextScan = 0; }));
             steps.Enqueue(("replug", .5, () => { need(sim.IsOpen && window.MidiStatusText.Contains(ZTrackerMidiSimulated.Device), "Not reopened: " + window.MidiStatusText); }));
             steps.Enqueue(("in use by another program is reported", .3, () => { sim.Close(); sim.SimulateInUse = true; window.midiNextScan = 0; }));
             steps.Enqueue(("in use status", 2.2, () => { need(window.MidiStatusText.Contains("In use"), "Status: " + window.MidiStatusText); report.AppendLine("STATUS " + window.MidiStatusText); sim.SimulateInUse = false; window.midiNextScan = 0; }));

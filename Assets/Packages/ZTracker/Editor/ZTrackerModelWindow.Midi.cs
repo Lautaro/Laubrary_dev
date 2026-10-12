@@ -148,7 +148,7 @@ namespace Laubrary.ZTracker.Editor
                 {
                     EnsureMidiPreview();
                     midiRouter.SetRoute(midiPreviewHost.LiveInput, 0, 0, 0);
-                    midiTargetText = "→ clean preview · " + InstrumentTitle(instrument);
+                    midiTargetText = "→ clean preview · " + MidiInstrumentName(instrument);
                     return;
                 }
                 if (Data == null) { midiRouter.SetRoute(null, 0, 0, 0); midiTargetText = "→ no song"; return; }
@@ -161,7 +161,7 @@ namespace Laubrary.ZTracker.Editor
                 int ins = Mathf.Clamp(entryInstrument, 0, Data.instruments.Count - 1);
                 if (host == null) EnsurePreview();
                 midiRouter.SetRoute(host.LiveInput, t, column, ins);
-                midiTargetText = $"→ {Data.tracks[t].name} col {column + 1} · {ins:X2} {InstrumentTitle(Data.instruments[ins])}";
+                midiTargetText = $"→ {Data.tracks[t].name} col {column + 1} · {ins:X2} {MidiInstrumentName(Data.instruments[ins])}";
             }
             catch (Exception ex) { midiRouter.SetRoute(null, 0, 0, 0); midiTargetText = "→ unavailable: " + ex.Message; }
         }
@@ -258,6 +258,7 @@ namespace Laubrary.ZTracker.Editor
             midiStatus.tooltip = tip;
         }
 
+        static string MidiInstrumentName(ZTrackerInstrument value) { var t = InstrumentTitle(value); return string.IsNullOrEmpty(t) && value != null ? value.name : t; }
         static string NoteName(int note) => note < 0 ? "---" : noteNames[note % 12] + (note / 12);
     }
 }
