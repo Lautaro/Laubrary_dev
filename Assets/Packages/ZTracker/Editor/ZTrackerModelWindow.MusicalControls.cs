@@ -131,7 +131,14 @@ namespace Laubrary.ZTracker.Editor
         }
 
         VisualElement ParameterValue(string field, float value, Action<float> apply, string name, InstrumentParameters parameters, string key)
-            => ParameterValue(field, value, apply, name, () => parameters.GetParameterEnvelope(key), env => parameters.SetParameterEnvelope(key, env), defaultValue: ParameterDefault(field, key));
+        {
+            var control = ParameterValue(field, value, apply, name, () => parameters.GetParameterEnvelope(key), env => parameters.SetParameterEnvelope(key, env), defaultValue: ParameterDefault(field, key));
+            // The instrument's own typed parameter: right-click also offers a command id when this instrument is in the song.
+            var asset = instrument;
+            if (asset != null && Data != null && Data.instruments.Contains(asset) && ReferenceEquals(asset.model?.parameters, parameters) && Laubrary.ZTracker.Engine.TrackerParameters.Resolve(key, out var parameter))
+                CommandMenu(control, () => InstrumentTarget(asset, parameter));
+            return control;
+        }
 
         VisualElement ParameterValue(string field, float value, Action<float> apply, string name, Func<ZUIEnvelopeData> getEnvelope, Action<ZUIEnvelopeData> setEnvelope, MusicalRange? presentation = null, float? defaultValue = null)
         {

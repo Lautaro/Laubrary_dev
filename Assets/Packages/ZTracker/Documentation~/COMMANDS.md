@@ -1,5 +1,9 @@
 # ZTracker P5 command profile and P2 migration contract
 
+## Song commands (dynamic parameters, T-0595/T-0596)
+
+Besides the built-in commands below, a song can define its own two-character commands, each naming one setting of an instrument (typed parameter or macro), a track (pre gain, pre pan, width, post gain, post pan), a track effect, or the song tempo. Such a command belongs in a track FX column; its byte `xx` sets `min + (max − min) × xx/255` in the setting's units at the row's tick zero (tempo at row entry, before the row duration is fixed, like `ZT`). Ids starting with `0` or `Z` are reserved for built-ins; an imported device at the same address keeps its meaning (`DYNAMIC_ID_SHADOWED`); an id with no definition is preserved and reported (`DYNAMIC_PARAMETER_UNDEFINED`); a definition in a note column's local FX is out of place (`COMMAND_OUT_OF_PLACE`). The full model, addressing, reserved ids, song-file version and engine behaviour are in [COMMAND_MODEL_DESIGN.md](COMMAND_MODEL_DESIGN.md).
+
 ## Instrument-editor rework: pattern arpeggio
 
 The current renderer supports `0Axy` for sampler, subtractive synth and FM foreground notes. The pattern editor has separate identifier and hexadecimal argument fields: enter `0A` and `37` for the shorthand `A37`. It cycles offsets 0, 3 and 7 semitones on successive ticks, starting from the base note at tick zero. Row absence clears the row-scoped arpeggio; the existing zero-argument command-memory policy remains unchanged. No speed extension is introduced: TPL and tempo determine tick duration. Instrument-owned arpeggio settings are retained in migration/archive data and are ignored by playback. They cannot enable arpeggio on a row that lacks the command.

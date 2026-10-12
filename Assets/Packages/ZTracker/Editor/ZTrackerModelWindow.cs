@@ -192,9 +192,10 @@ namespace Laubrary.ZTracker.Editor
         void BuildSongSettings(VisualElement root)
         {
             root.Add(Z.Field("Name","Song title.",Z.TextInput(Data.name,"Rename the song.",v=>SongEdit("song name",()=>Data.name=v),175)));
-            root.Add(Flow(DialSong("BPM",(float)Data.bpm,32,999,"Song tempo in beats per minute.",v=>Data.bpm=v,decimals:2,defaultValue:(float)new SongData().bpm),DialSong("LPB",Data.linesPerBeat,1,256,"Lines per beat.",v=>Data.linesPerBeat=(int)v,defaultValue:new SongData().linesPerBeat),Z.ScrubNumber("TPL",Data.ticksPerLine,1,16,"Effect ticks per line.",v=>SongEdit("ticks per line",()=>Data.ticksPerLine=v),85,6)));
+            root.Add(Flow(CommandMenu(DialSong("BPM",(float)Data.bpm,32,999,"Song tempo in beats per minute. Right-click to give it a command id.",v=>Data.bpm=v,decimals:2,defaultValue:(float)new SongData().bpm),SongTempoTarget),DialSong("LPB",Data.linesPerBeat,1,256,"Lines per beat.",v=>Data.linesPerBeat=(int)v,defaultValue:new SongData().linesPerBeat),Z.ScrubNumber("TPL",Data.ticksPerLine,1,16,"Effect ticks per line.",v=>SongEdit("ticks per line",()=>Data.ticksPerLine=v),85,6)));
             root.Add(Flow(Z.Field("Voices","Maximum simultaneous voices.",Z.Int(Data.voiceCapacity,"Voice pool capacity; changing this takes effect on next Play.",v=>SongEdit("voice capacity",()=>Data.voiceCapacity=Math.Max(1,v)),85)),Z.Field("Seed","Deterministic random seed.",Z.TextInput(Data.seed.ToString(),"Unsigned 64-bit random seed.",v=>{if(ulong.TryParse(v,out var seed))SongEdit("random seed",()=>Data.seed=seed);},110)),Z.Toggle("Beat events","Emit song beat events.",Data.beatTicks,v=>SongEdit("song beat events",()=>Data.beatTicks=v,true)),Data.beatTicks?DialSong("Beat interval",Data.beatIntervalLines,1,512,"Lines between song beat events.",v=>Data.beatIntervalLines=(int)v,defaultValue:new SongData().beatIntervalLines):null));
             BuildSlotMutes(root);
+            BuildCommandList(root);
         }
         void BuildPatternSidebar(VisualElement root)
         {

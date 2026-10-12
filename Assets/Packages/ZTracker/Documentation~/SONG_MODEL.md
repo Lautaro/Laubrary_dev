@@ -1,5 +1,9 @@
 # ZTracker song and instrument data contract
 
+## Command definitions (T-0595)
+
+`SongData.commandModelVersion` (no initializer, so a song saved before it reads as 0) and `SongData.dynamicParameters` (a list of `DynamicParameterData`: stable `uid`, two-character `id`, friendly `name`, `scope` Instrument/Track/Effect/Song, a `ParameterTarget`, `min`/`max` in the target's units and an optional `color`, transparent meaning the scope's default). The song schema version is unchanged. Opening a song never migrates it; the first definition sets the command model version to 1 inside its own Undo step and changes nothing else (checked: the JSON differs only in the version and the song renders bit-identically). A newer command model version is shown read-only and refused for edits. `ParameterKind.Dynamic` is appended to the enum: a lane with that kind targets a definition by its `uid` in `ParameterTarget.parameter`. All rules (ids, validation, context, rename/remove) live in `ZTrackerCommandRegistry`; see [COMMAND_MODEL_DESIGN.md](COMMAND_MODEL_DESIGN.md).
+
 ## Instrument rework additions
 
 Schema 1 remains additive: optional named parameter envelopes supplement the five existing oscillator-envelope fields, and envelopes now carry optional sustain enable/position. Missing curve records mean static playback. No stored units or field names were changed. The editor converts to musical display units at the boundary and does not clamp authored values merely by opening an instrument.

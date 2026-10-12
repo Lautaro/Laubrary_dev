@@ -34,19 +34,32 @@ namespace Laubrary.ZTracker.Editor
             {
                 string trackId = t.id;
                 TrackData Owner() => Data.tracks.Find(item => item.id == trackId);
-                scroll.Add(new ChainEditorTK(new AudioDataChainEditorHost(
+                var chainHost = new AudioDataChainEditorHost(
                     () => Owner().devices, (label, edit) => SongEdit(label, edit),
                     BeginMixerGesture, () => ChainGestureChanged(song), EndMixerGesture,
                     before => {
                         var owner = Owner();
                         foreach (var uid in before) if (!owner.devices.nodes.Any(n => n.uid == uid)) FlagRemovedDevice(owner, uid);
                         RepairChainReferences(owner, before);
-                    })));
+                    });
+                // Right-click an effect setting: give it a command id (or rename/remove the one it has).
+                ChainEditorTK chainEditor = null;
+                chainHost.ParamMenu = (uid, index, pd, item) =>
+                {
+                    var owner = Owner(); var node = owner?.devices.nodes.FirstOrDefault(n => n.uid == uid); var target = node != null ? EffectTarget(owner, node, index) : null;
+                    if (target == null) return;
+                    var existing = ZTrackerCommandRegistry.FindByTarget(Data, target.scope, target.target);
+                    var anchor = (VisualElement)chainEditor?.Q("chain-param-" + owner.devices.nodes.IndexOf(node) + "-" + index) ?? chainEditor;
+                    if (existing == null) item("Command id…", "Give this setting a two-character command id and a name, so a row in a track's FX column can set it.", () => ShowCommandEditor(anchor, target, null));
+                    else { item("Command " + existing.id + "…", "Rename command " + existing.id + " (" + existing.name + "); every pattern cell using it follows.", () => ShowCommandEditor(anchor, target, existing)); item("Remove command " + existing.id, "Stop this setting from having a command id. Cells that use " + existing.id + " stay in the pattern and are flagged.", () => RemoveCommand(existing)); }
+                };
+                chainEditor = new ChainEditorTK(chainHost);
+                scroll.Add(chainEditor);
                 return;
             }
             if(mixerTab==2){BuildSources(scroll,t);return;}
-            scroll.Add(Flow(Named(DialSong("Pre gain",t.preVolume,0,16,"Amplitude multiplier before effects.",v=>t.preVolume=v,decimals:3,defaultValue:MixerTrackDefaults.preVolume),"mixer-pre-volume"),DialSong("Pre pan",t.prePan,-1,1,"Stereo balance before effects.",v=>t.prePan=v,decimals:3,defaultValue:MixerTrackDefaults.prePan),DialSong("Width",t.preWidth,0,4,"Stereo width before effects.",v=>t.preWidth=v,decimals:3,defaultValue:MixerTrackDefaults.preWidth)));
-            scroll.Add(Flow(Named(DialSong("Post gain",t.postVolume,0,16,"Amplitude multiplier after effects.",v=>t.postVolume=v,decimals:3,defaultValue:MixerTrackDefaults.postVolume),"mixer-post-volume"),DialSong("Post pan",t.postPan,-1,1,"Stereo balance after effects.",v=>t.postPan=v,decimals:3,defaultValue:MixerTrackDefaults.postPan)));
+            scroll.Add(Flow(CommandMenu(Named(DialSong("Pre gain",t.preVolume,0,16,"Amplitude multiplier before effects. Right-click to give it a command id.",v=>t.preVolume=v,decimals:3,defaultValue:MixerTrackDefaults.preVolume),"mixer-pre-volume"),()=>TrackTarget(t,"preVolume")),CommandMenu(DialSong("Pre pan",t.prePan,-1,1,"Stereo balance before effects. Right-click to give it a command id.",v=>t.prePan=v,decimals:3,defaultValue:MixerTrackDefaults.prePan),()=>TrackTarget(t,"prePan")),CommandMenu(DialSong("Width",t.preWidth,0,4,"Stereo width before effects. Right-click to give it a command id.",v=>t.preWidth=v,decimals:3,defaultValue:MixerTrackDefaults.preWidth),()=>TrackTarget(t,"width"))));
+            scroll.Add(Flow(CommandMenu(Named(DialSong("Post gain",t.postVolume,0,16,"Amplitude multiplier after effects. Right-click to give it a command id.",v=>t.postVolume=v,decimals:3,defaultValue:MixerTrackDefaults.postVolume),"mixer-post-volume"),()=>TrackTarget(t,"postVolume")),CommandMenu(DialSong("Post pan",t.postPan,-1,1,"Stereo balance after effects. Right-click to give it a command id.",v=>t.postPan=v,decimals:3,defaultValue:MixerTrackDefaults.postPan),()=>TrackTarget(t,"postPan"))));
             scroll.Add(Flow(Named(Z.Toggle("Output mute","Mute this track's output while its effects continue processing.",t.outputMute,v=>SongEdit("output mute",()=>t.outputMute=v)),"mixer-output-mute"),Z.Toggle("Trigger mute","Suppress new notes and track commands.",t.triggerMute,v=>SongEdit("trigger mute",()=>t.triggerMute=v)),Z.Toggle("Solo","Hear this track and its necessary routing buses.",t.solo,v=>SongEdit("solo",()=>t.solo=v))));
             if(t.kind!=TrackKind.Master)
             {

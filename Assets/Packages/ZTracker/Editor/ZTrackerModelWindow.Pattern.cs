@@ -272,7 +272,7 @@ namespace Laubrary.ZTracker.Editor
             if(help==null||fields.Count==0)return;
             if(patternNotice!=""){help.text=patternNotice;help.tooltip=patternNotice;return;}
             var f=fields[sub];string id=f.kind==FieldKind.EffectId||f.kind==FieldKind.EffectValue?Effect(row,f).command.identifier:f.kind==FieldKind.LocalId||f.kind==FieldKind.LocalValue?Note(row,f).sampleFx.identifier:f.kind==FieldKind.Volume&&Note(row,f).volume.kind==ValueKind.Command?Note(row,f).volume.command.identifier:f.kind==FieldKind.Pan&&Note(row,f).pan.kind==ValueKind.Command?Note(row,f).pan.command.identifier:"";
-            var command=FxCommandCatalog.Find(id,f.kind,Data.tracks[f.track]);var authored=CommandAt(row,f);help.text=string.IsNullOrEmpty(id)?"":command==null?id+" — unsupported or unavailable here; retained":authored.valuePresent&&!FxCommandCatalog.SupportsValue(id,authored.value)?command.Display+" — argument outside supported range":command.Display;help.tooltip=help.text;
+            var command=FxCommandCatalog.Find(id,f.kind,Data.tracks[f.track],Data);var authored=CommandAt(row,f);help.text=string.IsNullOrEmpty(id)?"":command==null?id+" — unsupported or unavailable here; retained":authored.valuePresent&&!FxCommandCatalog.SupportsValue(id,authored.value)?command.Display+" — argument outside supported range":command.Display;help.tooltip=help.text;
         }
     }
 }

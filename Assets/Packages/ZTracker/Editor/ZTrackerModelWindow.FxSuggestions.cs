@@ -61,12 +61,16 @@ namespace Laubrary.ZTracker.Editor
             new Entry("R","Rx","Retrigger note", "x=1–F",volume:true,pan:true)
         };
         static char Digit(int ordinal)=>"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[ordinal];
-        internal static IEnumerable<Entry> For(ZTrackerModelWindow.FieldKind kind,TrackData owner=null)
+        internal static IEnumerable<Entry> For(ZTrackerModelWindow.FieldKind kind,TrackData owner=null,SongData song=null)
         {
             if(kind==ZTrackerModelWindow.FieldKind.EffectValue)kind=ZTrackerModelWindow.FieldKind.EffectId;
             if(kind==ZTrackerModelWindow.FieldKind.LocalValue)kind=ZTrackerModelWindow.FieldKind.LocalId;
             foreach(var entry in entries.Where(e=>kind==ZTrackerModelWindow.FieldKind.LocalId?e.local:kind==ZTrackerModelWindow.FieldKind.EffectId?e.track:kind==ZTrackerModelWindow.FieldKind.Volume?e.volume:kind==ZTrackerModelWindow.FieldKind.Pan?e.pan:false))yield return entry;
-            if(kind!=ZTrackerModelWindow.FieldKind.EffectId||owner?.sourceDevices==null)yield break;
+            if(kind!=ZTrackerModelWindow.FieldKind.EffectId)yield break;
+            // The song's own command ids (dynamic parameters). Which ones belong on a row is T-0599's context filter.
+            if(song?.dynamicParameters!=null)foreach(var p in song.dynamicParameters.Where(p=>p!=null&&ZTrackerCommandRegistry.ValidateId(null,p.id,null,out _)==null).OrderBy(p=>p.id,StringComparer.Ordinal))
+                yield return new Entry(ZTrackerCommandRegistry.Normalize(p.id),ZTrackerCommandRegistry.Normalize(p.id)+"xx",p.name+" (song command)","00 = "+p.min.ToString("0.##")+", FF = "+p.max.ToString("0.##"),track:true);
+            if(owner?.sourceDevices==null)yield break;
             foreach(var source in owner.sourceDevices.Where(s=>s!=null&&s.ordinal>=1&&s.ordinal<=34))
             {
                 string first=Digit(source.ordinal).ToString();string name=string.IsNullOrWhiteSpace(source.pluginId)?"declared device":source.pluginId;
@@ -79,7 +83,7 @@ namespace Laubrary.ZTracker.Editor
                 }
             }
         }
-        internal static Entry Find(string id,ZTrackerModelWindow.FieldKind kind,TrackData owner=null)=>string.IsNullOrEmpty(id)?null:For(kind,owner).FirstOrDefault(e=>e.id==id||e.id.Length==1&&id.Length==2&&id[0]==e.id[0]&&!(e.id=="B"&&id[1]>'1')&&!(e.id=="R"&&id[1]=='0'));
+        internal static Entry Find(string id,ZTrackerModelWindow.FieldKind kind,TrackData owner=null,SongData song=null)=>string.IsNullOrEmpty(id)?null:For(kind,owner,song).FirstOrDefault(e=>e.id==id||e.id.Length==1&&id.Length==2&&id[0]==e.id[0]&&!(e.id=="B"&&id[1]>'1')&&!(e.id=="R"&&id[1]=='0'));
         internal static bool SupportsValue(string id,int value)
         {
             if(id=="0B")return value<=1;
@@ -99,7 +103,7 @@ namespace Laubrary.ZTracker.Editor
         void ShowFxSuggestions(FieldSlot slot,string prefix)
         {
             CloseFxSuggestions();if(grid==null||!labels.TryGetValue(new UnityEngine.Vector2Int(row,sub),out var anchor))return;
-            var matches=FxCommandCatalog.For(slot.kind,Data.tracks[slot.track]).Where(e=>e.id.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)).ToArray();
+            var matches=FxCommandCatalog.For(slot.kind,Data.tracks[slot.track],Data).Where(e=>e.id.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)).ToArray();
             if(matches.Length==0)return;
             int targetRow=row,targetSub=sub;
             fxSuggestions=Z.Popover(anchor,panel=>{
@@ -120,6 +124,7 @@ namespace Laubrary.ZTracker.Editor
         {
             bool id=f.kind==FieldKind.LocalId||f.kind==FieldKind.EffectId;
             SongEdit("enter command",()=>EditField(row,f,(n,x,v)=>{
+                if(f.kind==FieldKind.EffectId)entered=entered.ToUpperInvariant();
                 var c=new CommandData{present=true,identifier=entered,scope=f.kind==FieldKind.EffectId?(entered[0]=='Z'?CommandScope.Global:CommandScope.Track):CommandScope.Column};
                 if(id){var before=f.kind==FieldKind.LocalId?n.sampleFx:x.command;if(before.identifier==entered){c.value=before.value;c.valuePresent=before.valuePresent;}if(initialValue.HasValue){c.value=initialValue.Value;c.valuePresent=true;}if(f.kind==FieldKind.LocalId)n.sampleFx=c;else x.command=c;}
                 else{var value=f.kind==FieldKind.Volume?n.volume:n.pan;value.command=c;value.kind=ValueKind.Command;}
