@@ -78,9 +78,11 @@ namespace Laubrary.ZTracker.Editor {
         }
 
         /// <summary>Recursively lists supported files. Search matches names and parent tags; no audio is imported.</summary>
-        public static ScanResult Scan(string search = null) {
+        public static ScanResult Scan(string search = null) => ScanRoot(GetRoot(), search);
+
+        /// <summary>Scans a supplied root so callers and focused checks can use the same complete traversal.</summary>
+        internal static ScanResult ScanRoot(string root, string search = null) {
             var result = new ScanResult();
-            string root = GetRoot();
             if (string.IsNullOrWhiteSpace(root)) {
                 result.errors.Add(new ScanError { path = string.Empty, message = "Choose a drum library folder first." });
                 return result;

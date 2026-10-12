@@ -14,16 +14,17 @@ namespace Laubrary.ZTracker.Editor
     public sealed partial class ZTrackerModelWindow
     {
         [SerializeField] string drumId = "", drumSearch = "", drumTagFilter = "";
-        [SerializeField] int drumSourceTab, drumSort, drumFirstOctave = 3, drumLow = 36, drumHigh = 36;
+        [SerializeField] int drumSourceTab, drumSort, drumPage, drumFirstOctave = 3, drumLow = 36, drumHigh = 36;
         readonly List<DrumBrowserItem> drumItems = new List<DrumBrowserItem>();
         DrumBrowserItem drumPicked;
-        VisualElement drumCards, drumKeys, drumDetails, drumPads;
+        VisualElement drumCards, drumKeys, drumDetails, drumPads, drumPageControls;
         Label drumBrowserStatus;
         Action redrawDrumMap, refreshDrumCategory;
         ZTrackerDrumPreview drumFilePreview;
         GameObject drumSourcePreview;
         PlaybackSnapshot drumSourceSnapshot;
         const string DrumDrag = "tracker.drum.source";
+        const int DrumPageSize = 100;
         static readonly string[] DrumCategories = { "All", "Kick", "Snare", "Hats", "Percussion", "Shaker", "Misc", "FX" };
         sealed class DrumBrowserItem
         {
@@ -68,10 +69,12 @@ namespace Laubrary.ZTracker.Editor
         {
             root.Add(Named(Z.Segmented(drumSourceTab, new[] { "Folder", "Project", "Synth" }, "Choose external audio, project clips, or synth instruments.", v => { drumSourceTab = v; drumPicked = null; ReloadDrumBrowser(); }), "drum-source-tabs"));
             root.Add(Flow(Button("Folder…", "Set the drum library folder. Each file's immediate parent folder supplies its tag.", ChooseDrumFolder, "drum-folder"), Button("↻", "Rescan the sound browser.", ReloadDrumBrowser, "drum-rescan")));
-            root.Add(Named(Z.TextInput(drumSearch, "Find sounds by name or folder tag, ignoring spaces, hyphens, underscores and case. Drum aliases match the same category.", v => { drumSearch = v; FilterDrumBrowser(); }, 170), "drum-search"));
-            root.Add(Named(Z.MiniRadio(Array.IndexOf(DrumCategories, drumTagFilter.Length == 0 ? "All" : drumTagFilter), DrumCategories, "Filter by drum sound category.", v => { drumTagFilter = v == 0 ? "" : DrumCategories[v]; FilterDrumBrowser(); }, wrap: true), "drum-tag-filter"));
+            root.Add(Named(Z.TextInput(drumSearch, "Find sounds by name or immediate parent folder, ignoring spaces, hyphens, underscores and case. Drum aliases match the same category.", v => { drumSearch = v; drumPage = 0; FilterDrumBrowser(); }, 170), "drum-search"));
+            int selectedCategory = drumTagFilter.Length == 0 ? 0 : Array.FindIndex(DrumCategories, c => DrumTags.Category(c) == DrumTags.Category(drumTagFilter));
+            root.Add(Named(Z.MiniRadio(Mathf.Max(0, selectedCategory), DrumCategories, "Filter by the immediate parent folder's drum category. Known aliases share a category.", v => { drumTagFilter = v == 0 ? "" : DrumCategories[v]; drumPage = 0; FilterDrumBrowser(); }, wrap: true), "drum-tag-filter"));
             drumBrowserStatus = Z.Text("", tooltip: "Sound browser results."); drumBrowserStatus.style.height = 20; drumBrowserStatus.style.overflow = Overflow.Hidden;
-            root.Add(Flow(Z.Segmented(drumSort, new[] { "Name", "Tag" }, "Sort sounds alphabetically or by sound category.", v => { drumSort = v; FilterDrumBrowser(); }), drumBrowserStatus));
+            root.Add(Flow(Z.Segmented(drumSort, new[] { "Name", "Tag" }, "Sort sounds alphabetically or by sound category.", v => { drumSort = v; drumPage = 0; FilterDrumBrowser(); }), drumBrowserStatus));
+            drumPageControls = Flow(); drumPageControls.name = "drum-page-controls"; root.Add(drumPageControls);
             drumCards = Flow(); drumCards.name = "drum-browser"; root.Add(drumCards); ReloadDrumBrowser();
         }
         void ReloadDrumBrowser()
@@ -106,13 +109,27 @@ namespace Laubrary.ZTracker.Editor
         {
             if (drumCards == null) return; drumCards.Clear();
             string search = ZTrackerDrumLibrary.NormalizeTag(drumSearch);
-            bool AliasMatch(DrumBrowserItem item) => search.Length > 0 && DrumCategories.Skip(1).Any(c => DrumTags.Normalize(DrumTags.Canonical(drumSearch)) == DrumTags.Normalize(c)) && DrumTags.Category(drumSearch) == DrumTags.Category(item.tag);
+            string canonicalSearch = DrumTags.Normalize(DrumTags.Canonical(drumSearch));
+            bool AliasMatch(DrumBrowserItem item) => search.Length > 0 && DrumCategories.Skip(1).Any(c => canonicalSearch == DrumTags.Normalize(c)) && DrumTags.Category(drumSearch) == DrumTags.Category(item.tag);
             var matches = drumItems.Where(i => (drumTagFilter.Length == 0 || DrumTags.Category(i.tag) == DrumTags.Category(drumTagFilter)) && (search.Length == 0 || ZTrackerDrumLibrary.NormalizeTag(i.name).Contains(search) || ZTrackerDrumLibrary.NormalizeTag(i.tag).Contains(search) || AliasMatch(i)));
             var sorted = drumSort == 0 ? matches.OrderBy(i => i.name, StringComparer.OrdinalIgnoreCase) : matches.OrderBy(i => DrumTags.Category(i.tag)).ThenBy(i => i.name, StringComparer.OrdinalIgnoreCase);
-            int count = 0;
-            foreach (var item in sorted)
+            var allMatches = sorted.ToList();
+            int total = allMatches.Count;
+            int pageCount = Math.Max(1, (total + DrumPageSize - 1) / DrumPageSize);
+            drumPage = Mathf.Clamp(drumPage, 0, pageCount - 1);
+            int first = drumPage * DrumPageSize;
+            int end = Math.Min(first + DrumPageSize, total);
+            drumPageControls?.Clear();
+            if (drumPageControls != null && pageCount > 1)
             {
-                count++; var card = Button(item.name, item.tag + "\n" + item.path + "\nClick to hear; drag to a key or range.", () => { drumPicked = item; PreviewDrumSource(item); foreach (var b in drumCards.Children()) b.EnableInClassList("tracker-picked", b.userData == item); }, "drum-source-" + count);
+                drumPageControls.Add(Button("Previous", "Show the previous 100 sounds.", () => { drumPage--; FilterDrumBrowser(); }, "drum-page-previous"));
+                drumPageControls.Add(Z.Text($"Page {drumPage + 1} of {pageCount}", tooltip: "Every matching sound is available across these pages."));
+                drumPageControls.Add(Button("Next", "Show the next 100 sounds.", () => { drumPage++; FilterDrumBrowser(); }, "drum-page-next"));
+            }
+            int count = 0;
+            foreach (var item in allMatches.Skip(first).Take(DrumPageSize))
+            {
+                count++; var card = Button(item.name, item.tag + "\n" + item.path + "\nClick to hear; drag to a key or range.", () => { drumPicked = item; PreviewDrumSource(item); foreach (var b in drumCards.Children()) b.EnableInClassList("tracker-picked", b.userData == item); }, "drum-source-" + (first + count));
                 card.userData = item; card.EnableInClassList("tracker-picked", drumPicked != null && drumPicked.path == item.path); card.style.flexDirection = FlexDirection.Row;
                 card.style.width = 155; card.style.overflow = Overflow.Hidden; card.style.textOverflow = TextOverflow.Ellipsis;
                 card.Insert(0, ZTrackerDrumIcons.Create(item.tag, 16));
@@ -130,8 +147,10 @@ namespace Laubrary.ZTracker.Editor
                 drumCards.Add(card);
             }
             string warning = drumBrowserStatus.userData as string;
-            drumBrowserStatus.text = (string.IsNullOrEmpty(warning) ? "" : "⚠ ") + count + " sounds";
-            drumBrowserStatus.tooltip = string.IsNullOrEmpty(warning) ? "Click a sound to hear it; drag it to the keys. " + ZTrackerDrumLibrary.GetRoot() : warning;
+            string range = total == 0 ? "0" : $"{first + 1}-{end} of {total}";
+            string sourceTotal = drumSourceTab == 0 ? $" | {drumItems.Count} folder clips total" : "";
+            drumBrowserStatus.text = (string.IsNullOrEmpty(warning) ? "" : "Warning: ") + range + " sounds" + sourceTotal;
+            drumBrowserStatus.tooltip = (string.IsNullOrEmpty(warning) ? "" : warning + "\n\n") + $"Showing {range} matching sounds; {drumItems.Count} loaded from this source. Click a sound to hear it; drag it to a key. " + ZTrackerDrumLibrary.GetRoot();
         }
         void PreviewDrumSource(DrumBrowserItem item)
         {
