@@ -265,12 +265,12 @@ namespace Laubrary.ZTracker.Engine
         /// watcher thread spins on the renderer's applied-serial counter and stamps when the key was applied (start of the
         /// next audio block). Returns milliseconds per sample. The output device buffer comes on top of this.
         /// </summary>
-        public static double[] MeasureAppliedLatency(TrackerLiveTarget door, int samples = 40, int note = 60)
+        public static double[] MeasureAppliedLatency(TrackerLiveTarget door, int samples = 40, int note = 60, int column = 0)
         {
             var result = new List<double>();
             for (int i = 0; i < samples; i++)
             {
-                var e = i % 2 == 0 ? TrackerLiveEvent.NoteOn(0, 0, 0, note, 90, .5f) : TrackerLiveEvent.NoteOff(note);
+                var e = i % 2 == 0 ? TrackerLiveEvent.NoteOn(0, column, 0, note, 90, .5f) : TrackerLiveEvent.NoteOff(note);
                 long t0 = Stopwatch.GetTimestamp(); e.stamp = t0;
                 if (!door.Write(e)) break;
                 long serial = door.Written; var limit = Stopwatch.StartNew();

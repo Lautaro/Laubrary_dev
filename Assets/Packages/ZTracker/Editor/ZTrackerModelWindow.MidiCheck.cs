@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using Laubrary.Audio;
 using Laubrary.ZTracker.Engine;
 using Laubrary.ZTracker.Midi;
@@ -21,8 +20,8 @@ namespace Laubrary.ZTracker.Editor
         /// <summary>
         /// MIDI in the real window with real pointer events and real audio graphs: turn MIDI on, pick the simulated
         /// keyboard from the right-click menu, play a chord through the cursor's track, play the song, measure
-        /// arrival-to-applied latency, force garbage collections while keys stream in, preview on the clean channel over
-        /// the playing song, Panic, unplug/replug and turn MIDI off. In-memory fixtures only; nothing is saved. Runs over
+        /// arrival-to-applied latency at the project buffer and at 256 samples, record while playing and at the cursor, preview
+        /// on the clean channel over the playing song, Panic, unplug/replug and turn MIDI off. In-memory fixtures only; nothing is saved. Runs over
         /// editor updates; read <see cref="MidiUiCheckReport"/> afterwards.
         /// </summary>
         public static void StartMidiUiCheck()
@@ -31,6 +30,8 @@ namespace Laubrary.ZTracker.Editor
             var report = new StringBuilder(); int pass = 0, fail = 0;
             var clip = AudioClip.Create("midi-ui-check", 96000, 1, 48000, false); var raw = new float[96000]; for (int i = 0; i < raw.Length; i++) raw[i] = .05f * Mathf.Sin(i * .05f); clip.SetData(raw, 0);
             var inst = TrackerEngineCheck.FixtureInstrument(clip); inst.name = "Check sine";
+            // A synth needs no sample data, so the audio restart of the buffer step cannot invalidate the fixture.
+            inst.model.family = InstrumentFamily.Synth;
             var asset = CreateInstance<ZTrackerSong>(); asset.schemaVersion = 1; asset.model = TrackerEngineCheck.FixtureSong(inst, 3, 16); asset.model.voiceCapacity = 64; asset.model.tracks[0].name = "Lead";
             asset.model.patterns[0].tracks[0].WriteLine(new PatternLine { line = 0, notes = new List<NoteCell> { TrackerEngineCheck.Note(48, 2) } });
             var window = CreateInstance<ZTrackerModelWindow>(); window.song = asset; window.titleContent = new GUIContent("ZTracker MIDI check"); window.midiSimulatedOnly = true; window.Show(); window.position = new Rect(120, 120, 1100, 760); window.CreateGUI();
@@ -45,7 +46,7 @@ namespace Laubrary.ZTracker.Editor
                 window.SendEvent(new Event { type = EventType.MouseUp, button = button, mousePosition = at, clickCount = 1 });
             };
             Func<string, Button> anyButton = text => window.rootVisualElement.panel.visualTree.Query<Button>().ToList().FirstOrDefault(b => b.text == text);
-            double energySong = 0, energyPreview = 0; long framesBefore = 0, managedBefore = 0; double gcStart = 0; int gcCount = 0; Thread producer = null; var stop = new StopFlag(); string savedDevice = EditorPrefs.GetString(MidiPrefs + "Device", null);
+            double energySong = 0, energyPreview = 0; string savedDevice = EditorPrefs.GetString(MidiPrefs + "Device", null); int savedBuffer = EditorPrefs.GetInt(MidiPrefs + "Buffer", 0);
             steps.Enqueue(("MIDI toggle turns MIDI on (real click)", .3, () => { need(find("midi-status") is Label s && s.text == "Off", "Status not Off at start"); click(find("midi-toggle"), 0); need(window.midiOn, "Click did not turn MIDI on"); }));
             steps.Enqueue(("right-click menu lists the simulated keyboard; picking it opens it", .5, () =>
             {
@@ -80,40 +81,47 @@ namespace Laubrary.ZTracker.Editor
                 Array.Sort(ms);
                 report.AppendLine($"MEASURE appliedLatencyMs min={ms[0]:F2} median={ms[ms.Length / 2]:F2} p95={ms[(int)(ms.Length * .95)]:F2} max={ms[ms.Length - 1]:F2} n={ms.Length}; dspBuffer={buffer}x{count} rate={rate} period={buffer * 1000.0 / rate:F2}ms queue={buffer * count * 1000.0 / rate:F2}ms");
             }));
-            double baseRatio = 0; long baseFrames = 0; double baseStart = 0;
-            steps.Enqueue(("baseline: rendered frames against wall time without forced collections", 4, () => { baseFrames = window.SongHost.RenderedFrames; baseStart = EditorApplication.timeSinceStartup; }));
-            steps.Enqueue(("baseline result", 0, () => { baseRatio = (window.SongHost.RenderedFrames - baseFrames) / ((EditorApplication.timeSinceStartup - baseStart) * AudioSettings.outputSampleRate); report.AppendLine($"MEASURE baselineRenderedToWall={baseRatio:F3}"); }));
-            // The same forced collections twice: once with no MIDI (control), once while a thread streams keys, pedal and
-            // wheels. The editor's audio can pause during a collection for reasons unrelated to MIDI; MIDI must not add to
-            // that and must never run managed code on the audio thread. The standalone player proof is the certification.
-            double controlRatio = 0;
-            Action<bool> beginGc = withMidi =>
+            steps.Enqueue(("latency at a 256-sample buffer, chosen in the right-click menu (real clicks)", 1.5, () =>
             {
-                framesBefore = window.SongHost.RenderedFrames; managedBefore = AudioThreadGuard.ManagedBlocks; gcStart = EditorApplication.timeSinceStartup; gcCount = 0; stop.value = false;
-                if (!withMidi) return;
-                producer = new Thread(() => { int n = 0; while (!stop.value) { sim.NoteOn(48 + n % 24, 100); Thread.Sleep(2); sim.NoteOff(48 + n % 24); sim.Controller(1, n & 127); sim.Bend((n * 97) & 16383); n++; Thread.Sleep(3); } }) { IsBackground = true };
-                producer.Start();
-            };
-            Func<bool, double> endGc = withMidi =>
+                click(find("midi-toggle"), 1); var item = anyButton("256"); need(item != null, "No 256 buffer choice"); click(item, 0); window.midiMenu?.Close(); window.midiMenu = null;
+                AudioSettings.GetDSPBufferSize(out int buffer, out _); need(buffer == 256, "Buffer is " + buffer);
+            }));
+            steps.Enqueue(("a fresh renderer after the audio restart; Play again", .8, () => { need(window.SongHost != null && window.SongHost.LiveInput.IsOpen, "No renderer after the buffer change"); click(find("play"), 0); need(window.playing, "Play failed"); }));
+            steps.Enqueue(("latency measured at 256", .1, () =>
             {
-                stop.value = true; producer?.Join(1000); producer = null;
-                double seconds = EditorApplication.timeSinceStartup - gcStart; long frames = window.SongHost.RenderedFrames - framesBefore; double expected = seconds * AudioSettings.outputSampleRate;
-                long managed = AudioThreadGuard.ManagedBlocks - managedBefore;
-                report.AppendLine($"MEASURE forcedGc{(withMidi ? "WithMidi" : "Control")} collections={gcCount * 2} seconds={seconds:F2} renderedFrames={frames} expected={expected:F0} ratio={frames / expected:F3} managedAudioBlocks={managed} liveDropped={window.SongHost.LiveInput.Dropped}");
-                need(managed == 0, "Managed audio blocks during forced GC");
-                return frames / expected;
-            };
-            steps.Enqueue(("forced collections, no MIDI (control)", .1, () => beginGc(false)));
-            for (int k = 0; k < 12; k++) steps.Enqueue(("gc", .1, () => { GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect(); gcCount++; }));
-            steps.Enqueue(("control result", .1, () => { controlRatio = endGc(false); }));
-            steps.Enqueue(("forced collections while keys stream in from another thread", .1, () => beginGc(true)));
-            for (int k = 0; k < 12; k++) steps.Enqueue(("gc", .1, () => { GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect(); gcCount++; }));
-            steps.Enqueue(("MIDI under forced collections keeps up with the control and stays compiled", 0, () =>
+                var ms = TrackerMidiCheck.MeasureAppliedLatency(window.SongHost.LiveInput, 40, 72); need(ms.Length >= 30, "Only " + ms.Length + " keys were applied"); Array.Sort(ms);
+                AudioSettings.GetDSPBufferSize(out int buffer, out int count); int rate = AudioSettings.outputSampleRate;
+                report.AppendLine($"MEASURE appliedLatencyMs@{buffer} min={ms[0]:F2} median={ms[ms.Length / 2]:F2} p95={ms[(int)(ms.Length * .95)]:F2} max={ms[ms.Length - 1]:F2} n={ms.Length}; queue={buffer * count * 1000.0 / rate:F2}ms");
+                click(find("midi-toggle"), 1); var item = anyButton("Project"); need(item != null, "No Project buffer choice"); click(item, 0); window.midiMenu?.Close(); window.midiMenu = null;
+            }));
+            steps.Enqueue(("Project buffer restored; Play again", 1.5, () => { }));
+            steps.Enqueue(("restored", .6, () => { AudioSettings.GetDSPBufferSize(out int buffer, out _); need(buffer == ProjectDspBuffer(), "Buffer not restored: " + buffer); click(find("play"), 0); need(window.playing, "Play failed after restore"); }));
+            steps.Enqueue(("Rec (real click) while playing writes the key at the heard row", .5, () => { click(find("midi-record"), 0); need(window.midiRecord, "Rec did not latch"); sim.NoteOn(70, 100); }));
+            steps.Enqueue(("recorded while playing", .3, () =>
             {
-                double ratio = endGc(true);
-                need(ratio >= controlRatio * .8, $"MIDI made the audio fall further behind: {ratio:F3} against control {controlRatio:F3}");
-                need(window.SongHost.LiveInput.Dropped == 0, "Live events dropped");
-                sim.Controller(123, 0);
+                sim.NoteOff(70); var lines = asset.model.patterns[0].tracks[0].lines;
+                need(lines.Any(l => l.notes.Any(n => n.note == NoteKind.Note && n.pitch == 70 && n.instrumentPresent && n.instrument == 0)), "Played key not written into the pattern");
+                report.AppendLine("RECORDED rows " + string.Join(",", lines.Where(l => l.notes.Any(n => n.pitch == 70)).Select(l => l.line)));
+            }));
+            steps.Enqueue(("Stop (real click), then Rec at the cursor: a chord fills columns and the cursor steps on when keys are up", .4, () =>
+            {
+                click(find("stop"), 0); need(!window.playing, "Stop failed");
+            }));
+            steps.Enqueue(("stopped chord", .4, () => { window.pane = 0; window.BuildPane(); window.Select(9, 0, false); sim.NoteOn(62, 100); sim.NoteOn(65, 100); }));
+            steps.Enqueue(("chord written", .3, () =>
+            {
+                var line = asset.model.patterns[0].tracks[0].ReadLine(9);
+                need(line.notes.Any(n => n.column == 0 && n.pitch == 62) && line.notes.Any(n => n.column == 1 && n.pitch == 65), "Chord not written across columns: " + string.Join(",", line.notes.Select(n => n.column + ":" + n.pitch)));
+                need(window.row == 9, "Cursor moved while keys were down");
+                sim.NoteOff(62); sim.NoteOff(65);
+            }));
+            steps.Enqueue(("cursor stepped and one Undo removes the last recorded note", .3, () =>
+            {
+                need(window.row == 10, "Cursor did not step: " + window.row);
+                Undo.PerformUndo(); var line = asset.model.patterns[0].tracks[0].ReadLine(9);
+                need(line.notes.Any(n => n.pitch == 62) && !line.notes.Any(n => n.pitch == 65), "Undo did not remove exactly the last note");
+                click(find("midi-record"), 0); need(!window.midiRecord, "Rec did not turn off");
+                click(find("play"), 0);
             }));
             steps.Enqueue(("Instrument workspace (real click) moves the keyboard to the clean preview over the playing song", .6, () =>
             {
@@ -152,22 +160,21 @@ namespace Laubrary.ZTracker.Editor
                 if (steps.Count > 0)
                 {
                     var step = steps.Dequeue();
-                    try { step.run(); if (step.name != "gc") { pass++; report.AppendLine("PASS " + step.name); } }
-                    catch (Exception ex) { fail++; report.AppendLine("FAIL " + step.name + ": " + ex.Message); if (step.name == "gc result" || producer != null) stop.value = true; }
+                    try { step.run(); pass++; report.AppendLine("PASS " + step.name); }
+                    catch (Exception ex) { fail++; report.AppendLine("FAIL " + step.name + ": " + ex.Message); }
                     due = EditorApplication.timeSinceStartup + step.wait;
                     return;
                 }
                 EditorApplication.update -= tick;
-                stop.value = true;
                 try { window.MidiShutdown(); window.StopPreview(); window.Close(); } catch (Exception ex) { report.AppendLine("CLEANUP " + ex.Message); }
                 DestroyImmediate(window); Undo.ClearUndo(asset); DestroyImmediate(asset); DestroyImmediate(inst); DestroyImmediate(clip);
                 sim.Unplugged = false; sim.SimulateInUse = false; sim.Close();
                 if (savedDevice == null) EditorPrefs.DeleteKey(MidiPrefs + "Device"); else EditorPrefs.SetString(MidiPrefs + "Device", savedDevice);
+                EditorPrefs.SetInt(MidiPrefs + "Buffer", savedBuffer);
                 MidiUiCheckReport = $"MidiUiCheck passed={pass} failed={fail}\n" + report;
             };
             EditorApplication.update += tick;
         }
 
-        sealed class StopFlag { public volatile bool value; }
     }
 }

@@ -46,6 +46,27 @@ namespace Laubrary.ZTracker.Midi
         readonly byte[] noteSent = new byte[128];
         readonly float[][] curves = new float[3][];
         long messages, notes, ignored;
+        /// <summary>A key as the main thread sees it for recording: note after octave shift, velocity, gain, press time.</summary>
+        public struct Captured { public long stamp; public int note, velocity; public float gain; public bool on; }
+        readonly Captured[] captured = new Captured[512];
+        long capturedWrite, capturedRead;
+        volatile bool capturing;
+        /// <summary>When on, every routed key-down and key-up is also queued for <see cref="TryReadCaptured"/> (recording).</summary>
+        public bool Capturing { get => capturing; set { capturing = value; if (!value) Volatile.Write(ref capturedRead, Volatile.Read(ref capturedWrite)); } }
+        /// <summary>Main thread: the next captured key, oldest first. A full queue drops the newest.</summary>
+        public bool TryReadCaptured(out Captured value)
+        {
+            long r = capturedRead;
+            if (r >= Volatile.Read(ref capturedWrite)) { value = default; return false; }
+            value = captured[r % captured.Length]; Volatile.Write(ref capturedRead, r + 1); return true;
+        }
+        void Capture(int note, int velocity, float gain, bool on, long stamp)
+        {
+            long w = capturedWrite;
+            if (w - Volatile.Read(ref capturedRead) >= captured.Length) return;
+            captured[w % captured.Length] = new Captured { stamp = stamp, note = note, velocity = velocity, gain = gain, on = on };
+            Volatile.Write(ref capturedWrite, w + 1);
+        }
         volatile int lastNote = -1, lastVelocity, lastChannel;
 
         /// <summary>First knob controller number mapped to macro 1 (eight knobs cover macros 1..8).</summary>
@@ -108,7 +129,7 @@ namespace Laubrary.ZTracker.Midi
                     var earlier = noteOwner[d1];
                     if (earlier != null) { earlier.Write(Stamp(TrackerLiveEvent.NoteOff(noteSent[d1]), stamp)); noteOwner[d1] = null; }
                     var e = TrackerLiveEvent.NoteOn(r.track, r.column, r.instrument, note, d2, curves[curve][d2]);
-                    if (r.target.Write(Stamp(e, stamp))) { noteOwner[d1] = r.target; noteSent[d1] = (byte)note; }
+                    if (r.target.Write(Stamp(e, stamp))) { noteOwner[d1] = r.target; noteSent[d1] = (byte)note; if (capturing) Capture(note, d2, e.value, true, stamp); }
                     Interlocked.Increment(ref notes); lastNote = note; lastVelocity = d2; lastChannel = ch;
                     return;
                 }
@@ -116,7 +137,7 @@ namespace Laubrary.ZTracker.Midi
                 case 0x90:
                 {
                     var owner = noteOwner[d1];
-                    if (owner != null) { owner.Write(Stamp(TrackerLiveEvent.NoteOff(noteSent[d1]), stamp)); noteOwner[d1] = null; }
+                    if (owner != null) { owner.Write(Stamp(TrackerLiveEvent.NoteOff(noteSent[d1]), stamp)); noteOwner[d1] = null; if (capturing) Capture(noteSent[d1], 0, 0, false, stamp); }
                     return;
                 }
                 case 0xB0:
