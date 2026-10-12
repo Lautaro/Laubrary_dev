@@ -20,7 +20,10 @@ namespace Laubrary.ZTracker.Proof
             if (production.Any(a => a.sourceFiles.Any(p => p.Replace('\\', '/').Contains("/Verification/")))) throw new Exception("Verification source ships in a production assembly");
             foreach (var assembly in production)
                 foreach (var path in assembly.sourceFiles)
-                    if (File.ReadAllText(path).Contains("DllImport(")) throw new Exception("Native tracker import in " + path);
+                    // The retired native tracker must not come back. Windows' own MIDI input (winmm, part of every
+                    // Windows install) is the one permitted system import.
+                    foreach (var line in File.ReadAllLines(path))
+                        if (line.Contains("DllImport(") && !line.Contains("DllImport(\"winmm.dll\"")) throw new Exception("Native tracker import in " + path);
             string songSource = production.SelectMany(a => a.sourceFiles).Single(p => Path.GetFileName(p) == "ZTrackerSong.cs");
             string package = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(songSource), "..", ".."));
             if (Directory.GetFiles(package, "*.dll", SearchOption.AllDirectories).Length != 0) throw new Exception("Imported tracker DLL remains");
