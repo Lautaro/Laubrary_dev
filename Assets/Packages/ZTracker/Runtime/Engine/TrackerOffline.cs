@@ -28,13 +28,16 @@ namespace Laubrary.ZTracker.Engine
         [NativeDisableUnsafePtrRestriction] TrackerRealtime* realtime;
         TrackerPreparedSong prepared;
         readonly NativeArray<int> witness;
+        TrackerLiveTarget liveTarget;
+        /// <summary>Door for live performance events; they apply at the start of the next rendered block.</summary>
+        public TrackerLiveTarget LiveInput{get{RequireAlive();return liveTarget;}}
         public TrackerOffline(TrackerPreparedSong song,int eventCapacity=65536)
         {
             if(song==null||song.Disposed||song.Published)throw new ArgumentException("Prepared song is already owned");
             if(eventCapacity<2||eventCapacity>1048576)throw new ArgumentOutOfRangeException(nameof(eventCapacity));
             prepared=song;prepared.Published=true;witness=new NativeArray<int>(1,Allocator.Persistent);
             realtime=(TrackerRealtime*)UnsafeUtility.Malloc(sizeof(TrackerRealtime),16,Allocator.Persistent);
-            *realtime=new TrackerRealtime{state=song.state,events=TrackerEventRing.Create(eventCapacity)};
+            *realtime=new TrackerRealtime{state=song.state,events=TrackerEventRing.Create(eventCapacity),live=TrackerLiveRing.Create(1024)};liveTarget=new TrackerLiveTarget(realtime->live);
         }
         void RequireAlive(){if(realtime==null)throw new ObjectDisposedException(nameof(TrackerOffline));}
         public bool Compiled{get{RequireAlive();return witness[0]==1;}}
@@ -63,7 +66,7 @@ namespace Laubrary.ZTracker.Engine
         }
         public void Dispose()
         {
-            if(realtime==null)return;prepared.state=realtime->state;realtime->events.Dispose();UnsafeUtility.Free(realtime,Allocator.Persistent);realtime=null;witness.Dispose();prepared.DisposeAfterQuiet();
+            if(realtime==null)return;liveTarget.Close();prepared.state=realtime->state;realtime->events.Dispose();realtime->live.Dispose();UnsafeUtility.Free(realtime,Allocator.Persistent);realtime=null;witness.Dispose();prepared.DisposeAfterQuiet();
         }
     }
 }

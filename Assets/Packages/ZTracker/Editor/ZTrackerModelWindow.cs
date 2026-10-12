@@ -52,7 +52,7 @@ namespace Laubrary.ZTracker.Editor
             var path=AssetDatabase.FindAssets("ZTracker t:StyleSheet").Select(AssetDatabase.GUIDToAssetPath).FirstOrDefault(p=>p.EndsWith("/ZTracker.uss"));
             if(path!=null)root.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(path));
             root.Add(Flow(Named(Z.Object(song,"Choose a song to edit.",v=>{StopPreview();song=v;order=row=track=sub=0;Upgrade();Rebuild();},200),"song"),Button("New song","Create a saved empty version-1 song.",CreateSong,"new-song"),Button("Save","Save this song and its edited instrument.",Save,"save"),
-                Named(Z.IconButton("arrow-counter-clockwise","Undo the last authored change.",Undo.PerformUndo),"undo"),Named(Z.IconButton("arrow-clockwise","Redo the last undone change.",Undo.PerformRedo),"redo")));
+                Named(Z.IconButton("arrow-counter-clockwise","Undo the last authored change.",Undo.PerformUndo),"undo"),Named(Z.IconButton("arrow-clockwise","Redo the last undone change.",Undo.PerformRedo),"redo"),BuildMidiControls()));
             status=Z.Text("Idle",tooltip:"Preview status.");status.name="transport-status";status.style.width=210;status.style.height=24;status.style.whiteSpace=WhiteSpace.NoWrap;status.style.overflow=Overflow.Hidden;
             root.Add(Flow(Button("Play","Start the song from its first row.",()=>Play(false),"play"),Button("From cursor","Start at the selected sequence slot and row.",()=>Play(true),"play-cursor"),Button("Stop","Stop preview and release its owned audio buffers.",StopPreview,"stop"),Z.Toggle("Follow","Scroll the pattern to each row reached by playback.",follow,v=>follow=v),status));
             root.Add(Z.Segmented(pane,new[]{"Pattern","Mixer","Automation","Instrument","Song"},"Choose the authoring workspace.",v=>{pane=v;BuildPane();}));
@@ -122,6 +122,7 @@ namespace Laubrary.ZTracker.Editor
         void InstrumentMacroEdit(string label,int macro,float value,Action edit,bool rebuild=false)=>Change(instrument,label,edit,rebuild);
         void RefreshLive(ZTrackerInstrument changedInstrument=null)
         {
+            RefreshMidiPreview(changedInstrument);
             if(host==null||Data==null)return;
             TrackerPreparedSong next=null;
             PlaybackSnapshot candidate=null;
@@ -157,12 +158,12 @@ namespace Laubrary.ZTracker.Editor
         void Pump()
         {
             if(host!=null){host.PollRetirement();if(pendingLive&&host.RenderedBlocks>0)RefreshLive();while(host.ReadEvent(out var e)){if(e.kind==TrackerEventKind.Stopped)playing=false;if(e.kind==TrackerEventKind.Row&&follow&&playing){bool changed=e.sequence!=order;order=e.sequence;if(changed&&pane==0){BuildPane();}HighlightPlaying(e.row);}}
-            }RefreshTransport();
+            }MidiPump();RefreshTransport();
         }
         void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Pending: Stop/Play":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
         void OnEnable(){Undo.undoRedoPerformed+=OnUndo;Upgrade();}
         void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();drumNeedsRefresh=true;RefreshLive();BuildPane();}
-        protected override void OnDisable(){pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
+        protected override void OnDisable(){pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();MidiShutdown();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
         // ZuiWindow may rebuild on domain reload/view changes; it must not stop a healthy graph.
         protected override void OnBeforeRebuild(){pumpSchedule?.Pause();pumpSchedule=null;}
         void Save(){if(song!=null)AssetDatabase.SaveAssetIfDirty(song);if(Data!=null)foreach(var linked in Data.instruments.Where(i=>i!=null).Distinct())AssetDatabase.SaveAssetIfDirty(linked);if(instrument!=null)AssetDatabase.SaveAssetIfDirty(instrument);}

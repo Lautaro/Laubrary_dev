@@ -287,6 +287,7 @@ namespace Laubrary.ZTracker.Engine
         {
             state.ticket[3]=1;MarkManagedRender();
             SapRenderTicket.Enter(state.ticket);AudioThreadGuard.CountBlock();
+            DrainLive();
             for(int t=0;t<state.trackCount;t++)for(int i=0;i<frames;i++){int a=t*state.maxFrames+i;state.left[a]=state.right[a]=0;}
             for(int b=0;b<state.busCount;b++)for(int i=0;i<frames;i++){int a=b*state.maxFrames+i;state.busLeft[a]=state.busRight[a]=0;}
             int offset=0;
@@ -337,6 +338,7 @@ namespace Laubrary.ZTracker.Engine
                 if(Written(v.instrument,TrackerParameter.Release))s.release=VoiceParameter(in v,TrackerParameter.Release);
                 if(Written(v.instrument,TrackerParameter.FilterCutoff))s.cutoff=VoiceParameter(in v,TrackerParameter.FilterCutoff);
                 if(Written(v.instrument,TrackerParameter.FilterResonance))s.resonance=VoiceParameter(in v,TrackerParameter.FilterResonance);
+                float liveBend=LiveBend(v.cohort);
                 for(int f=0;f<count;f++){
                     if(s.drumGateSeconds>0&&!v.released&&v.age>=s.drumGateSeconds*state.sampleRate){state.voices[i]=v;Release(i);v=state.voices[i];}
                     if(!v.active)break;Envelope(ref v,in s);if(!v.active)break;
@@ -345,7 +347,7 @@ namespace Laubrary.ZTracker.Engine
                     if(HasParameterEnvelope(in v,TrackerParameter.FilterCutoff))cutoff=VoiceParameter(in v,TrackerParameter.FilterCutoff);
                     if(HasParameterEnvelope(in v,TrackerParameter.FilterResonance))resonance=VoiceParameter(in v,TrackerParameter.FilterResonance);
                     ToneTargets(ref v,in tone);
-                    double increment=ModulatedStep(ref v,in tone,pitch+v.commandArp+(tone.kind==0?v.commandPitch+v.commandVibrato:0));
+                    double increment=ModulatedStep(ref v,in tone,pitch+liveBend+v.commandArp+(tone.kind==0?v.commandPitch+v.commandVibrato:0));
                     if(!math.isfinite(increment)||increment<=0){v.active=false;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.InvalidPitch);break;}
                     float l,r;
                     if(tone.kind!=0){l=tone.kind==2?FM(ref v,in tone,(float)increment):Synth(ref v,in tone,(float)increment);r=l;}
