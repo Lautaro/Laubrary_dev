@@ -24,6 +24,7 @@ namespace Laubrary.ZTracker.Editor
         bool midiOn, midiStarted;
         [SerializeField] bool midiPreferenceRestoreEnabled;
         internal bool midiPersistPreferences;
+        bool midiSettingsInitialized;
         string midiDevice, midiProblem, midiTargetText = "";
         double midiNextScan, midiRouteRetry;
         ZuiToggleButton midiToggleButton, midiRecordButton;
@@ -75,6 +76,24 @@ namespace Laubrary.ZTracker.Editor
         void LoadMidiPrefs()
         {
             midiPersistPreferences = midiPreferenceRestoreEnabled && !midiSimulatedOnly;
+            if (midiSettingsInitialized) return;
+
+            // Ordinary tracker windows do not opt into persisted MIDI. Defer initialization so an explicit
+            // opt-in after GetWindow/CreateGUI can still restore preferences into the already-built window.
+            if (!midiPreferenceRestoreEnabled && !midiSimulatedOnly) return;
+
+            // The simulated fixture never reads real preferences. Its settings start from the same documented
+            // defaults and then remain live across UI rebuilds, just like the real window's settings.
+            if (midiSimulatedOnly)
+            {
+                midiOn = false; midiRecord = false; midiDevice = null;
+                midiRouter.Channel = -1; midiRouter.OctaveShift = 0;
+                midiRouter.VelocityCurve = ZTrackerVelocityCurve.Linear;
+                midiRouter.BendRange = 2; midiRouter.ModWheelMacro = 0; midiBuffer = 0;
+                midiSettingsInitialized = true;
+                return;
+            }
+
             var saved = MidiPreferenceSnapshot.Read(MidiPrefs,
                 (key, fallback) => EditorPrefs.GetString(key, fallback),
                 (key, fallback) => EditorPrefs.GetInt(key, fallback),
@@ -89,6 +108,7 @@ namespace Laubrary.ZTracker.Editor
             midiRouter.BendRange = saved.bend;
             midiRouter.ModWheelMacro = saved.modWheel;
             midiBuffer = Mathf.Clamp(saved.buffer, 0, midiBufferSizes.Length - 1);
+            midiSettingsInitialized = true;
         }
 
         List<string> MidiDevices()
