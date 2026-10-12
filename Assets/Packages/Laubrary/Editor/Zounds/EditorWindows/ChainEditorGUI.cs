@@ -728,6 +728,12 @@ namespace Laubrary.Zounds {
                     }
                 }));
             }
+            if (host is Uitk.IChainEditorParamMenuHost extra && nodeIndex >= 0) {
+                if (menu != null) menu.Separator(); else items.Add(ZUI.MenuSeparator());
+                extra.AddParamMenuItems(nodeIndex, paramIndex, pd, (label, tip, action) => {
+                    if (menu != null) menu.Item(label, tip, action); else items.Add(ZUI.MenuItem(label, action, false, true));
+                });
+            }
             if (menu != null) menu.Show(); else ZUI.ContextMenu(items.ToArray());
         }
 

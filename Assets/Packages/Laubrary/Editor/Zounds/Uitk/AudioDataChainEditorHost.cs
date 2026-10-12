@@ -6,12 +6,14 @@ using UnityEngine;
 
 namespace Laubrary.Zounds.Uitk {
     /// <summary>A stable authoring copy over portable audio data. All write-back occurs inside the owner's undo transaction.</summary>
-    public sealed class AudioDataChainEditorHost : IChainEditorHost {
+    public sealed class AudioDataChainEditorHost : IChainEditorHost, IChainEditorParamMenuHost {
         readonly Func<AudioEffectChainData> source;
         readonly Action<string, Action> edit;
         readonly Action<string> begin;
         readonly Action continuous, end;
         readonly Action<string[]> written;
+        /// <summary>Optional: the owner's own items for a setting's right-click menu (node uid, setting index, descriptor, add item).</summary>
+        public Action<string, int, ParamDesc, Action<string, string, Action>> ParamMenu;
         readonly ZoundEffectChain chain = new ZoundEffectChain();
         string[] nodeIds;
         public AudioDataChainEditorHost(Func<AudioEffectChainData> source, Action<string, Action> edit,
@@ -40,5 +42,9 @@ namespace Laubrary.Zounds.Uitk {
         public void BeginGesture(string label) => begin(label);
         public void EditContinuous(Action action) { action(); WriteBack(); continuous?.Invoke(); }
         public void EndGesture() => end();
+        public void AddParamMenuItems(int nodeIndex, int paramIndex, ParamDesc pd, Action<string, string, Action> item) {
+            if (ParamMenu == null || nodeIndex < 0 || nodeIndex >= chain.nodes.Count) return;
+            ParamMenu(chain.nodes[nodeIndex].uid, paramIndex, pd, item);
+        }
     }
 }

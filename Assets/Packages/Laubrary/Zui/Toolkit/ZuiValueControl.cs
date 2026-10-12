@@ -977,6 +977,7 @@ namespace Laubrary.Zui
                         }
                         : (Action)null));
 
+            ZuiContextExtras.AppendTo(this, menu, true);
             menu.Show();
         }
 

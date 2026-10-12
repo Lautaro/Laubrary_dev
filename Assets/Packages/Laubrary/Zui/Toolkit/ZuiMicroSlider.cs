@@ -156,11 +156,15 @@ namespace Laubrary.Zui
         void ShowDisplayMenu()
         {
             var menu = Z.Menu(this);
-            menu.Toggle("Value in slider", "Show the value as text inside the slider track.", _showValueLabel,
-                on => { _showValueLabel = on; EditorPrefs.SetBool(PrefKey("val"), on); ApplyDisplay(); });
-            menu.Toggle("Numeric input", "Show an editable field to type an exact value (replaces the in-track readout).",
-                _showNumInput,
-                on => { _showNumInput = on; EditorPrefs.SetBool(PrefKey("num"), on); ApplyDisplay(); });
+            if (HasPrefs)
+            {
+                menu.Toggle("Value in slider", "Show the value as text inside the slider track.", _showValueLabel,
+                    on => { _showValueLabel = on; EditorPrefs.SetBool(PrefKey("val"), on); ApplyDisplay(); });
+                menu.Toggle("Numeric input", "Show an editable field to type an exact value (replaces the in-track readout).",
+                    _showNumInput,
+                    on => { _showNumInput = on; EditorPrefs.SetBool(PrefKey("num"), on); ApplyDisplay(); });
+            }
+            ZuiContextExtras.AppendTo(this, menu, HasPrefs);
             menu.Show();
         }
 
@@ -216,7 +220,7 @@ namespace Laubrary.Zui
             // Right-click opens the display-options menu (only meaningful — and persistable — when keyed).
             if (e.button == 1)
             {
-                if (HasPrefs) { ShowDisplayMenu(); e.StopPropagation(); }
+                if (HasPrefs || ZuiContextExtras.Has(this)) { ShowDisplayMenu(); e.StopPropagation(); }
                 return;
             }
             if (e.button != 0) return;

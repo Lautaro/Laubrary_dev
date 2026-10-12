@@ -34,6 +34,14 @@ namespace Laubrary.Zounds.Uitk {
         float EffectiveValue(ZoundEffectChain chain, int node, int parameter, float authored);
     }
 
+    /// <summary>
+    /// A host that offers its own actions on an effect setting's right-click menu (after the editor's own items): for
+    /// example a tracker giving the setting a command id. <paramref name="item"/> adds one (label, tooltip, action).
+    /// </summary>
+    public interface IChainEditorParamMenuHost {
+        void AddParamMenuItems(int nodeIndex, int paramIndex, ParamDesc pd, Action<string, string, Action> item);
+    }
+
     public interface IChainEditorLiveHost {
         void PushParameter(int node, int parameter, float value);
     }
