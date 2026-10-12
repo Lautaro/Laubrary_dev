@@ -64,8 +64,46 @@ namespace Laubrary.ZTracker.Editor
             }
             return "Cold PCM: " + pass + " passed / " + fail + " failed\n" + report;
         }
+        public static string CheckRetainedSendPlayback()
+        {
+            int pass = 0, fail = 0; var report = new StringBuilder();
+            foreach (bool legacy in new[] { false, true }) foreach (bool fm in new[] { false, true })
+            {
+                var ins = ColdSynth(fm, legacy); var song = ColdSong(ins);
+                string label = (legacy ? "legacy " : "model ") + (fm ? "FM" : "Synth");
+                try
+                {
+                    float[] dry;
+                    using (var left = new NativeArray<float>(4096, Allocator.TempJob)) using (var right = new NativeArray<float>(4096, Allocator.TempJob))
+                    {
+                        using (var snapshot = PlaybackSnapshot.Create(song, null, -1)) using (var engine = new TrackerOffline(TrackerPreparedSong.Prepare(snapshot.Data)))
+                        { engine.SendCommand(TrackerCommand.Play()); engine.Render(left,right,4096); dry = left.ToArray().Concat(right.ToArray()).ToArray(); }
+                        if (legacy) { ins.instDelaySend = .3f; ins.instReverbSend = .6f; }
+                        else { ins.model.parameters.instDelaySend = .3f; ins.model.parameters.instReverbSend = .6f; }
+                        string before = JsonUtility.ToJson(ins);
+                        using (var snapshot = PlaybackSnapshot.Create(song, null, -1))
+                        {
+                            var prepared = TrackerPreparedSong.Prepare(snapshot.Data);
+                            using (var engine = new TrackerOffline(prepared))
+                            {
+                                if (!prepared.diagnostics.Any(x => x.Contains("effect=Delay")) || !prepared.diagnostics.Any(x => x.Contains("effect=Reverb"))) throw new Exception("Missing destination diagnostics");
+                                engine.SendCommand(TrackerCommand.Play()); engine.Render(left,right,4096);
+                                var actual = left.ToArray().Concat(right.ToArray()).ToArray();
+                                if (actual.Sum(x => (double)x*x) <= .0001) throw new Exception("Retained sends silenced dry playback");
+                                if (actual.Where((x,i) => Math.Abs(x-dry[i]) > 1e-7f).Any()) throw new Exception("Absent sends changed dry PCM");
+                                if (before != JsonUtility.ToJson(ins)) throw new Exception("Authored send amounts changed");
+                            }
+                        }
+                    }
+                    report.AppendLine("PASS " + label + " missing destinations preserve dry PCM and authored amounts"); pass++;
+                }
+                catch (Exception ex) { report.AppendLine("FAIL " + label + ": " + ex.Message); fail++; }
+                finally { DestroyImmediate(song); DestroyImmediate(ins); }
+            }
+            return "Retained sends: " + pass + " passed / " + fail + " failed\n" + report;
+        }
         // Actual SAP graph startup without any Instrument preview or hardware MIDI device. Poll the report after completion.
-        public static void StartColdPlaybackUiCheck()
+        public static void StartColdPlaybackUiCheck(bool stoppedByConfiguration = false)
         {
             ColdPlaybackCheckReport = "RUNNING"; var report = new StringBuilder(); int pass = 0, fail = 0;
             var previous = focusedWindow; ZTrackerModelWindow window = null; ZTrackerSong song = null; ZTrackerInstrument ins = null;
@@ -86,6 +124,7 @@ namespace Laubrary.ZTracker.Editor
                     window.titleContent = new GUIContent("ZTracker cold playback check"); window.position = new Rect(120,120,1100,760); window.Show(); window.CreateGUI();
                     window.midiRouter.Channel = -1; window.midiRouter.OctaveShift = 0;
                     if (window.host != null || window.midiPreviewHost != null) throw new Exception("Fixture was warmed during setup");
+                    if (stoppedByConfiguration) { window.EnsurePreview(); window.host.ReconfigureOutput(false); }
                 }));
                 steps.Enqueue(("TRIGGER " + label, .55, () =>
                 {
@@ -115,7 +154,7 @@ namespace Laubrary.ZTracker.Editor
                 if (steps.Count == 0)
                 {
                     EditorApplication.update -= update; Cleanup(); if (previous != null) previous.Focus();
-                    ColdPlaybackCheckReport = "Cold SAP: " + pass + " passed / " + fail + " failed\n" + report; return;
+                    ColdPlaybackCheckReport = (stoppedByConfiguration ? "Stopped graph SAP: " : "Cold SAP: ") + pass + " passed / " + fail + " failed\n" + report; return;
                 }
                 var step = steps.Dequeue();
                 try { step.action(); if (!step.label.StartsWith("SETUP ") && !step.label.StartsWith("TRIGGER ")) { pass++; report.AppendLine("PASS " + step.label); } }

@@ -144,8 +144,8 @@ namespace Laubrary.ZTracker.Engine
                             sm.delaySend=legacy.instDelaySend;sm.reverbSend=legacy.instReverbSend;
                             sm.delayDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Delay));
                             sm.reverbDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Reverb));
-                            if((sm.delaySend!=0&&sm.delayDestination<0)||(sm.reverbSend!=0&&sm.reverbDestination<0))throw new ArgumentException("Legacy instrument sends require explicit song Send tracks with matching Delay/Reverb devices");
-                            diagnostics.Add("LEGACY_SEND_COMPILED_TO_EXPLICIT_TRACK slot="+i);
+                            DiagnoseMissingSendDestinations(in sm,i);
+                            if (sm.delaySend != 0 && sm.delayDestination >= 0 || sm.reverbSend != 0 && sm.reverbDestination >= 0) diagnostics.Add("LEGACY_SEND_COMPILED_TO_EXPLICIT_TRACK slot="+i);
                         }
                     }
                     sm.localVolume=s.volume;sm.localPan=s.pan;sm.regionStart=s.regionStartFrame;sm.regionEnd=s.regionEndFrame>0?s.regionEndFrame:s.pcm!=null?s.pcm.samples:0;

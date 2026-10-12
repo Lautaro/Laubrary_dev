@@ -13,6 +13,12 @@ namespace Laubrary.ZTracker.Engine
         public readonly Dictionary<string,int> externalRouteIds=new Dictionary<string,int>();
         public readonly List<CompiledParameterSet> parameterSets=new List<CompiledParameterSet>();
         InstrumentData[] routeModels;
+        void DiagnoseMissingSendDestinations(in TrackerSample sample, int instrument)
+        {
+            if (!math.isfinite(sample.delaySend) || !math.isfinite(sample.reverbSend) || sample.delaySend < 0 || sample.reverbSend < 0) throw new ArgumentException("Malformed retained send");
+            if (sample.delaySend != 0 && sample.delayDestination < 0) diagnostics.Add("RETAINED_SEND_DESTINATION_MISSING slot=" + instrument + " effect=Delay amount=" + sample.delaySend);
+            if (sample.reverbSend != 0 && sample.reverbDestination < 0) diagnostics.Add("RETAINED_SEND_DESTINATION_MISSING slot=" + instrument + " effect=Reverb amount=" + sample.reverbSend);
+        }
         public static string ExternalAddress(string track,string device,int slot)=>track+"/"+device+"/"+slot;
         public bool TryExternalCommand(string track,string device,int slot,float value,out TrackerCommand command)
         {
@@ -66,7 +72,7 @@ namespace Laubrary.ZTracker.Engine
                 // only an explicit pattern Axy command may now arpeggiate a voice.
                 tone.arpNotes=tone.arpPoints=points.Count;tone.arpNoteCount=tone.arpPointCount=0;
                 if(q.arpeggioEnabled)diagnostics.Add("INSTRUMENT_ARPEGGIO_ARCHIVED_PATTERN_ONLY slot="+sm.instrument);
-                if(synth){sm.delaySend=q.instDelaySend;sm.reverbSend=q.instReverbSend;sm.delayDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Delay));sm.reverbDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Reverb));if(sm.delaySend!=0&&sm.delayDestination<0||sm.reverbSend!=0&&sm.reverbDestination<0)throw new ArgumentException("Synth sends require explicit matching Send tracks");samples[si]=sm;}
+                if(synth){sm.delaySend=q.instDelaySend;sm.reverbSend=q.instReverbSend;sm.delayDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Delay));sm.reverbDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Reverb));DiagnoseMissingSendDestinations(in sm,i);samples[si]=sm;}
                 tones.Add(tone);
             }
             foreach(var track in song.tracks)foreach(var device in ExternalDevices(track)){
