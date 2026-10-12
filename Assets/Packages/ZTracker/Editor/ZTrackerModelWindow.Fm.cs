@@ -93,7 +93,11 @@ namespace Laubrary.ZTracker.Editor
                     label.style.unityTextAlign = TextAnchor.MiddleCenter; Add(label);
                 }
                 var feedback = Z.Text("Feedback", tooltip: "Previous summed output returns to Operator 1. The Feedback slider sets its amount.");
-                feedback.name = "fm-routing-feedback"; feedback.style.position = Position.Absolute; feedback.style.top = FeedbackY + 3; feedback.style.left = Length.Percent(40); Add(feedback);
+                feedback.name = "fm-routing-feedback"; feedback.style.position = Position.Absolute;
+                feedback.style.top = FeedbackY + 2; feedback.style.left = Length.Percent(40);
+                feedback.style.width = 76; feedback.style.height = 20;
+                feedback.style.whiteSpace = WhiteSpace.NoWrap; feedback.style.unityTextAlign = TextAnchor.MiddleCenter;
+                Add(feedback);
                 generateVisualContent += Paint;
             }
             void Paint(MeshGenerationContext context)
