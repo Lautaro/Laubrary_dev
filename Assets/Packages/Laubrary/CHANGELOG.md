@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- ZUI fixed-stage envelopes accept a drag from anywhere in a stage's labelled lane, so missed tiny handles no longer hand the gesture to a surrounding scroll view.
 ### ZUI compact authoring controls (2026-10-12)
 
 - Added `Z.ScrubNumber` / `ZuiScrubNumber` for bounded discrete choices: large bold number, relative drag, click-to-type, double-click reset and a single change callback after a drag. Added `Z.CompactButton` and `Z.LinkButton` styles.

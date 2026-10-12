@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- FM operator envelopes use full-width stage hit targets, keeping edits responsive and preventing a missed handle drag from moving the instrument page.
 - ZTracker overhaul: +/- changes octave, Space toggles transport, Escape toggles Edit, and Tab advances by Step. Pattern length and selected-track Name/Notes/FX are beside the grid. Pattern headers and Mixer rows support Undo-safe drag ordering; Add track opens a role menu.
 - FX entry shows a contextual command menu after the first character, with supported command IDs, arguments and explanations. Device commands use declared stable addresses. Unsupported imported commands remain preserved and labelled.
 - Compact detail buttons and joined V/P/D/FX toggles, icon transport/Edit, header-click folding without arrows, and true enable checkboxes that keep disabled sections folded. Discrete counts use large number scrubbing with typed entry and reset.

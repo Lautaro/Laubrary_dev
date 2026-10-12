@@ -80,6 +80,27 @@ namespace Laubrary.ZTracker.Editor
                     Need(hidden, "Fixed-frequency ratio remains ineffective");
                     for (int op = 0; op < 4; op++) Need(root.Q<VisualElement>("fm-adsr-" + op) != null && root.Q<VisualElement>("fmOperators." + op + ".level") != null, "Missing active operator controls " + op);
                 });
+                Check("FM operator envelope drag edits its stage without rebuilding or losing scroll", () =>
+                {
+                    ins.model.synthMode = SynthMode.FM; window.position = new Rect(160,120,760,520); window.BuildPane(); Layout();
+                    var scroll = window.stage.Q<ScrollView>(); var adsr = window.rootVisualElement.Q<ZuiAdsr>("fm-adsr-2");
+                    Need(scroll != null && adsr != null, "Missing attached FM envelope workspace");
+                    scroll.scrollOffset = new Vector2(0, 180); Layout(); float beforeScroll = scroll.scrollOffset.y; float beforeAttack = ins.model.parameters.fmOperators[2].attack;
+                    var hit = typeof(ZuiAdsr).GetMethod("StageAtLocal", BindingFlags.Instance | BindingFlags.NonPublic);
+                    var handle = adsr.HandlePosition(0); var lanePoint = new Vector2(handle.x, handle.y + 45);
+                    Need(hit != null && (int)hit.Invoke(adsr, new object[] { lanePoint }) == 0, "Attack lane outside the tiny handle is not editable");
+                    adsr.BeginDrag(0); adsr.DragToLocal(handle + new Vector2(24, 0)); adsr.EndDrag(); Layout();
+                    Need(ins.model.parameters.fmOperators[2].attack > beforeAttack, "Attack handle did not edit the operator");
+                    Need(adsr.panel != null && ReferenceEquals(scroll, window.stage.Q<ScrollView>()), "Envelope edit rebuilt the authoring page");
+                    Need(Math.Abs(scroll.scrollOffset.y - beforeScroll) < 2, "Envelope edit moved the authoring scroll from " + beforeScroll + " to " + scroll.scrollOffset.y);
+                });
+                Check("FM editor passes the expanded mechanical UI audit", () =>
+                {
+                    window.position = new Rect(160,120,1250,800); ins.model.synthMode = SynthMode.FM; ins.model.parameters.glideEnabled = true; window.BuildPane(); ZuiAudit.ExpandAll(window); Layout();
+                    var findings = ZuiAudit.Audit(window, out int foldedSkipped);
+                    Need(foldedSkipped == 0, "Audit skipped " + foldedSkipped + " folded sections");
+                    Need(findings.Count == 0, string.Join(" | ", findings.Select(f => f.ToString())));
+                });
             }
             finally { window.StopPreview(); window.Close(); Undo.ClearUndo(ins); Undo.ClearUndo(songAsset); DestroyImmediate(window); DestroyImmediate(ins); DestroyImmediate(songAsset); }
 

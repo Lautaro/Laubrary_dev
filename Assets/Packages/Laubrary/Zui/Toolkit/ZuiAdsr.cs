@@ -186,13 +186,7 @@ namespace Laubrary.Zui
         {
             if (e.button != 0 || _dragStage >= 0) return;
             var mouse = new Vector2(e.localPosition.x, e.localPosition.y);
-            int stage = -1;
-            float best = 14f * 14f;
-            foreach (int i in _stages)
-            {
-                float d = (Handle(i) - mouse).sqrMagnitude;
-                if (d <= best) { best = d; stage = i; }
-            }
+            int stage = StageAtLocal(mouse);
             if (stage < 0) return;
             BeginDrag(stage);
             _dragStart = mouse;
@@ -202,6 +196,26 @@ namespace Laubrary.Zui
             e.StopPropagation();
         }
 
+        int StageAtLocal(Vector2 mouse)
+        {
+            int stage = -1;
+            float best = 14f * 14f;
+            foreach (int i in _stages)
+            {
+                float d = (Handle(i) - mouse).sqrMagnitude;
+                if (d <= best) { best = d; stage = i; }
+            }
+            // The whole labelled lane is the hit target, not only the four-pixel dot. Requiring a
+            // precision hit made the graph appear read-only and let the surrounding ScrollView take
+            // the missed drag, which moved the page instead of the envelope.
+            if (stage < 0 && Plot.Contains(mouse))
+            {
+                int lane = Mathf.Clamp(Mathf.FloorToInt((mouse.x - Plot.x) / Mathf.Max(1, LaneWidth)), 0, _stages.Length - 1);
+                stage = _stages[lane];
+            }
+            return stage;
+        }
+
         void Move(PointerMoveEvent e)
         {
             if (_dragStage < 0)
@@ -209,6 +223,11 @@ namespace Laubrary.Zui
                 var mouse = new Vector2(e.localPosition.x, e.localPosition.y);
                 foreach (int i in _stages)
                     if ((Handle(i) - mouse).sqrMagnitude <= 196f) { _canvas.tooltip = Names[i] + ": " + Tips[i]; return; }
+                if (Plot.Contains(mouse))
+                {
+                    int lane = Mathf.Clamp(Mathf.FloorToInt((mouse.x - Plot.x) / Mathf.Max(1, LaneWidth)), 0, _stages.Length - 1);
+                    int i = _stages[lane]; _canvas.tooltip = Names[i] + ": " + Tips[i];
+                }
                 return;
             }
             DragToLocal(new Vector2(e.localPosition.x, e.localPosition.y), e.shiftKey);
