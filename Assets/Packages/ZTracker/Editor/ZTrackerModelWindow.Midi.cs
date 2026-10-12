@@ -403,7 +403,7 @@ namespace Laubrary.ZTracker.Editor
             if (midiRecordButton != null)
             {
                 midiRecordButton.SetValueWithoutNotify(midiRecord);
-                midiRecordButton.style.visibility = midiOn ? Visibility.Visible : Visibility.Hidden;
+                midiRecordButton.style.visibility = midiOn ? UnityEngine.UIElements.Visibility.Visible : UnityEngine.UIElements.Visibility.Hidden;
             }
             if (midiOn) SetMidiEnabled(true);
             else RefreshMidiStatus();
