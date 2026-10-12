@@ -78,7 +78,8 @@ namespace Laubrary.ZTracker.Editor
             {
                 this.algorithm = algorithm; name = "fm-routing";
                 tooltip = "Arrows carry phase modulation toward their target. Carriers connect to Output. The previous summed output feeds back into Operator 1; feedback is not an operator's self-loop.";
-                style.height = 174; style.minWidth = 0; style.width = Length.Percent(100);
+                style.height = 174; style.minHeight = 174; style.flexShrink = 0;
+                style.minWidth = 0; style.width = Length.Percent(100);
                 for (int i = 0; i < 5; i++)
                 {
                     bool carrier = i == 4 || FmCarriers[algorithm].Contains(i);

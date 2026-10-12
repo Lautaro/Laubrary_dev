@@ -98,7 +98,9 @@ namespace Laubrary.ZTracker.Editor
                                 previous = bounds;
                             }
                             var feedback = graph.Q<VisualElement>("fm-routing-feedback");
-                            Need(feedback != null && feedback.worldBound.yMax <= graph.worldBound.yMax, "Feedback label clipped");
+                            Need(feedback != null, "Feedback label missing");
+                            Need(feedback.worldBound.yMax <= graph.worldBound.yMax,
+                                "Feedback label clipped: width=" + width + " algorithm=" + algorithm + " graph=" + graph.worldBound + " feedback=" + feedback.worldBound);
                         }
                     }
                     finally { host.RemoveFromHierarchy(); }
