@@ -27,7 +27,9 @@ namespace Laubrary.ZTracker.Editor
             root.RegisterCallback<FocusInEvent>(InstrumentFocusChanged);
             root.UnregisterCallback<KeyDownEvent>(InstrumentKeyDown, TrickleDown.TrickleDown);
             root.UnregisterCallback<KeyUpEvent>(InstrumentKeyUp, TrickleDown.TrickleDown);
+            root.UnregisterCallback<KeyUpEvent>(TrackerShortcutKeyUp, TrickleDown.TrickleDown);
             root.RegisterCallback<KeyDownEvent>(InstrumentKeyDown, TrickleDown.TrickleDown);
+            root.RegisterCallback<KeyUpEvent>(TrackerShortcutKeyUp, TrickleDown.TrickleDown);
             root.RegisterCallback<KeyUpEvent>(InstrumentKeyUp, TrickleDown.TrickleDown);
         }
         void InstrumentPointerDown(PointerDownEvent e)
@@ -111,7 +113,7 @@ namespace Laubrary.ZTracker.Editor
             foreach (var note in instrumentKeys.Values) midiRouter.ComputerKeyUp(note);
             instrumentKeys.Clear(); keyboardInstrument = null;
         }
-        void OnLostFocus() => ReleaseInstrumentKeys();
+        void OnLostFocus(){ReleaseInstrumentKeys();ResetOctaveShortcutLatch();}
         void OnFocus()
         {
             if(pane==3) { rootVisualElement.Focus(); RefreshKeyboardStatus(); }

@@ -11,6 +11,7 @@ namespace Laubrary.ZTracker.Editor
         static readonly PatternData PatternDefaults=new PatternData();
         static readonly TrackData PatternTrackDefaults=new TrackData();
         VisualElement patternTrackSettings;
+        bool octaveIncreaseHeld,octaveDecreaseHeld;
 
         void BuildPatternSettings(VisualElement tools)
         {
@@ -56,10 +57,24 @@ namespace Laubrary.ZTracker.Editor
             if(e.keyCode==KeyCode.Escape){CloseFxSuggestions();editMode=!editMode;anchorRow=-1;var toggle=controls?.Q("edit-mode");if(toggle!=null)BuildPane();else RefreshCells();return true;}
             if(e.keyCode==KeyCode.Tab&&pane==0&&Pattern!=null&&fields.Count>0){Select(Mathf.Clamp(row+(e.shiftKey?-step:step),0,Pattern.lineCount-1),sub,false);return true;}
             int activeOctave=pane==3&&Instrument!=null&&Instrument.family==InstrumentFamily.DrumKit?drumFirstOctave:octave;
-            if(e.keyCode==KeyCode.Plus||e.keyCode==KeyCode.KeypadPlus||e.character=='+'){SetPatternOctave(activeOctave+1);return true;}
-            if(e.keyCode==KeyCode.Minus||e.keyCode==KeyCode.KeypadMinus||e.character=='-'){SetPatternOctave(activeOctave-1);return true;}
+            // UI Toolkit can dispatch one physical '+' as a key-code event and a character event.
+            // Latch each direction until key-up, also suppressing OS key-repeat while held.
+            if(e.keyCode==KeyCode.Plus||e.keyCode==KeyCode.KeypadPlus||e.character=='+'||e.keyCode==KeyCode.Equals&&e.shiftKey)
+            {if(!octaveIncreaseHeld)SetPatternOctave(activeOctave+1);octaveIncreaseHeld=true;return true;}
+            if(e.keyCode==KeyCode.Minus||e.keyCode==KeyCode.KeypadMinus||e.character=='-')
+            {if(!octaveDecreaseHeld)SetPatternOctave(activeOctave-1);octaveDecreaseHeld=true;return true;}
             return false;
         }
+
+        void TrackerShortcutKeyUp(KeyUpEvent e)
+        {
+            if(e.keyCode==KeyCode.Plus||e.keyCode==KeyCode.KeypadPlus||e.keyCode==KeyCode.Equals||e.character=='+')octaveIncreaseHeld=false;
+            if(e.keyCode==KeyCode.Minus||e.keyCode==KeyCode.KeypadMinus||e.character=='-')octaveDecreaseHeld=false;
+            // Character-only platforms may give no identity on key-up. Release the latches
+            // rather than leaving the shortcut permanently disabled after one press.
+            if(e.keyCode==KeyCode.None&&e.character==0)ResetOctaveShortcutLatch();
+        }
+        void ResetOctaveShortcutLatch(){octaveIncreaseHeld=octaveDecreaseHeld=false;}
 
         void SetPatternOctave(int value)
         {

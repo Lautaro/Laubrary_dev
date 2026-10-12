@@ -21,7 +21,9 @@ namespace Laubrary.ZTracker.Editor
             bool Shortcut(KeyCode code,VisualElement target=null)
             {
                 using(var e=KeyDownEvent.GetPooled(new Event{type=EventType.KeyDown,keyCode=code}))
-                {e.target=target??window.rootVisualElement;return window.HandleTrackerShortcut(e);}
+                {e.target=target??window.rootVisualElement;bool handled=window.HandleTrackerShortcut(e);
+                    using(var up=KeyUpEvent.GetPooled(new Event{type=EventType.KeyUp,keyCode=code}))window.TrackerShortcutKeyUp(up);
+                    return handled;}
             }
             try
             {
@@ -40,6 +42,17 @@ namespace Laubrary.ZTracker.Editor
                     instrument.model.family=InstrumentFamily.DrumKit;window.pane=3;window.drumFirstOctave=3;window.octave=5;window.BuildPane();
                     Need(Shortcut(KeyCode.KeypadPlus)&&Shortcut(KeyCode.KeypadPlus),"Repeated kit plus unhandled");Need(window.drumFirstOctave==5&&window.octave==5,"Kit plus read the pitched octave");
                     Need(Shortcut(KeyCode.KeypadMinus)&&window.drumFirstOctave==4,"Kit minus missed drum octave");instrument.model.family=InstrumentFamily.Sampler;window.pane=0;window.BuildPane();
+                });
+                Check("dispatched octave keys count physical presses once across character, repeat, focus and kit",()=>{
+                    void Send(KeyCode code,char character='\0',bool shift=false,bool up=false,VisualElement target=null){var key=new Event{type=up?EventType.KeyUp:EventType.KeyDown,keyCode=code,character=character,modifiers=shift?EventModifiers.Shift:EventModifiers.None};if(up){using(var e=KeyUpEvent.GetPooled(key))(target??window.rootVisualElement).SendEvent(e);}else{using(var e=KeyDownEvent.GetPooled(key))(target??window.rootVisualElement).SendEvent(e);}}
+                    window.pane=0;window.octave=5;window.BuildPane();
+                    Send(KeyCode.Equals,'+',true,target:window.grid);Send(KeyCode.None,'+',true,target:window.grid);Send(KeyCode.Equals,'+',true,target:window.grid);
+                    Need(window.octave==6,"One shifted plus dispatched twice or key-repeat stepped the octave");Send(KeyCode.Equals,up:true);
+                    Send(KeyCode.Equals,'+',true);Need(window.octave==7,"Second physical plus press was swallowed");Send(KeyCode.Equals,up:true);
+                    Send(KeyCode.Minus,'-');Send(KeyCode.None,'-');Send(KeyCode.Minus,'-');Need(window.octave==6,"One minus dispatched twice or key-repeat stepped the octave");Send(KeyCode.Minus,up:true);
+                    var text=window.rootVisualElement.Q("pattern-track-name")?.Q<TextField>();Need(text!=null,"Text fixture missing");text.Focus();Send(KeyCode.Equals,'+',true,target:text);Need(window.octave==6,"Typing a plus changed octave");Send(KeyCode.Equals,up:true,target:text);window.rootVisualElement.Focus();
+                    instrument.model.family=InstrumentFamily.DrumKit;window.pane=3;window.drumFirstOctave=3;window.BuildPane();Send(KeyCode.KeypadPlus);Send(KeyCode.None,'+');Need(window.drumFirstOctave==4&&window.octave==6,"Kit octave consumed a second event or changed pitched octave");Send(KeyCode.KeypadPlus,up:true);Send(KeyCode.KeypadMinus);Need(window.drumFirstOctave==3,"Kit minus missed the drum octave");Send(KeyCode.KeypadMinus,up:true);
+                    instrument.model.family=InstrumentFamily.Sampler;window.pane=3;window.BuildPane();Send(KeyCode.KeypadPlus);Need(window.octave==7,"Instrument octave diverged from pattern octave");Send(KeyCode.KeypadPlus,up:true);window.pane=0;window.BuildPane();
                 });
                 Check("pattern length cropping and Undo restore rows and automation",()=>{
                     var p=window.Pattern;int original=p.lineCount;var pt=p.tracks[0];pt.WriteLine(new PatternLine{line=original-1,events={new EventCell{column=0,present=true,payload="tail"}}});
