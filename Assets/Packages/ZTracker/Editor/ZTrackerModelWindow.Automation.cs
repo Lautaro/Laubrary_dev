@@ -16,7 +16,7 @@ namespace Laubrary.ZTracker.Editor
     {
         static readonly AutomationPoint AutomationPointDefaults=new AutomationPoint();
         static readonly SourceParameterData SourceParameterDefaults=new SourceParameterData();
-        int automationLane, automationTarget, automationPoint;
+        [SerializeField] int automationLane, automationTarget, automationPoint;
         static int FirstAvailableSourceOrdinal(TrackData track,SourceDeviceData current)
         {
             // Match Add source device's allocation rule while excluding this declaration and its mirror.

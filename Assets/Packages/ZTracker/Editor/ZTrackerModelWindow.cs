@@ -44,7 +44,7 @@ namespace Laubrary.ZTracker.Editor
         PatternData Pattern=>Data==null||Data.sequence.Count==0?null:Data.patterns.Find(p=>p.id==Data.sequence[Mathf.Clamp(order,0,Data.sequence.Count-1)].patternId);
         TrackData SelectedTrack=>Data==null||Data.tracks.Count==0?null:Data.tracks[Mathf.Clamp(track,0,Data.tracks.Count-1)];
         [MenuItem("Laubrary/ZTracker")]
-        public static void Open()=>GetWindow<ZTrackerModelWindow>("ZTracker");
+        public static void Open(){var window=GetWindow<ZTrackerModelWindow>("ZTracker");window.EnableMidiPreferenceRestore();}
         protected override void BuildUI(VisualElement root)
         {
             root.UnregisterCallback<KeyDownEvent>(PatternShortcutFromControls,TrickleDown.TrickleDown);
@@ -59,7 +59,7 @@ namespace Laubrary.ZTracker.Editor
             status=Z.Text("Idle",tooltip:"Preview status.");status.name="transport-status";status.style.width=210;status.style.height=24;status.style.whiteSpace=WhiteSpace.NoWrap;status.style.overflow=Overflow.Hidden;
             root.Add(Flow(Named(Z.IconButton("play","Start the song from its first row. Space toggles play/stop.",()=>Play(false)),"play"),Named(Z.IconButton("play-circle","Start at the selected sequence slot and row.",()=>Play(true)),"play-cursor"),Named(Z.IconButton("stop","Stop preview and release its owned audio buffers.",StopPreview),"stop"),Z.Toggle("Follow","Scroll the pattern to each row reached by playback.",follow,v=>follow=v),status));
             root.Add(Z.Segmented(pane,new[]{"Pattern","Mixer","Automation","Instrument","Song"},"Choose the authoring workspace.",v=>{pane=v;BuildPane();if(pane==3)rootVisualElement.Focus();}));
-            controlScroll=new ScrollView();controls=new VisualElement();controlScroll.Add(controls);
+            controlScroll=new ScrollView { name="workspace-sidebar" };controls=new VisualElement();controlScroll.Add(controls);
             stage=new VisualElement();stage.style.flexGrow=1;stage.style.minWidth=0;stage.style.minHeight=0;stage.name="tracker-stage";var workspace=Z.Split("tracker.model.workspace.compact",188,controlScroll,stage);workspace.style.flexGrow=1;workspace.style.minHeight=0;root.Add(workspace);
             help=Z.Text("",tooltip:"Meaning of the command under the pattern cursor.");help.name="command-help";help.AddToClassList("tracker-status-line");root.Add(help);
             BuildPane();pumpSchedule=root.schedule.Execute(Pump).Every(30);
@@ -96,15 +96,15 @@ namespace Laubrary.ZTracker.Editor
         void BuildPane()
         {
             if(pane!=3||keyboardInstrument!=instrument)ReleaseInstrumentKeys();
-            if(controls==null)return;var offset=controlScroll.scrollOffset;controls.Clear();stage.Clear();
-            if(Data==null){controls.Add(Button("New song","Create the first song.",CreateSong));RefreshTransport();return;}
+            if(controls==null)return;CaptureWorkspace();var offset=controlScroll.scrollOffset;controls.Clear();stage.Clear();
+            if(Data==null){displayedWorkspace=null;controls.Add(Button("New song","Create the first song.",CreateSong));RefreshTransport();return;}
             order=Mathf.Clamp(order,0,Math.Max(0,Data.sequence.Count-1));track=Mathf.Clamp(track,0,Math.Max(0,Data.tracks.Count-1));
             if(pane==0){BuildSongControls(controls);BuildPattern();}
             else if(pane==1)BuildMixer(stage);
             else if(pane==2)BuildAutomation(stage);
             else if(pane==3){BuildInstrumentSelector(controls);BuildInstrument(stage);}
             else BuildSongSettings(AuthoringScroll(stage,"song"));
-            controlScroll.schedule.Execute(()=>controlScroll.scrollOffset=offset);RefreshTransport();
+            controlScroll.schedule.Execute(()=>controlScroll.scrollOffset=offset);RestoreWorkspace();RefreshTransport();
         }
         partial void BuildMixer(VisualElement root);
         partial void BuildAutomation(VisualElement root);
@@ -142,6 +142,9 @@ namespace Laubrary.ZTracker.Editor
         }
         void EnsurePreview()
         {
+            // A device/buffer change closes the old stream before Unity replaces its audio graph.
+            // A retained component is not proof that its renderer can still accept notes.
+            if(host!=null&&(host.LiveInput==null||!host.LiveInput.IsOpen))StopPreview();
             if(host!=null)return;if(Data==null)throw new InvalidOperationException("Choose or create a song");
             PlaybackSnapshot candidate=null;TrackerPreparedSong prepared=null;
             candidate=PlaybackSnapshot.Create(song,null,-1);
@@ -167,9 +170,9 @@ namespace Laubrary.ZTracker.Editor
         void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Pending: Stop/Play":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
         void OnEnable(){Undo.undoRedoPerformed+=OnUndo;Upgrade();}
         void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();RefreshLive();BuildPane();}
-        protected override void OnDisable(){ReleaseInstrumentKeys();pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();MidiShutdown();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
+        protected override void OnDisable(){CaptureWorkspace();ReleaseInstrumentKeys();pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();MidiShutdown();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
         // ZuiWindow may rebuild on domain reload/view changes; it must not stop a healthy graph.
-        protected override void OnBeforeRebuild(){pumpSchedule?.Pause();pumpSchedule=null;}
+        protected override void OnBeforeRebuild(){CaptureWorkspace();displayedWorkspace=null;pumpSchedule?.Pause();pumpSchedule=null;}
         void Save(){if(song!=null)AssetDatabase.SaveAssetIfDirty(song);if(Data!=null)foreach(var linked in Data.instruments.Where(i=>i!=null).Distinct())AssetDatabase.SaveAssetIfDirty(linked);if(instrument!=null)AssetDatabase.SaveAssetIfDirty(instrument);}
         static string Id()=>Guid.NewGuid().ToString("N");
         static ColumnVisibility Visibility(TrackData t,int column){while(t.columns.Count<=column)t.columns.Add(new ColumnVisibility());return t.columns[column];}

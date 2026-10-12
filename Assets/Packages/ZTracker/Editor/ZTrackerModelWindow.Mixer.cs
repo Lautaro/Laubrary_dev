@@ -17,11 +17,11 @@ namespace Laubrary.ZTracker.Editor
     {
         static readonly TrackData MixerTrackDefaults=new TrackData();
         static readonly SendDestination MixerSendDefaults=new SendDestination();
-        int mixerTab;
+        [SerializeField] int mixerTab;
         readonly Dictionary<string,Vector2> authoringScroll=new Dictionary<string,Vector2>();
         ScrollView AuthoringScroll(VisualElement root,string key)
         {
-            var scroll=new ScrollView();scroll.style.flexGrow=1;scroll.style.minHeight=0;root.Add(scroll);scroll.RegisterCallback<DetachFromPanelEvent>(_=>authoringScroll[key]=scroll.scrollOffset);if(authoringScroll.TryGetValue(key,out var offset))scroll.schedule.Execute(()=>scroll.scrollOffset=offset);return scroll;
+            var scroll=new ScrollView { name="authoring-"+key };scroll.style.flexGrow=1;scroll.style.minHeight=0;root.Add(scroll);scroll.RegisterCallback<DetachFromPanelEvent>(_=>authoringScroll[key]=scroll.scrollOffset);if(authoringScroll.TryGetValue(key,out var offset))scroll.schedule.Execute(()=>scroll.scrollOffset=offset);return scroll;
         }
         partial void BuildMixer(VisualElement root)
         {

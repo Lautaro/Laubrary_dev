@@ -252,15 +252,13 @@ namespace Laubrary.ZTracker.Editor
                 InstrumentEnabledBody(blend, q.blendEnvelope, v => q.blendEnvelope = v, "synth-blend-envelope", "Enable the fixed blend envelope; switching off retains its stages.").Add(FixedAdsr("Blend", q, "blend", "blend-adsr"));
             }
             else BuildFm(source, q);
-            var pitch = InstrumentSection(source, "Pitch", "pitch", "Fine tuning and glide. Pattern arpeggios supply chord notes.");
-            BuildNumericFields(pitch, q, new[] { "fineTune" }, "synth");
-            var glide = InstrumentSection(pitch, "Glide", "glide", "Pitch slides from the preceding note.");
+            BuildNumericFields(source, q, new[] { "fineTune" }, "synth");
+            var glide = InstrumentSection(source, "Glide", "glide", "Pitch slides from the preceding note.");
             var glideBody = InstrumentEnabledBody(glide, q.glideEnabled, v => q.glideEnabled = v, "synth-glide", "Enable slides from the previous pitch; switching off retains tuning and glide time.");
             // Tuning applies independently of glide and stays outside its enabled body.
             BuildNumericFields(glideBody, q, new[] { "glideSeconds" }, "synth");
             glideBody.Add(InstrumentToggle("Legato", q.glideLegato, "Only glide when notes overlap.", v => q.glideLegato = v));
-            var vibrato = InstrumentSection(source, "Vibrato", "vibrato", "Periodic pitch movement; zero depth disables it.");
-            BuildNumericFields(vibrato, q, new[] { "vibratoDepth", "vibratoRate", "vibratoFadeIn", "vibratoRandomness" }, "synth");
+            BuildNumericFields(source, q, new[] { "vibratoDepth", "vibratoRate", "vibratoFadeIn", "vibratoRandomness" }, "synth");
             var amp = InstrumentSection(columns, "Amplifier", "amplifier", "Note loudness, stereo position and fixed amplitude stages.");
             var ampParts = InstrumentColumns(amp, "amplifier-parts", 340);
             var dials = InstrumentColumns(ampParts, "amplifier-dials", 180);

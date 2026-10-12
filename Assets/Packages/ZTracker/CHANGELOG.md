@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- MIDI enablement, recording, device and keyboard/audio preferences survive window rebuilding and compilation; the selected missing device waits and reconnects instead of silently switching controllers.
+- Workspace tabs, selections, section folds, expanded value editors and scroll positions survive compilation. Pitch and Vibrato are direct Oscillators settings.
+- Pattern typing and transport recreate an audio stream closed by a device/buffer change. Retained synth sends without matching destinations preserve dry playback and their authored amounts.
+- Octave shortcuts count each physical press once, including duplicate character events and held-key repeats.
 - Every active slider and range declares a double-click reset default, including synth/FM envelopes, sampler regions, modulation, Mixer and Automation. Defaults use authored schema values with display-unit conversion and preserve Undo/Redo.
 - Drum catalogue scanning and assignment now include Unity-supported FLAC files.
 - FM operator envelopes use full-width stage hit targets, keeping edits responsive and preventing a missed handle drag from moving the instrument page.
