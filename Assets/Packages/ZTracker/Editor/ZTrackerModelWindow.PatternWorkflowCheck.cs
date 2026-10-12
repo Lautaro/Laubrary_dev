@@ -33,8 +33,13 @@ namespace Laubrary.ZTracker.Editor
                     var text=window.rootVisualElement.Q("pattern-track-name")?.Q<TextField>();Need(text!=null,"Track name input missing");text.Focus();Need(!Shortcut(KeyCode.Escape,text)&&!Shortcut(KeyCode.Space,text)&&!Shortcut(KeyCode.KeypadPlus,text),"Text entry lost normal keys");Need(window.editMode!=before,"Typing changed Edit mode");window.rootVisualElement.Focus();
                 });
                 Check("octave shortcuts work in every tab",()=>{
-                    for(int pane=0;pane<=4;pane++){window.pane=pane;window.BuildPane();window.octave=5;Need(Shortcut(KeyCode.KeypadPlus),"Plus unhandled in tab "+pane);Need(window.octave==6,"Plus missed tab "+pane);Need(Shortcut(KeyCode.KeypadMinus),"Minus unhandled in tab "+pane);Need(window.octave==5,"Minus missed tab "+pane);}
+                    for(int pane=0;pane<=4;pane++){window.pane=pane;window.BuildPane();window.octave=5;Need(Shortcut(KeyCode.KeypadPlus),"Plus unhandled in tab "+pane);Need(window.octave==6,"Plus missed tab "+pane);Need(Shortcut(KeyCode.KeypadMinus),"Minus unhandled in tab "+pane);Need(window.octave==5,"Minus missed tab "+pane);bool edit=window.editMode;Need(Shortcut(KeyCode.Escape)&&window.editMode!=edit,"Escape missed tab "+pane);}
                     window.pane=0;window.BuildPane();
+                });
+                Check("drum kit octave shortcuts use drum octave on repeated presses",()=>{
+                    instrument.model.family=InstrumentFamily.DrumKit;window.pane=3;window.drumFirstOctave=3;window.octave=5;window.BuildPane();
+                    Need(Shortcut(KeyCode.KeypadPlus)&&Shortcut(KeyCode.KeypadPlus),"Repeated kit plus unhandled");Need(window.drumFirstOctave==5&&window.octave==5,"Kit plus read the pitched octave");
+                    Need(Shortcut(KeyCode.KeypadMinus)&&window.drumFirstOctave==4,"Kit minus missed drum octave");instrument.model.family=InstrumentFamily.Sampler;window.pane=0;window.BuildPane();
                 });
                 Check("pattern length cropping and Undo restore rows and automation",()=>{
                     var p=window.Pattern;int original=p.lineCount;var pt=p.tracks[0];pt.WriteLine(new PatternLine{line=original-1,events={new EventCell{column=0,present=true,payload="tail"}}});
@@ -49,7 +54,15 @@ namespace Laubrary.ZTracker.Editor
                     window.ReorderTracks(0,1);Need(window.SelectedTrack.id==selected.id&&song.model.tracks[1].id==selected.id,"Selection changed owner");Need(record.automation.Last().target.trackId==selected.id&&selected.sends[0].trackId==send.id,"References followed an index");
                     Undo.PerformUndo();Need(song.model.tracks.Select(t=>t.id).SequenceEqual(before),"Undo did not restore order");Undo.PerformRedo();Need(song.model.tracks[1].id==selected.id,"Redo did not restore order");
                 });
-                Check("FX catalog exposes only supported locations",()=>{Need(FxCommandCatalog.Find("0U",FieldKind.LocalId)!=null,"Local slide missing");Need(FxCommandCatalog.Find("ZT",FieldKind.LocalId)==null,"Global command offered locally");Need(FxCommandCatalog.Find("ZT",FieldKind.EffectId)!=null,"Global tempo missing");Need(FxCommandCatalog.Find("R0",FieldKind.Volume)==null,"Invalid zero retrigger presented as supported");});
+                Check("FX catalog matches the compiler's supported locations",()=>{
+                    string Ids(FieldKind kind)=>string.Join(",",FxCommandCatalog.For(kind).Select(e=>e.id).OrderBy(id=>id));
+                    string Canonical(string ids)=>string.Join(",",ids.Split(' ').OrderBy(id=>id));
+                    Need(Ids(FieldKind.LocalId)==Canonical("0A 0B 0C 0D 0E 0G 0I 0N 0O 0S 0T 0U 0V 0Y"),"Local catalog drifted from supported commands");
+                    Need(Ids(FieldKind.EffectId)==Canonical("0A 0B 0C 0D 0E 0G 0I 0J 0L 0M 0N 0O 0P 0Q 0R 0S 0T 0U 0V 0X 0Y ZB ZD ZG ZK ZL ZT"),"Track catalog drifted from supported commands");
+                    Need(Ids(FieldKind.Volume)==Canonical("B C D G I O Q R U Y"),"Volume shorthand catalog drifted");
+                    Need(Ids(FieldKind.Pan)==Canonical("B C D G J K Q R U Y"),"Pan shorthand catalog drifted");
+                    Need(FxCommandCatalog.Find("ZT",FieldKind.LocalId)==null,"Global command offered locally");Need(FxCommandCatalog.Find("R0",FieldKind.Volume)==null,"Invalid zero retrigger presented as supported");
+                });
             }
             finally{window.StopPreview();window.Close();DestroyImmediate(window);Undo.ClearUndo(song);DestroyImmediate(song);DestroyImmediate(instrument);}
             report.AppendLine($"TOTAL passed={passed} failed={failed}");return report.ToString();

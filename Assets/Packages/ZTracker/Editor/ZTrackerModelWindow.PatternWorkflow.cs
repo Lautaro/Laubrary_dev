@@ -53,8 +53,9 @@ namespace Laubrary.ZTracker.Editor
             if(e.keyCode==KeyCode.Space){if(playing)StopPreview();else Play(false);return true;}
             if(e.keyCode==KeyCode.Escape){CloseFxSuggestions();editMode=!editMode;anchorRow=-1;var toggle=controls?.Q("edit-mode");if(toggle!=null)BuildPane();else RefreshCells();return true;}
             if(e.keyCode==KeyCode.Tab&&pane==0&&Pattern!=null&&fields.Count>0){Select(Mathf.Clamp(row+(e.shiftKey?-step:step),0,Pattern.lineCount-1),sub,false);return true;}
-            if(e.keyCode==KeyCode.Plus||e.keyCode==KeyCode.KeypadPlus||e.character=='+'){SetPatternOctave(octave+1);return true;}
-            if(e.keyCode==KeyCode.Minus||e.keyCode==KeyCode.KeypadMinus||e.character=='-'){SetPatternOctave(octave-1);return true;}
+            int activeOctave=pane==3&&Instrument!=null&&Instrument.family==InstrumentFamily.DrumKit?drumFirstOctave:octave;
+            if(e.keyCode==KeyCode.Plus||e.keyCode==KeyCode.KeypadPlus||e.character=='+'){SetPatternOctave(activeOctave+1);return true;}
+            if(e.keyCode==KeyCode.Minus||e.keyCode==KeyCode.KeypadMinus||e.character=='-'){SetPatternOctave(activeOctave-1);return true;}
             return false;
         }
 

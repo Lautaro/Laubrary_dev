@@ -105,15 +105,15 @@ namespace Laubrary.ZTracker.Editor
             fxSuggestions=Z.Popover(anchor,panel=>{
                 panel.Add(Z.Text("FX commands",tooltip:"Choose a supported command for this column."));
                 var results=new ScrollView();results.style.maxHeight=260;panel.Add(results);
-                foreach(var entry in matches){var chosen=entry;results.Add(Z.Button(chosen.Display,"Enter "+chosen.notation+" in this pattern cell.",()=>{
+                foreach(var entry in matches){var chosen=entry;var choice=Z.LinkButton(chosen.Display,"Enter "+chosen.notation+" in this pattern cell. "+chosen.Display,()=>{
                     if(Pattern==null||targetSub>=fields.Count)return;
                     row=targetRow;sub=targetSub;
                     // Column shorthands need their argument nibble; use zero as the documented neutral/default.
                     string id=chosen.id.Length==1?chosen.id+(chosen.id=="R"?"1":"0"):chosen.id;
                     int? initialValue=chosen.id=="0R" ? 1 : (int?)null;
                     CloseFxSuggestions();SetCommandIdentifier(fields[sub],id,initialValue);Advance();grid?.Focus();
-                }));}
-            },new ZuiPopover.Options{minWidth=250,maxWidth=410,modal=false});
+                });choice.style.alignSelf=Align.FlexStart;results.Add(choice);}
+            },new ZuiPopover.Options{minWidth=300,maxWidth=560,modal=false});
         }
 
         void SetCommandIdentifier(FieldSlot f,string entered,int? initialValue=null)
