@@ -135,10 +135,10 @@ namespace Laubrary.ZTracker.Editor
                     Need(ReferenceEquals(cents.parent, steps.parent), "Tune cents and Tune steps are not in the same row");
                     Need(Math.Abs(cents.worldBound.yMin - steps.worldBound.yMin) < 2 && cents.worldBound.xMax <= steps.worldBound.xMin + 1,
                         "Tune controls do not fit side-by-side in the wide Synth layout");
-                    SetSlider("synth-fineTune", 38.5f);
-                    Need(Math.Abs(q.fineTune - 38.5f) < .00001f && q.transpose == 4, "Cents edit changed semitone steps or stored the wrong cents");
+                    SetSlider("synth-fineTune", 38);
+                    Need(Math.Abs(q.fineTune - 38) < .00001f && q.transpose == 4, "Cents edit changed semitone steps or stored the wrong cents");
                     SetSlider("synth-transpose", 9);
-                    Need(q.transpose == 9 && Math.Abs(q.fineTune - 38.5f) < .00001f, "Semitone-step edit changed cents or stored the wrong steps");
+                    Need(q.transpose == 9 && Math.Abs(q.fineTune - 38) < .00001f, "Semitone-step edit changed cents or stored the wrong steps");
                 });
 
                 Check("Transpose double-click resets to its declared default with Undo/Redo", () =>
