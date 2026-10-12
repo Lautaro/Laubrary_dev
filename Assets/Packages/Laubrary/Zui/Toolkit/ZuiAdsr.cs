@@ -11,11 +11,13 @@ namespace Laubrary.Zui
         {
             public float attackMax = 5f, holdMax = 5f, decayMax = 10f, releaseMax = 10f;
             public float width = 440f, height = 112f;
+            public float attackDefault = .01f, holdDefault, decayDefault = .2f, sustainDefault = .7f, releaseDefault = .5f;
         }
 
         readonly Func<float>[] _get;
         readonly Action<float>[] _set;
         readonly float[] _max;
+        readonly float[] _defaults;
         readonly int[] _stages;
         readonly ZuiMicroSlider[] _inputs = new ZuiMicroSlider[5];
         readonly Label[] _labels = new Label[5];
@@ -44,6 +46,7 @@ namespace Laubrary.Zui
             _get = new[] { getAttack, getHold, getDecay, getSustain, getRelease };
             _set = new[] { setAttack, setHold, setDecay, setSustain, setRelease };
             _max = new[] { opt.attackMax, opt.holdMax, opt.decayMax, 1f, opt.releaseMax };
+            _defaults = new[] { opt.attackDefault, opt.holdDefault, opt.decayDefault, opt.sustainDefault, opt.releaseDefault };
             _stages = getHold != null && setHold != null ? new[] { 0, 1, 2, 3, 4 } : new[] { 0, 2, 3, 4 };
             foreach (int i in _stages)
             {
@@ -95,7 +98,7 @@ namespace Laubrary.Zui
                 float scale = i == 3 ? 100f : 1000f;
                 _inputs[i] = Z.MicroSlider(ShortNames[i], Read(i) * scale, 0, _max[i] * scale,
                     Tips[i], v => SetStage(i, v / scale), 82f, decimals: i == 3 ? 0 : 1,
-                    prefsKey: "adsr." + Names[i]);
+                    prefsKey: "adsr." + Names[i], defaultValue: _defaults[i] * scale);
                 _inputs[i].name = "adsr-input-" + Names[i].ToLowerInvariant();
                 row.Add(_inputs[i]);
             }
@@ -188,6 +191,7 @@ namespace Laubrary.Zui
             var mouse = new Vector2(e.localPosition.x, e.localPosition.y);
             int stage = StageAtLocal(mouse);
             if (stage < 0) return;
+            if (e.clickCount == 2) { SetStage(stage, _defaults[stage]); e.StopPropagation(); return; }
             BeginDrag(stage);
             _dragStart = mouse;
             _pointer = e.pointerId;

@@ -15,7 +15,7 @@ namespace Laubrary.ZTracker.Editor
     {
         [SerializeField] ZTrackerSong song;
         [SerializeField] ZTrackerInstrument instrument;
-        [SerializeField] int order,row,track,sub,octave=5,step=1,pane,entryInstrument;
+        [SerializeField] int order,row,track,sub,octave=DefaultPatternOctave,step=DefaultPatternStep,pane,entryInstrument;
         [SerializeField] bool follow=true,editMode=true;
         TrackerSapGenerator host;
         GameObject preview;
@@ -189,8 +189,8 @@ namespace Laubrary.ZTracker.Editor
         void BuildSongSettings(VisualElement root)
         {
             root.Add(Z.Field("Name","Song title.",Z.TextInput(Data.name,"Rename the song.",v=>SongEdit("song name",()=>Data.name=v),175)));
-            root.Add(Flow(DialSong("BPM",(float)Data.bpm,32,999,"Song tempo in beats per minute.",v=>Data.bpm=v,decimals:2),DialSong("LPB",Data.linesPerBeat,1,256,"Lines per beat.",v=>Data.linesPerBeat=(int)v),Z.ScrubNumber("TPL",Data.ticksPerLine,1,16,"Effect ticks per line.",v=>SongEdit("ticks per line",()=>Data.ticksPerLine=v),85,6)));
-            root.Add(Flow(Z.Field("Voices","Maximum simultaneous voices.",Z.Int(Data.voiceCapacity,"Voice pool capacity; changing this takes effect on next Play.",v=>SongEdit("voice capacity",()=>Data.voiceCapacity=Math.Max(1,v)),85)),Z.Field("Seed","Deterministic random seed.",Z.TextInput(Data.seed.ToString(),"Unsigned 64-bit random seed.",v=>{if(ulong.TryParse(v,out var seed))SongEdit("random seed",()=>Data.seed=seed);},110)),Z.Toggle("Beat events","Emit song beat events.",Data.beatTicks,v=>SongEdit("song beat events",()=>Data.beatTicks=v,true)),Data.beatTicks?DialSong("Beat interval",Data.beatIntervalLines,1,512,"Lines between song beat events.",v=>Data.beatIntervalLines=(int)v):null));
+            root.Add(Flow(DialSong("BPM",(float)Data.bpm,32,999,"Song tempo in beats per minute.",v=>Data.bpm=v,decimals:2,defaultValue:(float)new SongData().bpm),DialSong("LPB",Data.linesPerBeat,1,256,"Lines per beat.",v=>Data.linesPerBeat=(int)v,defaultValue:new SongData().linesPerBeat),Z.ScrubNumber("TPL",Data.ticksPerLine,1,16,"Effect ticks per line.",v=>SongEdit("ticks per line",()=>Data.ticksPerLine=v),85,6)));
+            root.Add(Flow(Z.Field("Voices","Maximum simultaneous voices.",Z.Int(Data.voiceCapacity,"Voice pool capacity; changing this takes effect on next Play.",v=>SongEdit("voice capacity",()=>Data.voiceCapacity=Math.Max(1,v)),85)),Z.Field("Seed","Deterministic random seed.",Z.TextInput(Data.seed.ToString(),"Unsigned 64-bit random seed.",v=>{if(ulong.TryParse(v,out var seed))SongEdit("random seed",()=>Data.seed=seed);},110)),Z.Toggle("Beat events","Emit song beat events.",Data.beatTicks,v=>SongEdit("song beat events",()=>Data.beatTicks=v,true)),Data.beatTicks?DialSong("Beat interval",Data.beatIntervalLines,1,512,"Lines between song beat events.",v=>Data.beatIntervalLines=(int)v,defaultValue:new SongData().beatIntervalLines):null));
             BuildSlotMutes(root);
         }
         void BuildPatternSidebar(VisualElement root)
@@ -223,9 +223,9 @@ namespace Laubrary.ZTracker.Editor
         {
             Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Folder();instrument=CreateInstance<ZTrackerInstrument>();instrument.schemaVersion=1;instrument.model=NewInstrumentData();AssetDatabase.CreateAsset(instrument,AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Instrument.asset"));Undo.RegisterCreatedObjectUndo(instrument,"Tracker: create instrument");SongEdit("add instrument",()=>Data.instruments.Add(instrument));Undo.CollapseUndoOperations(group);entryInstrument=Data.instruments.Count-1;pane=3;Rebuild();
         }
-        VisualElement DialSong(string label,float value,float min,float max,string tip,Action<float> apply,bool rebuild=false,int decimals=0)=>Dial(label,value,min,max,tip,v=>SongEdit(label,()=>apply(v),rebuild),decimals);
-        static VisualElement Dial(string label,float value,float min,float max,string tip,Action<float> changed,int decimals=2,float width=124)
-            =>Z.MicroSlider(label,value,min,max,tip,changed,Math.Max(width,label.Length*6.5f+(decimals>0?50:35)),decimals:decimals);
+        VisualElement DialSong(string label,float value,float min,float max,string tip,Action<float> apply,bool rebuild=false,int decimals=0,float? defaultValue=null)=>Dial(label,value,min,max,tip,v=>SongEdit(label,()=>apply(v),rebuild),decimals,defaultValue:defaultValue);
+        static VisualElement Dial(string label,float value,float min,float max,string tip,Action<float> changed,int decimals=2,float width=124,float? defaultValue=null)
+            =>Z.MicroSlider(label,value,min,max,tip,changed,Math.Max(width,label.Length*6.5f+(decimals>0?50:35)),defaultValue:defaultValue,decimals:decimals);
         static VisualElement Flow(params VisualElement[] children){var r=Z.Row();r.AddToClassList("tracker-flow");r.style.flexWrap=Wrap.Wrap;r.style.height=StyleKeyword.Auto;r.style.minHeight=StyleKeyword.Auto;r.style.flexShrink=0;foreach(var c in children)if(c!=null)r.Add(c);return r;}
         static UnityEngine.UIElements.Button Button(string label,string tip,Action action,string name=null)
         {

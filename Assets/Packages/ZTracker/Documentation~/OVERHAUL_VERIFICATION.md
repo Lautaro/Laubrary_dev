@@ -45,6 +45,16 @@ Wide synth/FM views, narrow FM stacking, true enable checkboxes, compact transpo
 - Existing enabled per-voice filtering cannot be silently replaced by one post-mix chain filter without potentially changing polyphonic sound. Its compatibility controls therefore remain under Effects; the standalone Synth Filter section is removed.
 - No OS file picker was driven during this final overhaul walk. Earlier folder-selection work remains intact; this pass used the configured folder read-only.
 
+## Slider reset follow-up (2026-10-12, T-0582)
+
+Verified by probe: compilation succeeded; all 205 slider/range instances exercised across instrument, sampler, drum, Pattern, Mixer, Automation and Song views declare defaults. Eight dispatched double-clicks verify volume, FM operator level, envelope milliseconds and tempo across rebuilt views, including Undo/Redo. Pattern checks pass 8/0 and Mixer checks pass 13/0, including actual reset events for gain and Automation value/range controls.
+
+Verified by eye: the parent used the native mouse to drag synth volume to 148%, double-click back to its declared 25%, then repeat from 130% to 25%. The tooltip names the reset value. The UI Guide compliance pass confirms default values are converted to display units and reset follows the same Undo-aware edit path.
+
+Not verified: every individual slider was not separately exercised with native mouse input; exhaustive coverage is the control inventory plus representative reset/Undo probes. Physical audio listening was not repeated for this UI-only change.
+
+The disposable reset window and its in-memory assets were closed; the root reset scratch script was removed. The user's editor and authored assets were retained.
+
 ## Cleanup
 
 The temporary `ZTracker overhaul check` windows and their in-memory songs/instruments were closed and destroyed. Root `.overhaul-*.cs` and `.overhaul-ahq.ps1` scratch files were removed. No test server, extra Unity editor, player executable or network listener was launched. The user's canonical editor and pre-existing project/sample changes remain in place.

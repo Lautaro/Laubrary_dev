@@ -46,7 +46,7 @@ namespace Laubrary.ZTracker.Editor
                 box.Add(row);
                 float Read(string field) => (float)typeof(ZTrackerInstrument.FMOperatorData).GetField(field).GetValue(q.fmOperators[at]);
                 void Write(string field, float value) => InstrumentEdit("operator " + field, () => { object next = q.fmOperators[at]; typeof(ZTrackerInstrument.FMOperatorData).GetField(field).SetValue(next, value); q.fmOperators[at] = (ZTrackerInstrument.FMOperatorData)next; });
-                box.Add(Named(Z.Adsr("Amplitude", () => Read("attack"), v => Write("attack",v), () => Read("decay"), v => Write("decay",v), () => Read("sustain"), v => Write("sustain",v), () => Read("release"), v => Write("release",v), "Fixed amplitude stages; each note restarts this operator's envelope."), "fm-adsr-" + at));
+                box.Add(Named(Z.Adsr("Amplitude", () => Read("attack"), v => Write("attack",v), () => Read("decay"), v => Write("decay",v), () => Read("sustain"), v => Write("sustain",v), () => Read("release"), v => Write("release",v), "Fixed amplitude stages; each note restarts this operator's envelope. Double-click a stage to reset.", EnvelopeDefaults(NewInstrumentData().parameters.fmOperators[at])), "fm-adsr-" + at));
             }
         }
 

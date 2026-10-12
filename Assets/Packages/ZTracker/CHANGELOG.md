@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Every active slider and range declares a double-click reset default, including synth/FM envelopes, sampler regions, modulation, Mixer and Automation. Defaults use authored schema values with display-unit conversion and preserve Undo/Redo.
 - Drum catalogue scanning and assignment now include Unity-supported FLAC files.
 - FM operator envelopes use full-width stage hit targets, keeping edits responsive and preventing a missed handle drag from moving the instrument page.
 - ZTracker overhaul: +/- changes octave, Space toggles transport, Escape toggles Edit, and Tab advances by Step. Pattern length and selected-track Name/Notes/FX are beside the grid. Pattern headers and Mixer rows support Undo-safe drag ordering; Add track opens a role menu.

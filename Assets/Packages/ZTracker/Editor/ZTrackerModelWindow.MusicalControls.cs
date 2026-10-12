@@ -41,7 +41,7 @@ namespace Laubrary.ZTracker.Editor
                 case "rate": r.label = "Rate Hz"; r.min = .01f; r.max = 20; r.scale = 1; r.decimals = 2; r.tip = "LFO cycles per second."; break;
                 case "vibratoFadeIn": r.label = "Fade ms"; r.max = 2000; r.scale = 1000; r.tip = "Time after each note starts for vibrato to reach full depth."; break;
                 case "glideSeconds": r.label = "Glide ms"; r.max = 2000; r.scale = 1000; r.tip = "Time to slide from the previous note to the new pitch."; break;
-                case "instFilterCutoff": r.label = "Cutoff Hz"; r.min = 20; r.max = Math.Min(20000, AudioSettings.outputSampleRate * .49f); r.scale = Math.Max(1, AudioSettings.outputSampleRate * .5f); r.logarithmic = true; r.tip = "Filter cutoff frequency. The logarithmic track gives equal space to each octave."; break;
+                case "instFilterCutoff": r.label = "Cutoff Hz"; r.min = 20; r.max = Math.Max(20, AudioSettings.outputSampleRate * .5f); r.scale = Math.Max(1, AudioSettings.outputSampleRate * .5f); r.logarithmic = true; r.tip = "Filter cutoff frequency. The logarithmic track gives equal space to each octave."; break;
                 case "instFilterResonance": r.label = "Resonance Q"; r.min = .1f; r.max = 10; r.scale = 1; r.decimals = 2; r.tip = "Filter resonance Q: higher values emphasise the cutoff frequency."; break;
                 case "instDelaySend": r.label = "Delay %"; r.tip = "Send level to the first Delay send bus declared in Mixer."; break;
                 case "instReverbSend": r.label = "Reverb %"; r.tip = "Send level to the first Reverb send bus declared in Mixer."; break;
@@ -70,13 +70,34 @@ namespace Laubrary.ZTracker.Editor
             return r;
         }
 
-        VisualElement MusicalScalar(string field, float value, Action<float> apply, string name)
+        static float DeclaredDefault(object owner, string field)
+        {
+            var definition = Activator.CreateInstance(owner.GetType());
+            return Convert.ToSingle(owner.GetType().GetField(field).GetValue(definition));
+        }
+        float ParameterDefault(string field, string key)
+        {
+            var defaults = NewInstrumentData().parameters;
+            if (key.StartsWith("fmOperators.", StringComparison.Ordinal))
+            {
+                int index = int.Parse(key.Split('.')[1]);
+                return Convert.ToSingle(typeof(ZTrackerInstrument.FMOperatorData).GetField(field).GetValue(defaults.fmOperators[index]));
+            }
+            if (Instrument.family == InstrumentFamily.Sampler && field == "volume") return new SamplerData().volume;
+            return Convert.ToSingle(typeof(InstrumentParameters).GetField(field).GetValue(defaults));
+        }
+        static ZuiAdsr.Options EnvelopeDefaults(object definition, string prefix = "")
+        {
+            float Read(string stage) { string field=prefix.Length==0?stage:prefix+char.ToUpperInvariant(stage[0])+stage.Substring(1);return Convert.ToSingle(definition.GetType().GetField(field)?.GetValue(definition)??0f); }
+            return new ZuiAdsr.Options { attackDefault=Read("attack"),holdDefault=Read("hold"),decayDefault=Read("decay"),sustainDefault=Read("sustain"),releaseDefault=Read("release") };
+        }
+        VisualElement MusicalScalar(string field, float value, Action<float> apply, string name, float? defaultValue = null)
         {
             var r = Musical(field);
             if (r.unbounded) return InstrumentNumber(r.label, value, r.tip, apply, name);
             if (field == "unisonVoices" || field == "baseNote" || field == "baseNoteB")
                 return Named(Z.ScrubNumber(r.label, Mathf.RoundToInt(value), Mathf.RoundToInt(r.min), Mathf.RoundToInt(r.max), r.tip, v => InstrumentEdit(r.label, () => apply(v)), 100, field == "unisonVoices" ? new InstrumentParameters().unisonVoices : new SampleData().baseNote), name);
-            var control = Z.MicroSlider(r.label, value * r.scale, r.min, r.max, r.tip, v => InstrumentEdit(r.label, () => apply(v / r.scale)), 170, decimals: r.decimals, logarithmic: r.logarithmic);
+            var control = Z.MicroSlider(r.label, value * r.scale, r.min, r.max, r.tip, v => InstrumentEdit(r.label, () => apply(v / r.scale)), 170, defaultValue: (defaultValue ?? ParameterDefault(field, field)) * r.scale, decimals: r.decimals, logarithmic: r.logarithmic);
             return Named(control, name);
         }
 
@@ -108,9 +129,9 @@ namespace Laubrary.ZTracker.Editor
         }
 
         VisualElement ParameterValue(string field, float value, Action<float> apply, string name, InstrumentParameters parameters, string key)
-            => ParameterValue(field, value, apply, name, () => parameters.GetParameterEnvelope(key), env => parameters.SetParameterEnvelope(key, env));
+            => ParameterValue(field, value, apply, name, () => parameters.GetParameterEnvelope(key), env => parameters.SetParameterEnvelope(key, env), defaultValue: ParameterDefault(field, key));
 
-        VisualElement ParameterValue(string field, float value, Action<float> apply, string name, Func<ZUIEnvelopeData> getEnvelope, Action<ZUIEnvelopeData> setEnvelope, MusicalRange? presentation = null)
+        VisualElement ParameterValue(string field, float value, Action<float> apply, string name, Func<ZUIEnvelopeData> getEnvelope, Action<ZUIEnvelopeData> setEnvelope, MusicalRange? presentation = null, float? defaultValue = null)
         {
             var r = presentation ?? Musical(field);
             var original = getEnvelope();
@@ -150,17 +171,17 @@ namespace Laubrary.ZTracker.Editor
                 // Switching to Static keeps the curve available for a later switch back.
                 setEnvelope(env); EndInstrumentGesture(); RefreshSynthConditionalControls(rootVisualElement);
             }
-            control = Z.Value(r.label, ui, new ZuiValueControl.Options { absMin = r.min, absMax = r.max, decimals = r.decimals, logarithmic = r.logarithmic, controlWidth = 170, allowMinMax = false, allowSteps = false, allowOscillation = false, preserveCurveOnModeSwitch = true, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true, valueUnit = r.unit ?? "", xAxisLabel = "Note progress", yAxisLabel = r.label }, r.tip + " Right-click for a per-note envelope. Every new note restarts it; held loops leave on note-off.", Publish, () => BeginInstrumentGesture(r.label));
+            control = Z.Value(r.label, ui, new ZuiValueControl.Options { absMin = r.min, absMax = r.max, staticDefault = (defaultValue ?? ParameterDefault(field, field)) * r.scale, decimals = r.decimals, logarithmic = r.logarithmic, controlWidth = 170, allowMinMax = false, allowSteps = false, allowOscillation = false, preserveCurveOnModeSwitch = true, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true, valueUnit = r.unit ?? "", xAxisLabel = "Note progress", yAxisLabel = r.label }, r.tip + " Right-click for a per-note envelope. Every new note restarts it; held loops leave on note-off.", Publish, () => BeginInstrumentGesture(r.label));
             control.name = name;
             host.Add(control);
             var timing = Flow(); timing.name = name + "-timing";
-            timing.Add(Named(Z.MicroSlider("Duration s", ui.duration, .01f, 10, "Duration of one envelope pass in seconds; each new note starts at zero. Loop and sustain positions scale with the duration.", v => { BeginInstrumentGesture(r.label + " duration"); ui.duration = v; Publish(); }, 170, decimals: 2, logarithmic: true), name + "-duration"));
+            timing.Add(Named(Z.MicroSlider("Duration s", ui.duration, .01f, 10, "Duration of one envelope pass in seconds; each new note starts at zero. Loop and sustain positions scale with the duration.", v => { BeginInstrumentGesture(r.label + " duration"); ui.duration = v; Publish(); }, 170, defaultValue: new ZUIEnvelopeData().xMax, decimals: 2, logarithmic: true), name + "-duration"));
             timing.Add(InstrumentToggle("Loop", original != null && original.loopEnabled, "Repeat the envelope while the note is held; note-off leaves the loop.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; float last = env.points.Select(p => p.time).DefaultIfEmpty(0).Max(); env.loopEnabled = v && last > 0; if (env.loopEnd <= env.loopStart || env.loopEnd > last) { env.loopStart = 0; env.loopEnd = last; } if (env.loopMode == 0 && Instrument.parameters.envelopeEnumDomain == SoundEnumDomain.SavedAuthoring) env.loopMode = 1; setEnvelope(env); }, name + "-loop", true));
             int loopOffset = Instrument.parameters.envelopeEnumDomain == SoundEnumDomain.SavedAuthoring ? 1 : 0;
             timing.Add(InstrumentChoice("Direction", original == null ? 0 : Math.Max(0, original.loopMode - loopOffset), new[] { "Forward", "Ping-pong" }, "Direction of the held loop. The envelope continues forward after note-off.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; env.loopMode = v + loopOffset; setEnvelope(env); }, name + "-loop-direction"));
             timing.Add(InstrumentToggle("Sustain", original != null && original.sustainEnabled, "Hold at the sustain point until note-off, then continue through the envelope tail.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; env.sustainEnabled = v; env.sustainPosition = Mathf.Clamp(env.sustainPosition, 0, env.points.Select(p => p.time).DefaultIfEmpty(0).Max()); setEnvelope(env); }, name + "-sustain", true));
-            timing.Add(InstrumentDial("Sustain %", original == null ? 50 : original.sustainPosition / ui.duration * 100, 0, 100, "Hold position as a percentage of envelope duration; the remaining curve plays after note-off.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; float last = env.points.Select(p => p.time).DefaultIfEmpty(ui.duration).Max(); env.sustainPosition = Math.Min(last, ui.duration * v / 100); setEnvelope(env); }, name + "-sustain-position", 0));
-            timing.Add(Named(Z.MicroMinMax("Loop %", original == null ? 0 : original.loopStart / ui.duration * 100, original == null ? 100 : original.loopEnd / ui.duration * 100, 0, 100, "Held loop start and end as percentages of the envelope duration.", (a, b) => InstrumentEdit("envelope loop range", () => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; float last = env.points.Select(p => p.time).DefaultIfEmpty(ui.duration).Max(); env.loopEnd = Math.Min(last, Math.Max(.0001f, ui.duration * b / 100)); env.loopStart = Math.Min(Math.Max(0, env.loopEnd - .0001f), ui.duration * a / 100); setEnvelope(env); }), 170), name + "-loop-range"));
+            timing.Add(InstrumentDial("Sustain %", original == null ? 50 : original.sustainPosition / ui.duration * 100, 0, 100, "Hold position as a percentage of envelope duration; the remaining curve plays after note-off.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; float last = env.points.Select(p => p.time).DefaultIfEmpty(ui.duration).Max(); env.sustainPosition = Math.Min(last, ui.duration * v / 100); setEnvelope(env); }, name + "-sustain-position", 0, defaultValue: new ZUIEnvelopeData().sustainPosition * 100));
+            timing.Add(Named(Z.MicroMinMax("Loop %", original == null ? 0 : original.loopStart / ui.duration * 100, original == null ? 100 : original.loopEnd / ui.duration * 100, 0, 100, "Held loop start and end as percentages of the envelope duration.", (a, b) => InstrumentEdit("envelope loop range", () => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; float last = env.points.Select(p => p.time).DefaultIfEmpty(ui.duration).Max(); env.loopEnd = Math.Min(last, Math.Max(.0001f, ui.duration * b / 100)); env.loopStart = Math.Min(Math.Max(0, env.loopEnd - .0001f), ui.duration * a / 100); setEnvelope(env); }), 170, lowDefault: new ZUIEnvelopeData().loopStart * 100, highDefault: new ZUIEnvelopeData().loopEnd * 100), name + "-loop-range"));
             host.Add(timing);
             void LayoutMode() { bool curve = ui.mode == ZUIValue.Mode.Curve; bool expanded = curve && control.IsExpanded; timing.style.display = expanded ? DisplayStyle.Flex : DisplayStyle.None; host.style.width = expanded ? 380 : curve ? 260 : 170; }
             control.ModeChanged += LayoutMode; control.ExpansionChanged += LayoutMode; LayoutMode();
@@ -173,9 +194,10 @@ namespace Laubrary.ZTracker.Editor
             float Read(string stage) => Convert.ToSingle(owner.GetType().GetField(Field(stage)).GetValue(owner));
             void Write(string stage, float value) => InstrumentEdit(title + " " + stage, () => owner.GetType().GetField(Field(stage)).SetValue(owner, value));
             var hold = owner.GetType().GetField(Field("hold"));
+            var reset = EnvelopeDefaults(Activator.CreateInstance(owner.GetType()), prefix);
             var control = hold == null
-                ? Z.Adsr(title, () => Read("attack"), v => Write("attack", v), () => Read("decay"), v => Write("decay", v), () => Read("sustain"), v => Write("sustain", v), () => Read("release"), v => Write("release", v), "Drag a stage handle; exact time inputs are milliseconds and sustain is percent.")
-                : Z.Adsr(title, () => Read("attack"), v => Write("attack", v), () => Read("hold"), v => Write("hold", v), () => Read("decay"), v => Write("decay", v), () => Read("sustain"), v => Write("sustain", v), () => Read("release"), v => Write("release", v), "Drag a stage handle; Hold keeps the peak before decay begins.");
+                ? Z.Adsr(title, () => Read("attack"), v => Write("attack", v), () => Read("decay"), v => Write("decay", v), () => Read("sustain"), v => Write("sustain", v), () => Read("release"), v => Write("release", v), "Drag a stage handle; double-click resets it. Exact time inputs are milliseconds and sustain is percent.", reset)
+                : Z.Adsr(title, () => Read("attack"), v => Write("attack", v), () => Read("hold"), v => Write("hold", v), () => Read("decay"), v => Write("decay", v), () => Read("sustain"), v => Write("sustain", v), () => Read("release"), v => Write("release", v), "Drag a stage handle; double-click resets it. Hold keeps the peak before decay begins.", reset);
             control.style.maxWidth = Length.Percent(100);
             return Named(control, name);
         }
