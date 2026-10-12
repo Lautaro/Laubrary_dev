@@ -99,7 +99,8 @@ namespace Laubrary.ZTracker.Editor
                             engine.Render(left,right,1024);control.Render(dryL,dryR,1024);
                             double difference=0,energy=0;for(int n=0;n<1024;n++){difference+=Math.Abs(left[n]-dryL[n])+Math.Abs(right[n]-dryR[n]);energy+=(double)left[n]*left[n]+(double)right[n]*right[n];}
                             Need(difference>.001&&energy>.0001,"Next PCM block did not audibly change");
-                            Need(engine.Snapshot.samplePosition==before.samplePosition+1024,"Timeline did not continue");
+                            Need(engine.Snapshot.samplePosition==before.samplePosition+(running?1024:0),"Transport clock does not match playback mode");
+                            Need(Held(engine).age==voice.age+1024,"Held audition did not continue rendering its voice");
                             Need(engine.Compiled,"Render was not actual Burst PCM");
                         }
                     }finally{DestroyImmediate(song);DestroyImmediate(asset);}
@@ -139,6 +140,22 @@ namespace Laubrary.ZTracker.Editor
                         double wanted=880*Math.Pow(2,120/1200d)/engine.Snapshot.sampleRate;
                         Need(Math.Abs(voice.phaseA-wanted)<1e-6,"Fine cents curve cancelled transpose");
                         Need(!float.IsNaN(left[0])&&engine.Compiled,"No compiled render");
+                    }}finally{DestroyImmediate(song);DestroyImmediate(asset);}
+            });
+            Case("Modern FM Amplifier ADSR controls initial and held envelopes independently of operator ADSR",()=>{
+                var asset=LiveSynthAsset(true);var q=asset.model.parameters;q.attack=.04f;q.decay=.02f;q.sustain=.3f;q.release=.1f;var song=ColdSong(asset);
+                try{using(var snapshot=PlaybackSnapshot.Create(song,null,-1))using(var engine=new TrackerOffline(TrackerPreparedSong.Prepare(snapshot.Data)))
+                    using(var left=new NativeArray<float>(4096,Allocator.TempJob))using(var right=new NativeArray<float>(4096,Allocator.TempJob)){
+                        engine.SendCommand(TrackerCommand.Audition(0,69));engine.Render(left,right,1024);var attack=Held(engine);
+                        Need(Math.Abs(attack.envelope-1024/(.04*engine.Snapshot.sampleRate))<.001,"FM main Attack ignored visible Amplifier stage");
+                        engine.Render(left,right,4096);var sustained=Held(engine);Need(sustained.stage==3&&Math.Abs(sustained.envelope-.3f)<.00001,"FM main Sustain followed operator instead of Amplifier");
+                        q.sustain=.8f;using(var candidate=snapshot.CreateRefresh(asset)){
+                            var next=TrackerPreparedSong.Prepare(candidate.Data);if(!engine.RefreshPrepared(next,out var reason)){next.Dispose();throw new Exception(reason);}
+                        }
+                        Need(Math.Abs(Held(engine).envelope-.8f)<.00001,"FM held Amplifier Sustain did not update");
+                        engine.Render(left,right,1024);Need(left.ToArray().Take(1024).Sum(x=>(double)x*x)>.0001,"FM Amplifier produced no actual PCM");
+                        engine.SendCommand(new TrackerCommand{kind=TrackerCommandKind.AuditionOff,a=0,b=0});var released=engine.Snapshot.voices.ToArray().First(v=>v.active);
+                        Need(Math.Abs(released.releaseStep-released.envelope/(.1*engine.Snapshot.sampleRate))<1e-6,"FM main Release ignored Amplifier");
                     }}finally{DestroyImmediate(song);DestroyImmediate(asset);}
             });
             foreach(bool glide in new[]{false,true})foreach(bool legato in new[]{false,true}){
