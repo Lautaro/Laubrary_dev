@@ -74,6 +74,7 @@ namespace Laubrary.ZTracker.Editor
 
         void LoadMidiPrefs()
         {
+            midiPersistPreferences = midiPreferenceRestoreEnabled && !midiSimulatedOnly;
             var saved = MidiPreferenceSnapshot.Read(MidiPrefs,
                 (key, fallback) => EditorPrefs.GetString(key, fallback),
                 (key, fallback) => EditorPrefs.GetInt(key, fallback),
@@ -392,7 +393,21 @@ namespace Laubrary.ZTracker.Editor
         }
 
         static string MidiInstrumentName(ZTrackerInstrument value) { var t = InstrumentTitle(value); return string.IsNullOrEmpty(t) && value != null ? value.name : t; }
-        internal void EnableMidiPreferenceRestore() { midiPreferenceRestoreEnabled = true; midiPersistPreferences = true; }
+        internal void EnableMidiPreferenceRestore()
+        {
+            midiPreferenceRestoreEnabled = true;
+            midiPersistPreferences = !midiSimulatedOnly;
+            if (midiToggleButton == null) return;
+            LoadMidiPrefs();
+            midiToggleButton.SetValueWithoutNotify(midiOn);
+            if (midiRecordButton != null)
+            {
+                midiRecordButton.SetValueWithoutNotify(midiRecord);
+                midiRecordButton.style.visibility = midiOn ? Visibility.Visible : Visibility.Hidden;
+            }
+            if (midiOn) SetMidiEnabled(true);
+            else RefreshMidiStatus();
+        }
         void SaveMidiString(string key, string value) { if (midiPersistPreferences) EditorPrefs.SetString(MidiPrefs + key, value ?? ""); }
         void SaveMidiInt(string key, int value) { if (midiPersistPreferences) EditorPrefs.SetInt(MidiPrefs + key, value); }
         void SaveMidiFloat(string key, float value) { if (midiPersistPreferences) EditorPrefs.SetFloat(MidiPrefs + key, value); }
@@ -407,7 +422,7 @@ namespace Laubrary.ZTracker.Editor
         internal int channel, octave, curve, modWheel, buffer;
         internal float bend;
 
-        internal static MidiPreferenceSnapshot Read(string prefix, Func<string, string, string> getString, Func<string, int, int> getInt, Func<string, int, float> getFloat, Func<string, bool, bool> getBool)
+        internal static MidiPreferenceSnapshot Read(string prefix, Func<string, string, string> getString, Func<string, int, int> getInt, Func<string, float, float> getFloat, Func<string, bool, bool> getBool)
             => new MidiPreferenceSnapshot
             {
                 enabled = getBool(prefix + "Enabled", false), record = getBool(prefix + "Record", false),
