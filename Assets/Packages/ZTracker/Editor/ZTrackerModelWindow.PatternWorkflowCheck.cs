@@ -110,6 +110,36 @@ namespace Laubrary.ZTracker.Editor
                     Need(window.anchorRow==0&&window.anchorSub==0&&window.row==bottom&&window.sub==lastVisible,"Mouse drag did not select the block: anchor "+window.anchorRow+","+window.anchorSub+" cursor "+window.row+","+window.sub);Painted("mouse drag");
                     window.Select(0,0,false);
                 });
+                Check("Paste Insert pushes rows down in every column type, drops the overflow with a notice, carries commands and automation, and Undoes in one step",()=>{
+                    var a=song.model.tracks.First(t=>t.kind==TrackKind.Sequencer);a.columns=new System.Collections.Generic.List<ColumnVisibility>{new ColumnVisibility{volume=true,pan=true,delay=true,sampleFx=true}};a.visibleEffectColumns=1;a.visibleNoteColumns=1;
+                    if(!song.model.tracks.Any(t=>t.kind==TrackKind.Event))window.AddTrack(TrackKind.Event);var ev=song.model.tracks.First(t=>t.kind==TrackKind.Event);
+                    window.pane=0;window.BuildPane();var p=window.Pattern;int L=p.lineCount;Need(L>=8,"Pattern too short");
+                    var pa=p.tracks.Find(t=>t.trackId==a.id);var pe=p.tracks.Find(t=>t.trackId==ev.id);pa.lines.Clear();pa.automation.Clear();pe.lines.Clear();
+                    for(int r=0;r<L;r++){pa.WriteLine(new PatternLine{line=r,notes={new NoteCell{column=0,note=NoteKind.Note,pitch=40+r,instrumentPresent=true,instrument=r%2,volume=new ColumnValue{kind=ValueKind.Value,value=r},pan=new ColumnValue{kind=ValueKind.Value,value=r+1},delayPresent=true,delay=r+2,sampleFx=new CommandData{present=true,identifier="0S",valuePresent=true,value=r}}},effects={new EffectCell{column=0,command=new CommandData{present=true,identifier="0C",valuePresent=true,value=r}}}});
+                        pe.WriteLine(new PatternLine{line=r,events={new EventCell{column=0,present=true,payload="e"+r}}});}
+                    pa.automation.Add(new AutomationLane{id="insert-lane",target=new ParameterTarget{kind=ParameterKind.Mixer,trackId=a.id,parameter="postVolume"},points={new AutomationPoint{line=2,value=.2f},new AutomationPoint{line=3,value=.3f},new AutomationPoint{line=L-1,value=.9f}}});
+                    string before=JsonUtility.ToJson(p);
+                    int a0=window.fields.FindIndex(f=>f.track==song.model.tracks.IndexOf(a)),a1=window.fields.FindLastIndex(f=>f.track==song.model.tracks.IndexOf(a));
+                    Need(Enumerable.Range(a0,a1-a0+1).Select(i=>window.fields[i].kind).Distinct().Count()==9,"Sequencer fixture lacks a note/effect column type");
+                    window.Select(0,a0,false);window.Select(1,a1,true);window.CopyBlock();window.Select(3,a0,false);
+                    using(var e=KeyDownEvent.GetPooled(new Event{type=EventType.KeyDown,keyCode=KeyCode.V,modifiers=EventModifiers.Control|EventModifiers.Shift})){e.target=window.grid;window.grid.SendEvent(e);}
+                    NoteCell N(int r)=>pa.ReadLine(r).notes.Find(n=>n.column==0);EffectCell X(int r)=>pa.ReadLine(r).effects.Find(n=>n.column==0);
+                    for(int r=0;r<3;r++)Need(N(r).pitch==40+r,"Row above the cursor moved: "+r);
+                    for(int r=3;r<5;r++){var n=N(r);Need(n.pitch==40+r-3&&n.instrument==(r-3)%2&&n.volume.value==r-3&&n.pan.value==r-2&&n.delay==r-1&&n.sampleFx.value==r-3&&X(r).command.identifier=="0C"&&X(r).command.value==r-3,"Pasted row "+r+" wrong");}
+                    for(int r=5;r<L;r++){var n=N(r);Need(n.pitch==40+r-2&&n.instrument==(r-2)%2&&n.volume.value==r-2&&n.pan.value==r-1&&n.delay==r&&n.sampleFx.identifier=="0S"&&n.sampleFx.value==r-2&&X(r).command.value==r-2,"Pushed row "+r+" did not carry every column of row "+(r-2)+": "+JsonUtility.ToJson(n)+" fx "+JsonUtility.ToJson(X(r)));}
+                    Need(!pa.lines.Any(l=>l.line>=L),"Rows kept past the pattern end");
+                    var pts=pa.automation[0].points;Need(pts.Any(q=>q.line==2)&&pts.Any(q=>q.line==5&&q.value==.3f)&&pts.Count==2,"Automation did not move with the pasted track: "+string.Join(",",pts.Select(q=>q.line)));
+                    Need(pe.ReadLine(3).events[0].payload=="e3","Unpasted track moved");
+                    Need(window.help.text.Contains("2 rows")&&window.help.text.Contains("1 automation point"),"No visible notice for dropped rows: "+window.help.text);
+                    Undo.PerformUndo();Need(JsonUtility.ToJson(window.Pattern)==before,"One Undo did not restore the pattern");
+                    // Event column, and pasting into one field of a wider track moves only that column.
+                    window.BuildPane();int evField=window.fields.FindIndex(f=>f.kind==FieldKind.Event);window.Select(0,evField,false);window.CopyBlock();window.Select(2,evField,false);window.PasteInsertBlock();
+                    pe=window.Pattern.tracks.Find(t=>t.trackId==ev.id);Need(pe.ReadLine(2).events[0].payload=="e0"&&pe.ReadLine(3).events[0].payload=="e2"&&pe.ReadLine(L-1).events[0].payload=="e"+(L-2),"Event column was not pushed");Need(window.help.text.Contains("1 row"),"Event overflow notice missing");Undo.PerformUndo();
+                    window.Select(0,a0+1,false);window.CopyBlock();window.Select(4,a0+1,false);window.PasteInsertBlock();pa=window.Pattern.tracks.Find(t=>t.trackId==a.id);
+                    Need(pa.ReadLine(5).notes[0].instrument==0&&pa.ReadLine(5).notes[0].pitch==45&&pa.automation[0].points.Any(q=>q.line==3),"Single-column insert moved other columns or automation");
+                    Undo.PerformUndo();Need(JsonUtility.ToJson(window.Pattern)==before,"Undo after single-column insert failed");
+                    window.Select(0,0,false);Need(window.help.text=="",""+window.help.text);
+                });
                 Check("retained cell click selects after reorder and first FX character opens suggestions",()=>{
                     foreach(var t in song.model.tracks)t.visibleEffectColumns=Math.Max(1,t.visibleEffectColumns);
                     window.pane=0;window.row=0;window.BuildPane();LayoutChain(window);
