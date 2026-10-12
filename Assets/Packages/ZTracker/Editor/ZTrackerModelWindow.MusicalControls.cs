@@ -48,7 +48,8 @@ namespace Laubrary.ZTracker.Editor
                 case "instReverbSend": r.label = "Reverb %"; r.tip = "Send level to the first Reverb send bus declared in Mixer."; break;
                 case "freqRatio": case "waveBRatio": r.label = "Ratio ×"; r.min = .125f; r.max = 16; r.scale = 1; r.decimals = 2; r.tip = "Frequency relative to the played note; 2 is one octave higher."; break;
                 case "freqFixed": r.label = "Fixed Hz"; r.max = 20000; r.scale = 1; r.tip = "Fixed frequency in Hz; zero follows the played note and ratio."; break;
-                case "fmFeedback": r.label = "Feedback"; r.max = 8; r.scale = 1; r.decimals = 2; r.tip = "Feed the previous summed output into Operator 1, from clean sine to a brighter, noisier tone."; break;
+                case "fmFeedback": r.label = "Output feedback"; r.max = 8; r.scale = 1; r.decimals = 2; r.tip = "Older whole-instrument feedback: the previous output is fed back into the first operator, from clean sine to a brighter, noisier tone. New sounds use each modulator's own Feedback instead."; break;
+                case "feedback": r.label = "Feedback %"; r.tip = "This modulator bends its own phase with its previous output: 0% is a pure sine, higher values brighten it towards a sawtooth-like tone. Changes glide over 5 ms, so moving it while a note plays does not click."; break;
                 case "pmDepth": r.label = "PM cycles"; r.max = 8; r.scale = 1; r.decimals = 2; r.tip = "Phase modulation depth in oscillator cycles."; break;
                 case "phase": r.label = "Phase °"; r.max = 360; r.scale = 360; r.tip = "Initial LFO position in one cycle."; break;
                 case "attack": case "blendAttack": case "hold": r.label = field == "hold" ? "Hold ms" : "Attack ms"; r.max = 5000; r.scale = 1000; r.tip = "Envelope stage duration."; break;
@@ -59,7 +60,7 @@ namespace Laubrary.ZTracker.Editor
             }
             switch (field)
             {
-                case "volume": case "level": case "pan": case "pulseWidth": case "blend": case "unisonSpread": case "vibratoRandomness": r.unit = "%"; break;
+                case "volume": case "level": case "pan": case "pulseWidth": case "blend": case "unisonSpread": case "vibratoRandomness": case "feedback": r.unit = "%"; break;
                 case "fineTune": case "fineTuneB": case "fineTuneBCents": case "unisonDetune": case "vibratoDepth": r.unit = "cents"; break;
                 case "vibratoRate": case "rate": case "instFilterCutoff": case "freqFixed": r.unit = "Hz"; break;
                 case "vibratoFadeIn": case "glideSeconds": r.unit = "ms"; break;

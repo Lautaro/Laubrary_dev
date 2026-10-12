@@ -115,13 +115,36 @@ Preparation diagnostics include empty instruments, unsupported legacy notes, ign
 
 ## P4 synthesis and provenance
 
-`TrackerToneCompiler` produces flat tone/envelope/route tables. `TrackerToneRealtime` shares the renderer with sampler voices; it does not call the legacy DLL. Subtractive voices combine two oscillators using Mix/Ring/Sync/PM, native-compatible wave shapes, smooth blend/pulse-width/B-ratio/PM/unison-detune targets, all five authored envelope targets, ADSR, filter, vibrato, variable-speed arpeggio and optional exponential instrument glide. FM uses four sine operators, individual ADSRs, ratio or fixed-Hz pitch and algorithms 0–5: serial chain; two pairs; two modulators into a chain; pair plus two carriers; chain plus carrier; four parallel carriers. Saved choices 6/7 compile to the existing parallel algorithm 5 with a diagnostic. They do not create new algorithms. FM operator waveform choices other than sine are diagnosed, preserving the legacy engine's sine-only contract.
+`TrackerToneCompiler` produces flat tone/envelope/route tables. `TrackerToneRealtime` shares the renderer with sampler voices; it does not call the legacy DLL. Subtractive voices combine two oscillators using Mix/Ring/Sync/PM, native-compatible wave shapes, smooth blend/pulse-width/B-ratio/PM/unison-detune targets, all five authored envelope targets, ADSR, filter, vibrato, variable-speed arpeggio and optional exponential instrument glide. FM uses four sine operators, individual ADSRs, ratio or fixed-Hz pitch and algorithms 0–5: serial chain; two pairs; two modulators into a chain; pair plus two carriers; chain plus carrier; four parallel carriers. Saved choices 6/7 compile to the existing parallel algorithm 5 with a diagnostic. They do not create new algorithms. FM operator waveform choices other than sine are diagnosed, preserving the legacy engine's sine-only contract. The ten single-carrier setups (101–110) and modulator feedback are described under "FM single-carrier setups and modulator feedback" below.
 
 `InstrumentParameters.enumDomain` and `envelopeEnumDomain` are independent, defaulting to `SavedAuthoring`. Saved waves 0/1/2/3/4 mean sine/triangle/saw/square/white; compiled native numbers are 0/4/2/1/5. Direct native waves 0–6 remain direct, including reverse saw and pink. Saved loop numbers 1/2 mean forward/ping-pong; direct native numbers 0/1 mean forward/ping-pong. Explicit native loop 2 is invalid; the correction adapter declares that fixture's loop domain as saved authoring while preserving its integer 2. Saved integer fields and envelope points are never overwritten by preparation. `native-v0` mix/pitch provenance remains distinct from these enum domains. Note initialization explicitly stores the rounded float32 frequency product before double division, preserving both managed/offline initialization and native/AOT initialization without cursor offsets or relaxed tolerance.
 
 PCM B has its own pitch, frame cursor, direction, loop bounds and release-exit flag. Mix crossfades A/B; Ring multiplies B by A before blending; Sync resets B after A wraps; PM reads B at its cursor plus A-left times depth (frames), wrapped to B's PCM length. Both B stereo channels use that shared phase offset. A and B advance independently; B ends silently if its unlooped cursor ends, while A retains voice lifetime. B loop release resumes forward from B's current frame cursor, including backward and ping-pong loops, independently of A's release-exit policy. B zone defaults are authoritative unless explicitly routed. Whole-note unison/layer cohorts release together and are stolen together; reused slots reset oscillator/FM/filter/envelope/cursor/noise state. Stale release handles cannot address a replacement cohort.
 
 White noise uses seeded per-member/per-oscillator xorshift state. Pink uses independently seeded white input and a three-pole spectral filter. No process-global random state or audio-thread allocation is involved. Seed identity includes cohort generation, preventing correlated unison members. A freshly prepared identical control sequence repeats exactly; changing partition sizes does not change the noise stream.
+
+## FM single-carrier setups and modulator feedback (T-0603)
+
+FM offers the ten single-carrier setups of `Documentation~/FM_SINGLE_CARRIER_SETUPS.png`. The four operator slots are A = 0, B = 1, D = 2 and C = 3; C is always the carrier and the only operator heard. `fmAlgorithm` stores a setup as 100 + its number (101–110); `TrackerFmSetups` holds the routes, the operators each setup uses, the formulas and the feedback constants, and is the one place both the renderer and the editor read them from.
+
+| Setup | Routes | Operators |
+| --- | --- | --- |
+| 1 | A → C | A, C |
+| 2 | A → B → C | A, B, C |
+| 3 | A + B → C | A, B, C |
+| 4 | A → B → D → C | all four |
+| 5 | A + B + D → C | all four |
+| 6 | A → B → C, D → C | all four |
+| 7 | A + B → D → C | all four |
+| 8 | A → B, A → D, B + D → C | all four |
+| 9 | A → B → C, A → C | A, B, C |
+| 10 | A → B → D → C, A → C | all four |
+
+An operator a setup does not use is not routed anywhere, so its settings cannot change the sound (measured: bit-identical output when an unused operator is changed). Modulation is phase modulation in cycles: an operator's output (sine times level times its envelope) is added to the phase of each operator its arrow reaches, evaluated A, then B, then D, then C within each sample.
+
+Each modulator also has its own feedback, `FMOperatorData.feedback` (0–1, default 0). The modulator's phase is shifted by `feedback × 0.25 cycles × mean(last two raw outputs)`; the two-sample mean keeps it stable up to full feedback, and because the delay is one sample at any rate the timbre matches at 44.1, 48 and 96 kHz (harmonic balance within 1.5%). A changed amount glides toward its new value with a 5 ms time constant per voice, so a live edit does not click; a new note starts at the current amount. The term is added only when the amount is non-zero, so 0 is bit-identical to no feedback, including after feedback is turned off on a playing note.
+
+Older instruments keep their sound. `fmAlgorithm` 0 (Stack) and 2 (Merge) are setups 4 and 7 and the editor shows them as those setups; they keep playing through the older code, bit-identical to before, until one of their modulators uses feedback (an authored amount, a curve or a mapping), at which point the compiler plays them as 104/107 (which match the older code to about 2·10⁻⁸). Algorithms 1, 3, 4 and 5 (6 and 7 fall back to 5) send several operators to the output, so they are not single-carrier setups: they keep their own code path and diagram and are offered no feedback. The older whole-instrument `fmFeedback` (output back into A) still works everywhere and is shown as Output feedback only where it is non-zero or the instrument uses an older multi-carrier routing.
 
 ## P4 parameter and macro operations for P5
 
@@ -139,6 +162,7 @@ Both `TrackerOffline` and `TrackerSapGenerator` expose `SetMacro`, `TargetMacro`
 | VibratoDepth / VibratoRate | cents 0–1200 / Hz 0–1000 |
 | FilterCutoff / FilterResonance | Hz 20–96000 (render capped below Nyquist) / Q .1–10 |
 | FMFeedback | Native algorithm-specific phase feedback 0–16; algorithms 0–4 add radians at op0, algorithm 5 adds phase cycles |
+| Op0–2 Feedback | Self-feedback of modulator A, B or D, normalized 0–1 (100% = a quarter-cycle phase shift from the mean of the operator's last two raw outputs). Name `fmOperators.<0..2>.feedback`. Changes glide over 5 ms on playing notes. The carrier (slot 3) has none. |
 | Op0–3 Ratio / FixedHz / Level / Attack / Decay / Sustain / Release | ratio 0–64 / Hz 0–96000 (zero selects ratio) / gain 0–16 / seconds 0–3600 / seconds 0–3600 / normalized 0–1 / seconds 0–3600 |
 
 Preparation resolves canonical parameter spellings (`TrackerParameters.Resolve`) to `TrackerParameter`. Units must match `TrackerParameters.Units`; the explicit `legacy parameter units` marker preserves prior common sampler/synth mapping conventions and converts legacy normalized cutoff endpoints to Hz. Concrete PM-depth units are checked against the destination family: `cycles` for subtractive synth and `frames` for paired PCM. The registry's composite `phase cycles or sample frames` label resolves through that typed destination; an explicit wrong-family unit is refused without dropping neighboring valid routes. Typed Sample targets support instrument sampler globals with index -1; typed Synth targets require Synth instruments. Documented legacy common Synth links may target Sampler globals. FM operator/feedback routes require FM, unison/pulse/ratio require subtractive synth, and paired-sample blend/PM require an authored B source. Unsupported sample/member indices are diagnosed rather than ignored. All this checking occurs before publication; audio code resolves neither strings nor model objects.

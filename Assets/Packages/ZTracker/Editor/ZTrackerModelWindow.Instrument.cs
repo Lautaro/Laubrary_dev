@@ -370,7 +370,7 @@ namespace Laubrary.ZTracker.Editor
                     if ((p == TrackerParameter.UnisonDetune || p == TrackerParameter.UnisonSpread || p == TrackerParameter.PulseWidth || p == TrackerParameter.WaveBRatio) && (sampler || fm)) continue;
                     if ((p == TrackerParameter.Blend || p == TrackerParameter.PMDepth) && (fm || sampler && !d.sampler.zones.Any(z => z.blend?.pcmB != null))) continue;
                     string key = ParameterName(p); string units = p == TrackerParameter.PMDepth ? sampler ? "frames" : "cycles" : TrackerParameters.Units(p);
-                    string label=p>=TrackerParameter.Op0Ratio?"Operator "+(((int)p-(int)TrackerParameter.Op0Ratio)/7+1)+" "+FieldLabel(key.Substring(key.LastIndexOf('.')+1)):FieldLabel(key);
+                    string label=p>=TrackerParameter.Op0Ratio?"Operator "+TrackerFmSetups.Letter(TrackerParameters.OperatorOf(p))+" "+FieldLabel(key.Substring(key.LastIndexOf('.')+1)):FieldLabel(key);
                     choices.Add(new InstrumentDestination { label = d.name + " / " + label + " (" + units + ")", target = new ParameterTarget { kind = sampler ? ParameterKind.Sample : ParameterKind.Synth, instrumentId = d.id, parameter = key, units = units, index = -1 } });
                 }
                 if (external) for (int m = 0; m < 8; m++) choices.Add(new InstrumentDestination { label = d.name + " / Macro " + (m + 1), target = new ParameterTarget { kind = ParameterKind.InstrumentMacro, instrumentId = d.id, parameter = "macro", units = "normalized", index = m } });
@@ -378,6 +378,7 @@ namespace Laubrary.ZTracker.Editor
         }
         static string ParameterName(TrackerParameter p)
         {
+            if (TrackerParameters.IsOperatorFeedback(p)) return "fmOperators." + TrackerParameters.OperatorOf(p) + ".feedback";
             if (p >= TrackerParameter.Op0Ratio) { int n = (int)p - (int)TrackerParameter.Op0Ratio; return "fmOperators." + n / 7 + "." + new[] { "freqRatio", "freqFixed", "level", "attack", "decay", "sustain", "release" }[n % 7]; }
             switch (p) { case TrackerParameter.FilterCutoff: return "instFilterCutoff"; case TrackerParameter.FilterResonance: return "instFilterResonance"; case TrackerParameter.FineTune: return "fineTune"; case TrackerParameter.FMFeedback: return "fmFeedback"; case TrackerParameter.PMDepth: return "pmDepth"; }
             string s = p.ToString(); return char.ToLowerInvariant(s[0]) + s.Substring(1);
