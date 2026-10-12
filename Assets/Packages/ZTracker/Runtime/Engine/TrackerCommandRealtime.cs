@@ -181,6 +181,11 @@ namespace Laubrary.ZTracker.Engine
                         if (flow)
                             state.holdRemaining = op.value;
                         break;
+                    case 300:
+                        // A song tempo command applies to the entering row, before its duration is fixed, like ZT.
+                        if (state.deviceParameters[op.target].dynamic && state.deviceParameters[op.target].kind == 5)
+                            SetDeviceParameter(op.target, op.value / 255f);
+                        break;
                 }
             }
         }

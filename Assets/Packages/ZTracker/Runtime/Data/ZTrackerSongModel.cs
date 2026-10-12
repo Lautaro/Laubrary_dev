@@ -10,7 +10,9 @@ namespace Laubrary.ZTracker.Model
     public enum ValueKind { Empty, Value, Command, Legacy }
     public enum CommandScope { Column, Track, Global, Unresolved }
     public enum AutomationInterpolation { Step, Linear }
-    public enum ParameterKind { Mixer, Device, InstrumentMacro, Sample, Modulation, Synth, Timing }
+    // Dynamic: a song's own command definition, addressed by its stable uid in ParameterTarget.parameter.
+    public enum ParameterKind { Mixer, Device, InstrumentMacro, Sample, Modulation, Synth, Timing, Dynamic }
+    public enum DynamicScope { Instrument, Track, Effect, Song }
     public enum SourceDeviceKind { InstrumentAutomation, InstrumentMacros, AudioChain, Unsupported }
 
     [Serializable] public sealed class ParameterTarget
@@ -169,6 +171,23 @@ namespace Laubrary.ZTracker.Model
         public bool explicitEquivalence;
         public List<ModulationPoint> curvePoints = new List<ModulationPoint>();
     }
+    /// <summary>
+    /// A setting given a two-character command id and a friendly name, so a track FX row can set it. The uid never
+    /// changes and is what columns and automation lanes refer to; the id is what a pattern cell types and may be
+    /// renamed. Target addressing per scope (see Documentation~/COMMAND_MODEL_DESIGN.md): Instrument = instrumentId plus
+    /// a typed parameter name (kind Sample/Synth) or a macro (kind InstrumentMacro, index); Track = trackId plus a mixer
+    /// value name; Effect = trackId, deviceId (the effect node uid in that track's chain) and the setting index;
+    /// Song = a song value name ("bpm"). min/max are in the target's units and say what 00 and FF mean.
+    /// </summary>
+    [Serializable] public sealed class DynamicParameterData
+    {
+        public string uid = "", id = "", name = "";
+        public DynamicScope scope;
+        public ParameterTarget target = new ParameterTarget();
+        public float min, max = 1;
+        // Alpha zero means "use the scope's default colour".
+        public Color color = Color.clear;
+    }
     [Serializable] public sealed class SequenceSlot
     {
         public string id = "", patternId = "";
@@ -188,6 +207,9 @@ namespace Laubrary.ZTracker.Model
         public string provenance = "";
         public ulong seed;
         public List<string> diagnostics = new List<string>();
+        // No initializer on purpose: a song saved before the command model reads as version 0.
+        public int commandModelVersion;
+        public List<DynamicParameterData> dynamicParameters = new List<DynamicParameterData>();
     }
 
     public static class ZTrackerPatternOperations

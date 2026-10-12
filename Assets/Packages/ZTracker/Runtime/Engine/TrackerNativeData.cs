@@ -223,7 +223,18 @@ namespace Laubrary.ZTracker.Engine
     public struct TrackerRow { public int cells, cellCount, commands, commandCount, events, eventCount, ops, opCount; }
     public struct TrackerOp { public int track, column, source, priority, kind, value, bank, target; public bool shorthand; }
     public struct TrackerDevice { public int track, ordinal, parameters, count, kind; public bool enabled, authoredEnabled; }
-    public struct TrackerDeviceParameter { public int device, ordinal, kind, track, instrument, parameter, chain, node, route, points, pointCount; public float latent, emitted, authored, min, max, quantum, lower; public bool authoredPresent, written; }
+    public struct TrackerDeviceParameter
+    {
+        public int device, ordinal, kind, track, instrument, parameter, chain, node, route, points, pointCount;
+        public float latent, emitted, authored, min, max, quantum, lower;
+        public bool authoredPresent, written;
+        // A song command definition (dynamic parameter). Values below are in the target's own units.
+        // destinationAuthored is the target's authored value, restored exactly on Play/Stop/Seek.
+        public bool dynamic, smooth, ramped, stepping, laneRamp;
+        public float destinationAuthored, destination, target, step, laneNext;
+        public int remaining;
+        public double laneFrames;
+    }
     public struct TrackerAutomation { public int pattern, target, points, count; public bool linear, timing; }
     public struct TrackerAutomationPoint { public double line; public float value; }
     public struct TrackerClockCommand { public int kind, value; } // 1 BPM, 2 LPB, 3 TPL, 4 break
@@ -240,6 +251,8 @@ namespace Laubrary.ZTracker.Engine
         public float preGain, prePan, width, postGain, postPan;
         public float authoredPreGain, authoredPrePan, authoredWidth;
         public float authoredPostGain, authoredPostPan, livePostGain, livePostPan, gainStep, panStep;
+        // Per-frame change of the pre-effects stage within one render slice; zero outside a dynamic ramp.
+        public float preGainStep, prePanStep, widthStep;
         public int gainRemaining, panRemaining;
         public bool triggerMute, outputMute, soloEnabled, beatTicks;
         public bool authoredTriggerMute, authoredOutputMute;
@@ -304,6 +317,9 @@ namespace Laubrary.ZTracker.Engine
         public NativeArray<TrackerParameterSet> parameterSets;
         public NativeArray<float> presetParameters;
         public NativeArray<byte> deviceDirty, parameterDirty;
+        // Indices into deviceParameters of the song's command definitions, in definition order.
+        public NativeArray<int> dynamicParameters;
+        public int dynamicCount;
         public NativeArray<int> routeQueue,routeMarks;
         [NativeDisableContainerSafetyRestriction] public NativeArray<long> ticket;
         [NativeDisableUnsafePtrRestriction] public TrackerChain* chains;

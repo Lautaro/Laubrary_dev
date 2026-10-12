@@ -14,9 +14,12 @@ namespace Laubrary.ZTracker.Engine
                 SetDeviceEnabled(i, d.authoredEnabled, false);
             }
 
+            ResetDynamic();
             for (int i = 0; i < state.deviceParameterCount; i++)
             {
                 var p = state.deviceParameters[i];
+                if (p.dynamic)
+                    continue;
                 p.latent = p.emitted = p.authored;
                 p.written = p.device < 0 || p.authoredPresent;
                 state.deviceParameters[i] = p;
@@ -60,6 +63,12 @@ namespace Laubrary.ZTracker.Engine
         void EmitDeviceParameter(int at)
         {
             var p = state.deviceParameters[at];
+            if (p.dynamic)
+            {
+                EmitDynamic(at);
+                return;
+            }
+
             if (!p.written && p.device >= 0)
                 return;
             if (p.device >= 0 && !state.devices[p.device].enabled && state.devices[p.device].kind != 2)
@@ -231,6 +240,8 @@ namespace Laubrary.ZTracker.Engine
                 parameter.latent = math.saturate(value);
                 state.deviceParameters[lane.target] = parameter;
                 state.parameterDirty[lane.target] = 1;
+                if (parameter.dynamic && !timingOnly)
+                    DynamicLaneHint(in lane, time);
             }
 
             for (int p = 0; p < state.deviceParameterCount; p++)

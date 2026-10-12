@@ -160,16 +160,29 @@ namespace Laubrary.ZTracker.Engine
             else if (column < 0)
             {
                 int a = Base36(id[0]), b = Base36(id[1]);
+                int device = -1;
+                for (int d = 0; d < state.deviceCount && a >= 1 && a <= 34 && b >= 0; d++)
+                    if (state.devices[d].track == track && state.devices[d].ordinal == a)
+                        device = d;
+                // A song command definition. An imported device at the same address keeps its meaning.
+                bool dynamic = dynamicIds.TryGetValue(ZTrackerCommandRegistry.Normalize(id), out int dynamicTarget);
+                if (dynamic && device < 0)
+                {
+                    op.kind = 300;
+                    op.target = dynamicTarget;
+                }
+                else
+                {
+                if (dynamic)
+                    CommandDiagnostic("DYNAMIC_ID_SHADOWED", c, address);
+                else if (device < 0 && commandModelPresent)
+                    CommandDiagnostic("DYNAMIC_PARAMETER_UNDEFINED", c, address);
                 if (a < 1 || a > 34 || b < 0)
                 {
                     CommandDiagnostic("UNSUPPORTED_ADDRESS", c, address);
                     return false;
                 }
 
-                int device = -1;
-                for (int d = 0; d < state.deviceCount; d++)
-                    if (state.devices[d].track == track && state.devices[d].ordinal == a)
-                        device = d;
                 if (device < 0)
                 {
                     CommandDiagnostic("DEVICE_UNRESOLVED", c, address);
@@ -200,6 +213,7 @@ namespace Laubrary.ZTracker.Engine
                     }
 
                     op.kind = 300;
+                }
                 }
             }
             else
@@ -268,7 +282,7 @@ namespace Laubrary.ZTracker.Engine
             op.value = value;
             if (!shorthand && !c.valuePresent)
             {
-                string target = op.kind == 300 ? "device:" + state.devices[state.deviceParameters[op.target].device].ordinal + "/parameter:" + state.deviceParameters[op.target].ordinal + "/externalRoute:" + state.deviceParameters[op.target].route : op.kind == 301 ? "device:" + state.devices[op.target].ordinal + "/enabled" : op.kind >= 256 ? "transport" : "track:" + track + (column >= 0 ? "/column:" + column + "/foreground" : "/scope");
+                string target = op.kind == 300 && state.deviceParameters[op.target].dynamic ? "dynamic:" + ZTrackerCommandRegistry.Normalize(id) : op.kind == 300 ? "device:" + state.devices[state.deviceParameters[op.target].device].ordinal + "/parameter:" + state.deviceParameters[op.target].ordinal + "/externalRoute:" + state.deviceParameters[op.target].route : op.kind == 301 ? "device:" + state.devices[op.target].ordinal + "/enabled" : op.kind >= 256 ? "transport" : "track:" + track + (column >= 0 ? "/column:" + column + "/foreground" : "/scope");
                 CommandDiagnostic("IMPLICIT_ZERO", c, address, target);
             }
 

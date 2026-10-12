@@ -26,6 +26,8 @@ namespace Laubrary.ZTracker.Engine
                 if(t.sourceDevices!=null)foreach(var s in t.sourceDevices){if(s==null)continue;s.pluginId="";if(s.parameters!=null)foreach(var p in s.parameters){if(p==null)continue;p.defaultValue=0;p.parameter="";}}
                 if(t.externalSources!=null)foreach(var s in t.externalSources)if(s!=null)s.pluginId="";
             }
+            // A command's id, name and colour can change while playing; its target and range shape the compiled record.
+            if(copy.dynamicParameters!=null)foreach(var d in copy.dynamicParameters)if(d!=null){d.id="";d.name="";d.color=Color.clear;}
             foreach(var p in copy.patterns){p.name="";foreach(var t in p.tracks){t.lines.Clear();if(t.automation!=null)foreach(var lane in t.automation){if(lane==null)continue;lane.points?.Clear();lane.interpolation=AutomationInterpolation.Step;}}}
             var key=new StringBuilder(JsonUtility.ToJson(copy));
             foreach(var i in source.instruments){if(i==null){key.Append("null");continue;}key.Append('|').Append(i.playbackSourceIdentity!=0?i.playbackSourceIdentity:i.GetInstanceID());var data=ZTrackerMigration.Copy(i.model);var q=data.parameters;
@@ -111,10 +113,13 @@ namespace Laubrary.ZTracker.Engine
             for(int i=0;i<old.parameterBase.Length;i++)if(next.parameterBase[i]!=old.parameterBase[i]){next.parameterDirect[i]=next.parameterLive[i]=next.parameterBase[i];next.parameterWritten[i]|=1;}
             CopyLive(old.descriptors,next.descriptors);CopyLive(old.commandMemory,next.commandMemory);CopyLive(old.occurrences,next.occurrences);
             for(int i=0;i<old.deviceCount;i++){var d=next.devices[i];if(d.authoredEnabled==old.devices[i].authoredEnabled)d.enabled=old.devices[i].enabled;next.devices[i]=d;}
-            for(int i=0;i<old.deviceParameterCount;i++){var p=next.deviceParameters[i];var before=old.deviceParameters[i];if(p.authored==before.authored&&p.authoredPresent==before.authoredPresent){p.latent=before.latent;p.emitted=before.emitted;p.written=before.written;}next.deviceParameters[i]=p;}
+            for(int i=0;i<old.deviceParameterCount;i++){var p=next.deviceParameters[i];var before=old.deviceParameters[i];if(p.authored==before.authored&&p.authoredPresent==before.authoredPresent){p.latent=before.latent;p.emitted=before.emitted;p.written=before.written;}
+                // A command definition keeps where its target is and where it is heading, if it still points at the same place.
+                if(p.dynamic&&before.dynamic&&p.kind==before.kind&&p.parameter==before.parameter&&p.track==before.track&&p.instrument==before.instrument&&p.chain==before.chain&&p.node==before.node&&p.destinationAuthored==before.destinationAuthored){p.destination=before.destination;p.target=before.target;p.step=before.step;p.remaining=before.remaining;p.stepping=before.stepping;}
+                next.deviceParameters[i]=p;}
             for(int i=0;i<old.columnCount;i++){var col=next.columns[i];if(col.pendingCell>=0){var cell=old.cells[col.pendingCell];int dest=next.carryCells+i;for(int j=0;j<cell.opCount;j++)next.ops[next.carryOps+i*3+j]=old.ops[cell.ops+j];cell.ops=next.carryOps+i*3;next.cells[dest]=cell;col.pendingCell=dest;next.columns[i]=col;}}
             for(int i=0;i<old.trackCount;i++){var before=old.tracks[i];var after=next.tracks[i];after.instrumentGain=before.instrumentGain;
-                if(after.authoredPreGain==before.authoredPreGain)after.preGain=before.preGain;if(after.authoredPrePan==before.authoredPrePan)after.prePan=before.prePan;if(after.authoredWidth==before.authoredWidth)after.width=before.width;
+                if(after.authoredPreGain==before.authoredPreGain){after.preGain=before.preGain;after.preGainStep=before.preGainStep;}if(after.authoredPrePan==before.authoredPrePan){after.prePan=before.prePan;after.prePanStep=before.prePanStep;}if(after.authoredWidth==before.authoredWidth){after.width=before.width;after.widthStep=before.widthStep;}
                 if(after.authoredPostGain==before.authoredPostGain){after.postGain=before.postGain;after.livePostGain=before.livePostGain;after.gainRemaining=before.gainRemaining;after.gainStep=before.gainStep;}else {after.livePostGain=before.livePostGain;after.gainRemaining=64;after.gainStep=(after.postGain-before.livePostGain)/64;}
                 if(after.authoredPostPan==before.authoredPostPan){after.postPan=before.postPan;after.livePostPan=before.livePostPan;after.panRemaining=before.panRemaining;after.panStep=before.panStep;}else {after.livePostPan=before.livePostPan;after.panRemaining=64;after.panStep=(after.postPan-before.livePostPan)/64;}
                 if(after.authoredOutputMute==before.authoredOutputMute)after.outputMute=before.outputMute;if(after.authoredTriggerMute==before.authoredTriggerMute)after.triggerMute=before.triggerMute;after.output=before.output;next.tracks[i]=after;}

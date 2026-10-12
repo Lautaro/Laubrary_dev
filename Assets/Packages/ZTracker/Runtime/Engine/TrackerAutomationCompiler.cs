@@ -213,6 +213,7 @@ namespace Laubrary.ZTracker.Engine
                 }
             }
 
+            BuildDynamicParameters(song, chains, parameters, ids);
             for (int pi = 0; pi < song.patterns.Count; pi++)
                 foreach (var pt in song.patterns[pi].tracks)
                 {
@@ -246,7 +247,13 @@ namespace Laubrary.ZTracker.Engine
                             continue;
                         }
 
-                        if (t.kind == ParameterKind.Device)
+                        if (t.kind == ParameterKind.Dynamic)
+                        {
+                            // An envelope column (or any lane) aimed at a song command definition, by its stable uid.
+                            if (dynamicUids.TryGetValue(t.parameter ?? "", out int dynamicTarget))
+                                target = dynamicTarget;
+                        }
+                        else if (t.kind == ParameterKind.Device)
                         {
                             int sd = (song.tracks[ti].sourceDevices ?? new List<SourceDeviceData>()).FindIndex(d => d != null && d.id == t.deviceId);
                             var legacySource = song.tracks[ti].externalSources.Find(d => d.id == t.deviceId);

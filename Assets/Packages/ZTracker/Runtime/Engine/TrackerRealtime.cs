@@ -327,8 +327,9 @@ namespace Laubrary.ZTracker.Engine
                     int n=(int)math.min(frames-offset,next-state.samplePosition);
                     for(int ci=0;ci<state.columnCount;ci++){var c=state.columns[ci];if(c.pendingCell>=0&&c.due>state.samplePosition)n=(int)math.min(n,c.due-state.samplePosition);}
                     if(state.automationDeadline<exactNext)n=(int)math.min(n,state.transportOrigin+Quantize(state.automationDeadline)-state.samplePosition);
+                    if(state.dynamicCount>0){n=DynamicSliceLimit(n);AdvanceDynamic(n);}
                     RenderVoices(offset,n);Mix(offset,n);state.samplePosition+=n;offset+=n;
-                }else {RenderVoices(offset,frames-offset);Mix(offset,frames-offset);offset=frames;}
+                }else {int n=frames-offset;if(state.dynamicCount>0){n=DynamicSliceLimit(n);AdvanceDynamic(n);}RenderVoices(offset,n);Mix(offset,n);offset+=n;}
             }
 #if UNITY_EDITOR || ZTRACKER_PROOF
             double energy=0;for(int f=0;f<frames;f++)energy+=(double)state.outputLeft[f]*state.outputLeft[f]+(double)state.outputRight[f]*state.outputRight[f];
@@ -507,7 +508,7 @@ namespace Laubrary.ZTracker.Engine
             for(int oi=0;oi<state.trackCount;oi++){
                 int ti=state.order[oi];var t=state.tracks[ti];int at=ti*state.maxFrames+offset;
                 for(int f=0;f<frames;f++){if(t.gainRemaining>0){t.livePostGain+=t.gainStep;if(--t.gainRemaining==0)t.livePostGain=t.postGain;}if(t.panRemaining>0){t.livePostPan+=t.panStep;if(--t.panRemaining==0)t.livePostPan=t.postPan;}state.faderGain[at+f]=t.livePostGain;state.faderPan[at+f]=t.livePostPan;}state.tracks[ti]=t;
-                for(int f=0;f<frames;f++){float l=state.left[at+f],r=state.right[at+f];if(t.kind==TrackKind.Master&&state.legacyMix){l=Knee(l);r=Knee(r);}float mid=(l+r)*.5f,side=(l-r)*.5f*t.width;l=mid+side;r=mid-side;PanGain(ref l,ref r,t.preGain,t.prePan);state.left[at+f]=l;state.right[at+f]=r;}
+                for(int f=0;f<frames;f++){float l=state.left[at+f],r=state.right[at+f];if(t.kind==TrackKind.Master&&state.legacyMix){l=Knee(l);r=Knee(r);}float mid=(l+r)*.5f,side=(l-r)*.5f*(t.width+t.widthStep*f);l=mid+side;r=mid-side;PanGain(ref l,ref r,t.preGain+t.preGainStep*f,t.prePan+t.prePanStep*f);state.left[at+f]=l;state.right[at+f]=r;}
                 SendAt(ti,0,at,frames);
                 for(int c=0;c<t.chainCount;c++){ref var chain=ref state.chains[t.chainStart+c];chain.processor.Process(in chain.layout,state.left,state.right,at,frames,in context);SendAt(ti,chain.position,at,frames);}
                 for(int f=0;f<frames;f++){float l=state.left[at+f],r=state.right[at+f];PanGain(ref l,ref r,state.faderGain[at+f],state.faderPan[at+f]);if(state.outputMutes[at+f]!=0)l=r=0;state.left[at+f]=l;state.right[at+f]=r;if(t.output>=0){int dest=t.output*state.maxFrames+offset+f;state.left[dest]+=l;state.right[dest]+=r;}}
