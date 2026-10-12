@@ -39,7 +39,7 @@ namespace Laubrary.ZTracker.Editor
                 window.StopPreview(); Undo.ClearUndo(inst); Undo.ClearUndo(songAsset);
                 inst.schemaVersion = songAsset.schemaVersion = 1; window.legacyInstrumentViews.Clear();
                 inst.serializedNulls = songAsset.serializedNulls = null;
-                inst.model = NewInstrumentData(); inst.model.parameters.instFilterEnabled = true; songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+                inst.model = NewInstrumentData(); inst.model.parameters.instFilterEnabled = true; inst.model.parameters.vibratoDepth = 1; inst.model.parameters.waveA = 3; songAsset.model = TrackerEngineCheck.FixtureSong(inst);
                 window.instrumentTab = 0; window.modSetId = window.modDeviceId = ""; window.BuildPane(); ZuiAudit.ExpandAll(window); Layout();
             }
             void Check(string name, Action action)
@@ -86,10 +86,10 @@ namespace Laubrary.ZTracker.Editor
             }
             bool Same(float[] a, float[] b) => a.Length == b.Length && a.Zip(b, (x, y) => Math.Abs(x - y) < .00001f).All(x => x);
             string CurveShape(ZUIEnvelopeData env) => string.Join(";", env.points.Select(p => p.time.ToString("R") + ":" + p.value.ToString("R") + ":" + p.exponent.ToString("R")));
-            ZUIEnvelopeData Curve() => inst.model.parameters.GetParameterEnvelope("instFilterCutoff");
+            ZUIEnvelopeData Curve() => inst.model.parameters.GetParameterEnvelope("vibratoRate");
             void AuthoredCurve()
             {
-                inst.model.parameters.SetParameterEnvelope("instFilterCutoff", new ZUIEnvelopeData(0, 1, 0, 1, false)
+                inst.model.parameters.SetParameterEnvelope("vibratoRate", new ZUIEnvelopeData(0, 1, 0, 1, false)
                 {
                     enabled = true, requiresEndPoint = false, loopEnabled = true, loopMode = 1,
                     loopStart = .25f, loopEnd = .75f, sustainEnabled = true, sustainPosition = .5f
@@ -133,7 +133,9 @@ namespace Laubrary.ZTracker.Editor
                 Check("musical ms Hz and percent controls store compatible physical units", () =>
                 {
                     Dial("synth-vibratoFadeIn", 250); Near(inst.model.parameters.vibratoFadeIn, .25f, "Milliseconds were stored as seconds incorrectly");
-                    Dial("synth-instFilterCutoff", 1200); Near(inst.model.parameters.instFilterCutoff, 1200f / (AudioSettings.outputSampleRate * .5f), "Hz did not convert to saved Nyquist fraction");
+                    window.instrumentTab = 2; window.BuildPane(); ZuiAudit.ExpandAll(window); Layout();
+                    Dial("retained-instFilterCutoff", 1200); Near(inst.model.parameters.instFilterCutoff, 1200f / (AudioSettings.outputSampleRate * .5f), "Hz did not convert to saved Nyquist fraction");
+                    window.instrumentTab = 0; window.BuildPane(); ZuiAudit.ExpandAll(window); Layout();
                     Dial("synth-volume", 137); Near(inst.model.parameters.volume, 1.37f, "Percent volume conversion");
                     Dial("synth-pan", -40); Near(inst.model.parameters.pan, -.4f, "Signed pan conversion");
                     var attack = Find<ZuiAdsr>("amplitude-adsr").Q<ZuiMicroSlider>("adsr-input-attack");
@@ -142,21 +144,21 @@ namespace Laubrary.ZTracker.Editor
                 });
                 Check("right-click mode action preserves authored points across Static Curve and Undo", () =>
                 {
-                    Mode("synth-instFilterCutoff", ZUIValue.Mode.Curve); Need(Curve()?.enabled == true, "Curve mode did not create an enabled envelope");
-                    ExpandCurve("synth-instFilterCutoff");
-                    var value = Find<ZuiValueControl>("synth-instFilterCutoff"); value.OnBeforeMutate?.Invoke();
+                    Mode("synth-vibratoRate", ZUIValue.Mode.Curve); Need(Curve()?.enabled == true, "Curve mode did not create an enabled envelope");
+                    ExpandCurve("synth-vibratoRate");
+                    var value = Find<ZuiValueControl>("synth-vibratoRate"); value.OnBeforeMutate?.Invoke();
                     value.Value.points.Clear(); value.Value.points.AddRange(new[] { new ZUIEnvelopePoint(0, 1500), new ZUIEnvelopePoint(.35f, 5000, 2), new ZUIEnvelopePoint(1, 400) }); value.OnChanged?.Invoke();
                     string authored = CurveShape(Curve());
-                    Mode("synth-instFilterCutoff", ZUIValue.Mode.Static); Need(!Curve().enabled && CurveShape(Curve()) == authored, "Static mode discarded the envelope");
-                    Mode("synth-instFilterCutoff", ZUIValue.Mode.Curve); Need(Curve().enabled && CurveShape(Curve()) == authored, "Returning to Curve replaced authored points");
+                    Mode("synth-vibratoRate", ZUIValue.Mode.Static); Need(!Curve().enabled && CurveShape(Curve()) == authored, "Static mode discarded the envelope");
+                    Mode("synth-vibratoRate", ZUIValue.Mode.Curve); Need(Curve().enabled && CurveShape(Curve()) == authored, "Returning to Curve replaced authored points");
                     Undo.PerformUndo(); Need(!Curve().enabled && CurveShape(Curve()) == authored, "Mode Undo did not preserve the disabled curve");
                     Undo.PerformRedo(); Need(Curve().enabled && CurveShape(Curve()) == authored, "Mode Redo did not preserve the enabled curve");
                 });
                 Check("envelope duration scales points loop and sustain with one Undo/Redo", () =>
                 {
                     AuthoredCurve(); string before = JsonUtility.ToJson(Curve());
-                    ExpandCurve("synth-instFilterCutoff");
-                    Dial("synth-instFilterCutoff-duration", 2);
+                    ExpandCurve("synth-vibratoRate");
+                    Dial("synth-vibratoRate-duration", 2);
                     Near(Curve().xMax, 2, "Duration"); Near(Curve().points[1].time, 1, "Point time did not scale");
                     Near(Curve().loopStart, .5f, "Loop start did not scale"); Near(Curve().loopEnd, 1.5f, "Loop end did not scale"); Near(Curve().sustainPosition, 1, "Sustain did not scale");
                     string after = JsonUtility.ToJson(Curve()); Undo.PerformUndo(); Need(JsonUtility.ToJson(Curve()) == before, "Duration Undo lost curve metadata");
@@ -165,10 +167,10 @@ namespace Laubrary.ZTracker.Editor
                 Check("loop and sustain controls constrain degenerate or shortened curves", () =>
                 {
                     AuthoredCurve(); Curve().loopEnabled = false; Curve().sustainEnabled = false; Curve().sustainPosition = 50;
-                    Curve().points.RemoveAt(2); window.BuildPane(); Layout(); ExpandCurve("synth-instFilterCutoff"); Click("synth-instFilterCutoff-sustain");
+                    Curve().points.RemoveAt(2); window.BuildPane(); Layout(); ExpandCurve("synth-vibratoRate"); Click("synth-vibratoRate-sustain");
                     Need(Curve().sustainEnabled && Curve().sustainPosition <= .5f, "Sustain enabled outside the last point");
-                    ExpandCurve("synth-instFilterCutoff"); Click("synth-instFilterCutoff-loop"); Need(Curve().loopEnabled && Curve().loopEnd <= .5f && Curve().loopEnd > Curve().loopStart, "Loop bounds invalid after shortened curve");
-                    Curve().points.RemoveAt(1); Curve().loopEnabled = false; window.BuildPane(); Layout(); ExpandCurve("synth-instFilterCutoff"); Click("synth-instFilterCutoff-loop");
+                    ExpandCurve("synth-vibratoRate"); Click("synth-vibratoRate-loop"); Need(Curve().loopEnabled && Curve().loopEnd <= .5f && Curve().loopEnd > Curve().loopStart, "Loop bounds invalid after shortened curve");
+                    Curve().points.RemoveAt(1); Curve().loopEnabled = false; window.BuildPane(); Layout(); ExpandCurve("synth-vibratoRate"); Click("synth-vibratoRate-loop");
                     Need(!Curve().loopEnabled, "A zero-duration curve enabled an invalid loop");
                 });
                 Check("shared effect frequency time and percent controls preserve physical values", () =>
@@ -217,10 +219,10 @@ namespace Laubrary.ZTracker.Editor
                 });
                 Check("hidden-range curves display preserved out-of-range values inside the graph", () =>
                 {
-                    Mode("synth-instFilterCutoff", ZUIValue.Mode.Curve);
+                    Mode("synth-vibratoRate", ZUIValue.Mode.Curve);
                     string before = JsonUtility.ToJson(inst.model); int undo = Undo.GetCurrentGroup();
-                    ExpandCurve("synth-instFilterCutoff");
-                    var cutoff = Find<ZuiValueControl>("synth-instFilterCutoff");
+                    ExpandCurve("synth-vibratoRate");
+                    var cutoff = Find<ZuiValueControl>("synth-vibratoRate");
                     var graph = cutoff.Q<ZuiEnvelope>();
                     Need(graph != null && graph.HasLayout, "Expanded cutoff graph has no layout");
                     foreach (var point in cutoff.Value.points)
@@ -251,7 +253,7 @@ namespace Laubrary.ZTracker.Editor
                 Check("legacy enabled-empty envelopes display Static without migrating or seeding source data", () =>
                 {
                     inst.schemaVersion = 0; inst.model = null; inst.type = InstrumentType.Synth;
-                    inst.blend = .31f; inst.pulseWidth = .43f;
+                    inst.blend = .31f; inst.pulseWidth = .43f; inst.waveA = 3;
                     inst.blendEnvelopeData = new ZUIEnvelopeData(0, 1, 0, 1, false) { enabled = true };
                     inst.pulseWidthEnvelopeData = new ZUIEnvelopeData(0, 1, 0, 1, false) { enabled = true };
                     window.legacyInstrumentViews.Clear();
@@ -277,8 +279,8 @@ namespace Laubrary.ZTracker.Editor
                     AuthoredCurve(); var malformed = Curve();
                     typeof(ZUIEnvelopeData).GetField("m_points", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(malformed, null);
                     window.BuildPane(); Layout();
-                    Need(malformed.points == null && Find<ZuiValueControl>("synth-instFilterCutoff").Value.mode == ZUIValue.Mode.Static, "Display changed the malformed list or exposed a curve");
-                    Mode("synth-instFilterCutoff", ZUIValue.Mode.Curve);
+                    Need(malformed.points == null && Find<ZuiValueControl>("synth-vibratoRate").Value.mode == ZUIValue.Mode.Static, "Display changed the malformed list or exposed a curve");
+                    Mode("synth-vibratoRate", ZUIValue.Mode.Curve);
                     Need(Curve().enabled && Curve().points != null && Curve().points.Count == 2, "Explicit activation did not create a valid detached curve");
                     Need(malformed.points == null, "Activation modified the old envelope object in place");
                 });
@@ -286,7 +288,7 @@ namespace Laubrary.ZTracker.Editor
                 {
                     AuthoredCurve(); inst.model.parameters.SetParameterEnvelope("volume", Curve().DeepCopy());
                     window.BuildPane(); Layout();
-                    var cutoff = Find<ZuiValueControl>("synth-instFilterCutoff"); var volume = Find<ZuiValueControl>("synth-volume");
+                    var cutoff = Find<ZuiValueControl>("synth-vibratoRate"); var volume = Find<ZuiValueControl>("synth-volume");
                     cutoff.IsExpanded = volume.IsExpanded = false; Layout();
                     string before = JsonUtility.ToJson(inst.model); int undo = Undo.GetCurrentGroup(); int changes = 0;
                     cutoff.ExpansionChanged += () => changes++;
@@ -294,13 +296,13 @@ namespace Laubrary.ZTracker.Editor
                     Need(host.worldBound.height > 0 && host.worldBound.height <= 42, "Collapsed envelope is not one compact row: " + host.worldBound.height);
                     Need(host.worldBound.width <= 270, "Collapsed envelope kept expanded width: " + host.worldBound.width);
                     Need(cutoff.Query<VisualElement>().ToList().Where(Visible).All(e => e.worldBound.width <= 0 || e.worldBound.xMax <= host.worldBound.xMax + 1.5f), "Collapsed envelope label or thumbnail extends beyond its row");
-                    Need(!Visible(Find<VisualElement>("synth-instFilterCutoff-timing")) && !Visible(Find<VisualElement>("synth-volume-timing")), "Collapsed curve exposed timing controls");
+                    Need(!Visible(Find<VisualElement>("synth-vibratoRate-timing")) && !Visible(Find<VisualElement>("synth-volume-timing")), "Collapsed curve exposed timing controls");
                     float collapsedHeight = host.worldBound.height;
-                    ExpandCurve("synth-instFilterCutoff");
+                    ExpandCurve("synth-vibratoRate");
                     Need(host.worldBound.height > collapsedHeight + 80, "Expanded curve did not expose its graph and timing");
                     Need(!volume.IsExpanded && !Visible(Find<VisualElement>("synth-volume-timing")), "Expanding one parameter expanded its neighbour");
                     cutoff.IsExpanded = false; Layout();
-                    Need(host.worldBound.height <= 42 && !Visible(Find<VisualElement>("synth-instFilterCutoff-timing")), "Collapsing did not return to one row");
+                    Need(host.worldBound.height <= 42 && !Visible(Find<VisualElement>("synth-vibratoRate-timing")), "Collapsing did not return to one row");
                     Need(changes == 2, "Expansion change notifications were missing or duplicated");
                     Need(JsonUtility.ToJson(inst.model) == before && Undo.GetCurrentGroup() == undo, "View expansion modified authored data or Undo history");
                 });
@@ -309,13 +311,13 @@ namespace Laubrary.ZTracker.Editor
                     AuthoredCurve();
                     Curve().points.Clear();
                     float nyquist = AudioSettings.outputSampleRate * .5f;
-                    Curve().points.Add(new ZUIEnvelopePoint(0, 6000 / nyquist)); Curve().points.Add(new ZUIEnvelopePoint(1, 800 / nyquist));
+                    Curve().points.Add(new ZUIEnvelopePoint(0, 6000)); Curve().points.Add(new ZUIEnvelopePoint(1, 800));
                     window.BuildPane(); Layout();
-                    var value = Find<ZuiValueControl>("synth-instFilterCutoff"); value.IsExpanded = false; Layout();
+                    var value = Find<ZuiValueControl>("synth-vibratoRate"); value.IsExpanded = false; Layout();
                     var summary = value.Q<Label>(className: "zui-value__curve-summary");
                     Need(summary != null && summary.text == "6000 → 800 Hz", "Collapsed curve lost its physical start/end values");
                     Need(summary.resolvedStyle.fontSize >= 12 && value.Q(className: "zui-value__curve-field").resolvedStyle.borderTopWidth > 0, "Collapsed value is unframed or too small");
-                    ExpandCurve("synth-instFilterCutoff");
+                    ExpandCurve("synth-vibratoRate");
                     var graph = value.Q<ZuiEnvelope>();
                     foreach (var point in value.Value.points)
                     {
@@ -325,11 +327,11 @@ namespace Laubrary.ZTracker.Editor
                     var ticks = value.Query<Label>(className: "zui-value__curve-tick").ToList();
                     Need(ticks.Count == 2 && ticks.All(t => t.text.EndsWith(" Hz") && t.resolvedStyle.fontSize >= 12), "Physical vertical scale is missing or unreadable");
                     Need(value.Q<Label>(className: "zui-value__curve-axis").resolvedStyle.fontSize >= 12, "Progress caption is too small");
-                    // The legacy flat Nyquist value is above the editing range and must remain visible unchanged.
-                    Curve().points[0].value = Curve().points[1].value = 1;
-                    window.BuildPane(); Layout(); value = Find<ZuiValueControl>("synth-instFilterCutoff"); value.IsExpanded = false; Layout();
+                    // A flat authored rate above the editing range must remain visible unchanged.
+                    Curve().points[0].value = Curve().points[1].value = nyquist;
+                    window.BuildPane(); Layout(); value = Find<ZuiValueControl>("synth-vibratoRate"); value.IsExpanded = false; Layout();
                     Need(value.Q<Label>(className: "zui-value__curve-summary").text == nyquist.ToString("0") + " Hz", "Flat curve does not show one physical value");
-                    string before = JsonUtility.ToJson(inst.model); ExpandCurve("synth-instFilterCutoff"); graph = value.Q<ZuiEnvelope>();
+                    string before = JsonUtility.ToJson(inst.model); ExpandCurve("synth-vibratoRate"); graph = value.Q<ZuiEnvelope>();
                     Need(graph.PointToLocal(0, nyquist).y >= 8, "Preserved out-of-range flat curve lies on the top edge");
                     Need(JsonUtility.ToJson(inst.model) == before, "Reading the physical graph changed saved values");
                 });
@@ -338,7 +340,7 @@ namespace Laubrary.ZTracker.Editor
                     AuthoredCurve();
                     for (int cycle = 0; cycle < 2; cycle++)
                     {
-                        var control = Find<ZuiValueControl>("synth-instFilterCutoff"); control.IsExpanded = false; Layout();
+                        var control = Find<ZuiValueControl>("synth-vibratoRate"); control.IsExpanded = false; Layout();
                         var frame = control.Q(className: "zui-value__curve-field");
                         using (var down = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0, mousePosition = frame.worldBound.center })) { down.target = frame; frame.SendEvent(down); }
                         using (var up = PointerUpEvent.GetPooled(new Event { type = EventType.MouseUp, button = 0, mousePosition = frame.worldBound.center })) { up.target = frame; frame.SendEvent(up); }
@@ -355,31 +357,55 @@ namespace Laubrary.ZTracker.Editor
                         Undo.PerformUndo(); Layout();
                     }
                 });
-                Check("every section enable switch hides only its body and preserves settings through two cycles and Undo", () =>
+                foreach (var family in new[] { InstrumentFamily.Synth, InstrumentFamily.Sampler })
                 {
+                    var selectedFamily = family;
+                    Check(selectedFamily + " retained filter lives in Effects and disabling preserves settings with Undo/Redo", () =>
+                    {
+                        inst.model.family = selectedFamily; inst.model.parameters.type = selectedFamily == InstrumentFamily.Synth ? InstrumentType.Synth : InstrumentType.Sample;
+                        var q = inst.model.parameters; q.instFilterEnabled = true; q.instFilterCutoff = .37f; q.instFilterResonance = 1.23f; q.instFilterMode = 2;
+                        window.instrumentTab = 0; window.BuildPane(); Layout();
+                        Need(window.rootVisualElement.Q("retained-filter-body") == null, "Main page still contains the retained filter");
+                        window.instrumentTab = selectedFamily == InstrumentFamily.Synth ? 2 : 3; window.BuildPane(); ZuiAudit.ExpandAll(window); Layout();
+                        var body = Find<VisualElement>("retained-filter-body"); Need(Visible(body), "Active retained filter is hidden in Effects");
+                        var header = body.GetFirstAncestorOfType<ZuiBox>().Q<Toggle>(className: "zui-box__enable");
+                        Need(header != null && Visible(header) && header.value, "Retained filter has no checked header checkbox");
+                        string before = JsonUtility.ToJson(inst.model); q.instFilterEnabled = false; string expected = JsonUtility.ToJson(inst.model); q.instFilterEnabled = true;
+                        Undo.ClearUndo(inst); header.value = false; Layout();
+                        Need(JsonUtility.ToJson(inst.model) == expected, "Disabling retained filter changed its authored settings");
+                        Undo.PerformUndo(); Layout(); Need(JsonUtility.ToJson(inst.model) == before && Visible(Find<VisualElement>("retained-filter-body")), "Retained filter Undo failed");
+                        Undo.PerformRedo(); Layout(); Need(JsonUtility.ToJson(inst.model) == expected, "Retained filter Redo failed");
+                    });
+                }
+                Check("every section header checkbox hides only its body and preserves settings through two cycles and Undo", () =>
+                {
+                    Toggle Header(string prefix)
+                    {
+                        var box = Find<VisualElement>(prefix + "-body").GetFirstAncestorOfType<ZuiBox>();
+                        var toggle = box?.Q<Toggle>(className: "zui-box__enable"); Need(toggle != null && Visible(toggle), prefix + " has no visible header checkbox"); return toggle;
+                    }
                     void Verify(string prefix, Func<bool> read, Action<bool> write)
                     {
                         write(false); window.BuildPane(); ZuiAudit.ExpandAll(window); Layout(); Undo.ClearUndo(inst);
                         for (int cycle = 0; cycle < 2; cycle++)
                         {
                             var body = Find<VisualElement>(prefix + "-body");
-                            Need(!Visible(body) && Visible(Find<Button>(prefix + "-enabled")), prefix + " off body/header visibility");
+                            Need(!Visible(body) && Visible(Header(prefix)), prefix + " off body/header visibility");
                             string before = JsonUtility.ToJson(inst.model);
                             write(true); string expected = JsonUtility.ToJson(inst.model); write(false);
-                            Click(prefix + "-enabled"); Layout();
+                            Header(prefix).value = !Header(prefix).value; Layout();
                             Need(read() && Visible(Find<VisualElement>(prefix + "-body")), prefix + " did not expose enabled body");
                             Need(JsonUtility.ToJson(inst.model) == expected, prefix + " enabling changed other authored settings");
                             Undo.PerformUndo(); Layout();
                             Need(!read() && !Visible(Find<VisualElement>(prefix + "-body")) && JsonUtility.ToJson(inst.model) == before, prefix + " Undo failed");
                             Undo.PerformRedo(); Layout(); Need(read() && Visible(Find<VisualElement>(prefix + "-body")) && JsonUtility.ToJson(inst.model) == expected, prefix + " Redo failed");
-                            Click(prefix + "-enabled"); Layout(); Need(!read() && JsonUtility.ToJson(inst.model) == before, prefix + " disabling changed authored settings");
+                            Header(prefix).value = !Header(prefix).value; Layout(); Need(!read() && JsonUtility.ToJson(inst.model) == before, prefix + " disabling changed authored settings");
                             ZuiAudit.ExpandAll(window); Layout(); Need(!Visible(Find<VisualElement>(prefix + "-body")), prefix + " ExpandAll revealed disabled settings");
                         }
                     }
-                    Verify("synth-filter", () => inst.model.parameters.instFilterEnabled, v => inst.model.parameters.instFilterEnabled = v);
+                    Verify("synth-glide", () => inst.model.parameters.glideEnabled, v => inst.model.parameters.glideEnabled = v);
                     Verify("synth-blend-envelope", () => inst.model.parameters.blendEnvelope, v => inst.model.parameters.blendEnvelope = v);
                     inst.model.family = InstrumentFamily.Sampler; inst.model.parameters.type = InstrumentType.Sample;
-                    Verify("sampler-filter", () => inst.model.parameters.instFilterEnabled, v => inst.model.parameters.instFilterEnabled = v);
                     inst.model.sampler.samples.Add(new SampleData { id = "section-sample", name = "Section sample" });
                     inst.model.sampler.zones.Add(new Keyzone { id = "section-zone", sample = 0, blend = new SampleBlendExtension { attack = .123f, amount = .37f } });
                     window.sampleId = "section-sample"; window.zoneId = "section-zone"; window.instrumentTab = 1;
