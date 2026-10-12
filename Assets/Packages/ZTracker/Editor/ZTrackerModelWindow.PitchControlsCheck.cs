@@ -93,8 +93,16 @@ namespace Laubrary.ZTracker.Editor
                     Undo.ClearUndo(instrumentAsset); window.BuildPane(); Layout();
                     var mode = FlowItem(Find("synth-note-mode")); var time = FlowItem(Find("synth-glideSeconds"));
                     Need(Visible(time) && !time.enabledSelf, "Glide time should be visible but disabled in None mode");
-                    Need(ReferenceEquals(mode.parent, time.parent) && Math.Abs(mode.worldBound.yMin - time.worldBound.yMin) < 2 && mode.worldBound.xMax <= time.worldBound.xMin + 1,
-                        "Notes choice and Glide time do not share a horizontal row");
+                    bool sameFlow = ReferenceEquals(mode.parent, time.parent);
+                    bool sameY = Math.Abs(mode.worldBound.yMin - time.worldBound.yMin) < 2;
+                    bool noOverlap = mode.worldBound.xMax <= time.worldBound.xMin + 1;
+                    Need(sameFlow && sameY && noOverlap,
+                        "Notes/time geometry: sameFlow=" + sameFlow + " sameY=" + sameY + " noOverlap=" + noOverlap +
+                        "; window=" + window.position + " root=" + window.rootVisualElement.worldBound +
+                        "; synthColumns=" + Find("synth-columns").worldBound +
+                        "; flow=" + (mode.parent != null ? mode.parent.worldBound.ToString() : "<none>") +
+                        "; modeItem=" + mode.worldBound + " modeControl=" + Find("synth-note-mode").worldBound +
+                        "; timeItem=" + time.worldBound + " timeControl=" + Find("synth-glideSeconds").worldBound);
                     ChooseMode("Glide");
                     Need(q.glideEnabled && !q.legatoEnabled && Math.Abs(q.glideSeconds - .37f) < .00001f, "Glide choice changed the wrong flags or glide time");
                     Need(Find("synth-glideSeconds").enabledSelf, "Glide time did not enable with Glide mode");
