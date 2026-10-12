@@ -61,7 +61,9 @@ namespace Laubrary.ZTracker.Editor
                 Check("FM ratios hide for fixed frequency and all four operator envelopes remain", () =>
                 {
                     ins.model.synthMode = SynthMode.FM; ins.model.parameters.fmOperators[2].freqFixed = 550; var root = new VisualElement(); window.BuildSynth(root);
-                    Need(root.Q<VisualElement>("fmOperators.2.freqRatio")?.style.display.value == DisplayStyle.None, "Fixed-frequency ratio remains ineffective");
+                    var ratio = root.Q<VisualElement>("fmOperators.2.freqRatio"); Need(ratio != null, "Missing retained ratio control");
+                    bool hidden = false; for (var element = ratio; element != null; element = element.parent) if (element.style.display.value == DisplayStyle.None) hidden = true;
+                    Need(hidden, "Fixed-frequency ratio remains ineffective");
                     for (int op = 0; op < 4; op++) Need(root.Q<VisualElement>("fm-adsr-" + op) != null && root.Q<VisualElement>("fmOperators." + op + ".level") != null, "Missing active operator controls " + op);
                 });
             }
