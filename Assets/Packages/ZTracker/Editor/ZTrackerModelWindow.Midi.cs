@@ -58,7 +58,7 @@ namespace Laubrary.ZTracker.Editor
             midiRecordButton.name = "midi-record"; midiRecordButton.style.flexShrink = 0; midiRecordButton.style.marginLeft = 2; midiRecordButton.style.visibility = midiOn ? UnityEngine.UIElements.Visibility.Visible : UnityEngine.UIElements.Visibility.Hidden;
             cluster.Add(midiRecordButton);
             midiStatus = Z.Text("", tooltip: ""); midiStatus.name = "midi-status";
-            midiStatus.style.width = 250; midiStatus.style.height = 24; midiStatus.style.whiteSpace = WhiteSpace.NoWrap; midiStatus.style.overflow = Overflow.Hidden; midiStatus.style.textOverflow = TextOverflow.Ellipsis; midiStatus.style.unityTextAlign = TextAnchor.MiddleLeft; midiStatus.style.marginLeft = 4;
+            midiStatus.style.width = 300; midiStatus.style.height = 24; midiStatus.style.whiteSpace = WhiteSpace.NoWrap; midiStatus.style.overflow = Overflow.Hidden; midiStatus.style.textOverflow = TextOverflow.Ellipsis; midiStatus.style.unityTextAlign = TextAnchor.MiddleLeft; midiStatus.style.marginLeft = 4;
             midiStatus.RegisterCallback<PointerDownEvent>(e => { if (e.button == 1) { ShowMidiMenu(midiStatus); e.StopPropagation(); } });
             cluster.Add(midiStatus);
             var panic = Named(Z.Button("Panic", "Silence every note played from the MIDI keyboard at once (the song keeps playing).", MidiPanic), "midi-panic");
@@ -327,7 +327,7 @@ namespace Laubrary.ZTracker.Editor
             else
             {
                 var device = OpenMidiDevice;
-                text = (midiRouter.Capturing ? "● " : "") + (device ?? "Opening…") + " " + midiTargetText;
+                text = (midiRouter.Capturing ? "● " : "") + midiTargetText + "  ·  " + (device ?? "opening…");
                 AudioSettings.GetDSPBufferSize(out int buffer, out int buffers); int rate = Math.Max(1, AudioSettings.outputSampleRate);
                 tip = $"Listening to {device ?? "no device yet"} on {(midiRouter.Channel < 0 ? "every channel" : "channel " + (midiRouter.Channel + 1))}. Keys play {midiTargetText.TrimStart('→', ' ')}." +
                       (midiRouter.LastNote >= 0 ? $" Last key: {NoteName(midiRouter.LastNote)} velocity {midiRouter.LastVelocity}." : "") + $" Audio buffer {buffer} samples ({buffer * 1000.0 / rate:F1} ms, {buffers} queued). Right-click for settings.";

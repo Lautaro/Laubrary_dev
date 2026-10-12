@@ -4,7 +4,7 @@ ZTracker can be played from a USB MIDI keyboard on Windows. It needs no driver, 
 
 ## Using it
 
-Open **Laubrary > ZTracker** and press **MIDI** at the top right of the window. It is off until you turn it on, and it is off again after a script reload or when the window closes. The status beside it says which keyboard it listens to and where the keys go, for example `Keystation 61 → Lead col 1 · 01 Piano`. Hover it for the details (channel, last key and velocity, audio buffer). **Panic** silences every note played from the keyboard at once; the song keeps playing.
+Open **Laubrary > ZTracker** and press **MIDI** at the top right of the window. It is off until you turn it on, and it is off again after a script reload or when the window closes. The status beside it says which keyboard it listens to and where the keys go, for example `→ Lead col 1 · 01 Piano  ·  Keystation 61`. Hover it for the details (channel, last key and velocity, audio buffer). **Panic** silences every note played from the keyboard at once; the song keeps playing.
 
 Where the keys go depends on the workspace:
 
