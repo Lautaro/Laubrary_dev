@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Instrument and drum-kit views accept polyphonic computer-keyboard audition with independent key release, repeat suppression, and release on focus loss. Selecting Instrument enables audition without a Play keys step; clicking outside text inputs ends stale typing focus, with compact keyboard/typing status beside Octave. Held audition notes use the song voice pool without replacing a tracker column's note; sample one-shots finish naturally. Text and number inputs retain normal typing. Folder and file dialogs open after the button event finishes.
+
 - Drum kits have a source browser for recursively scanning an external folder, existing project audio clips, and synth instruments. Click to audition, then drag a source onto the key map or select a key range and assign it; drag mapped ranges to move or resize them. External and project audio are copied into `Assets/ZTracker/DrumSamples` only on assignment, with the original file URI retained and Decompress On Load enabled on the copy.
 - Instrument Effects and Mixer Devices use the shared Zounds chain editor, including searchable effect/modifier pickers and compact expandable rows. Continuous drags remain one Undo step. Write-back preserves the chain object, repairs send taps by effect identity, and flags removed automation targets within the same undo transaction.
 - Chain regressions exercise attached controls, restored values, reorder/send identity and removal/automation Undo/Redo. Existing editor checks target the surviving shared controls.

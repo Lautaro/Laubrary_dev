@@ -47,6 +47,7 @@ namespace Laubrary.ZTracker.Editor
         public static void Open()=>GetWindow<ZTrackerModelWindow>("ZTracker");
         protected override void BuildUI(VisualElement root)
         {
+            WireInstrumentKeyboard(root);
             root.AddToClassList("tracker-compact");
             minSize=new Vector2(760,440);
             var path=AssetDatabase.FindAssets("ZTracker t:StyleSheet").Select(AssetDatabase.GUIDToAssetPath).FirstOrDefault(p=>p.EndsWith("/ZTracker.uss"));
@@ -55,7 +56,7 @@ namespace Laubrary.ZTracker.Editor
                 Named(Z.IconButton("arrow-counter-clockwise","Undo the last authored change.",Undo.PerformUndo),"undo"),Named(Z.IconButton("arrow-clockwise","Redo the last undone change.",Undo.PerformRedo),"redo")));
             status=Z.Text("Idle",tooltip:"Preview status.");status.name="transport-status";status.style.width=210;status.style.height=24;status.style.whiteSpace=WhiteSpace.NoWrap;status.style.overflow=Overflow.Hidden;
             root.Add(Flow(Button("Play","Start the song from its first row.",()=>Play(false),"play"),Button("From cursor","Start at the selected sequence slot and row.",()=>Play(true),"play-cursor"),Button("Stop","Stop preview and release its owned audio buffers.",StopPreview,"stop"),Z.Toggle("Follow","Scroll the pattern to each row reached by playback.",follow,v=>follow=v),status));
-            root.Add(Z.Segmented(pane,new[]{"Pattern","Mixer","Automation","Instrument","Song"},"Choose the authoring workspace.",v=>{pane=v;BuildPane();}));
+            root.Add(Z.Segmented(pane,new[]{"Pattern","Mixer","Automation","Instrument","Song"},"Choose the authoring workspace.",v=>{pane=v;BuildPane();if(pane==3)rootVisualElement.Focus();}));
             controlScroll=new ScrollView();controls=new VisualElement();controlScroll.Add(controls);
             stage=new VisualElement();stage.style.flexGrow=1;stage.style.minWidth=0;stage.style.minHeight=0;stage.name="tracker-stage";var workspace=Z.Split("tracker.model.workspace.compact",188,controlScroll,stage);workspace.style.flexGrow=1;workspace.style.minHeight=0;root.Add(workspace);
             help=Z.Text("",tooltip:"Meaning of the command under the pattern cursor.");help.name="command-help";help.AddToClassList("tracker-status-line");root.Add(help);
@@ -92,6 +93,7 @@ namespace Laubrary.ZTracker.Editor
         }
         void BuildPane()
         {
+            if(pane!=3||keyboardInstrument!=instrument)ReleaseInstrumentKeys();
             if(controls==null)return;var offset=controlScroll.scrollOffset;controls.Clear();stage.Clear();
             if(Data==null){controls.Add(Button("New song","Create the first song.",CreateSong));RefreshTransport();return;}
             order=Mathf.Clamp(order,0,Math.Max(0,Data.sequence.Count-1));track=Mathf.Clamp(track,0,Math.Max(0,Data.tracks.Count-1));
@@ -162,7 +164,7 @@ namespace Laubrary.ZTracker.Editor
         void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Pending: Stop/Play":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
         void OnEnable(){Undo.undoRedoPerformed+=OnUndo;Upgrade();}
         void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();drumNeedsRefresh=true;RefreshLive();BuildPane();}
-        protected override void OnDisable(){pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
+        protected override void OnDisable(){ReleaseInstrumentKeys();pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
         // ZuiWindow may rebuild on domain reload/view changes; it must not stop a healthy graph.
         protected override void OnBeforeRebuild(){pumpSchedule?.Pause();pumpSchedule=null;}
         void Save(){if(song!=null)AssetDatabase.SaveAssetIfDirty(song);if(Data!=null)foreach(var linked in Data.instruments.Where(i=>i!=null).Distinct())AssetDatabase.SaveAssetIfDirty(linked);if(instrument!=null)AssetDatabase.SaveAssetIfDirty(instrument);}

@@ -21,9 +21,13 @@ The UI Guide compliance pass covered the browser, key map, sound details, mixer 
 
 ## Not verified
 
+Follow-up on 2026-10-12: the initial compilation attempts were blocked by the user's Drum library picker behind ZTracker. After it closed, compilation passed. `CheckKeyboardPolyphony()` passed compiled chord playback with Cut, independent releases, stale releases, tracker-column isolation, all-key release and shared voice capacity. `CheckKeyboardFocus()` passed two attached-view walks covering button-focus chords, repeat suppression, typing exclusion, blank-space return to audition and focus-loss release. The synth toolbar was inspected on screen: the obsolete Play keys button is gone and the compact keyboard status sits beside Octave. The UI Guide pass removed the obsolete button and instructions from both instrument families, and kept the status width stable. Actual physical keyboard-to-speaker listening remains unverified. The temporary CLI runner and in-memory fixture window/assets were removed; the canonical editor remains open for the user's testing.
+
 Physical keyboard-to-speaker listening, MIDI hardware, an OS Explorer drag, all supported external decoder formats, very large drum-folder performance and standalone player/AOT builds were not exercised. The native automation target did not reliably deliver keys to Unity's floating window, so keyboard entry was checked through the attached handler rather than claimed as a successful physical-input test. MIDI support is deliberately deferred. Structural source changes during song playback retain the existing Stop/Play refresh policy.
 
 ## Reproduction and development note
+
+The keyboard follow-up also reran `TrackerEngineCheck` (33/33) and `TrackerDrumCheck` (7/7), including zero managed render allocation, note-column isolation and fixed-pitch synth drum release.
 
 Run the proof entry points directly in the correct running editor through Unity CLI `command eval_file`, with `ZTRACKER_PROOF` enabled as for the existing checks; do not open the Test Runner. After adding the native drum-gate field, this editor initially reused stale Burst code: managed rendering released the voice but Burst read adjacent envelope data. Restarting the owned editor resolved the discrepancy; the final seven checks passed again after the subsequent editor-only edits. No algorithm workaround or cache-deletion operation was added.
 

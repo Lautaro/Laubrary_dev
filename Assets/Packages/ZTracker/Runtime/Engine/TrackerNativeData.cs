@@ -323,7 +323,7 @@ namespace Laubrary.ZTracker.Engine
         public ulong seed;
         public long rowOccurrence;
     }
-    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap }
+    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap, AuditionKeyOn, AuditionKeyOff }
     public struct TrackerCommand
     {
         public TrackerCommandKind kind;
@@ -333,6 +333,9 @@ namespace Laubrary.ZTracker.Engine
         public TrackerState replacement;
         public static TrackerCommand Play(bool loop = true) => new TrackerCommand { kind = TrackerCommandKind.Play, a = loop ? 1 : 0 };
         public static TrackerCommand Stop() => new TrackerCommand { kind = TrackerCommandKind.Stop };
+        /// <summary>Independent held audition note. Positive key tokens must be unique until released.</summary>
+        public static TrackerCommand AuditionKey(int instrument, int note, long key, int track = 0) => new TrackerCommand { kind = TrackerCommandKind.AuditionKeyOn, a = instrument, b = note, c = 127, d = track, generation = key };
+        public static TrackerCommand ReleaseKey(long key) => new TrackerCommand { kind = TrackerCommandKind.AuditionKeyOff, generation = key };
         public static TrackerCommand Audition(int instrument, int note, int velocity = 127, int track = 0) => new TrackerCommand { kind = TrackerCommandKind.AuditionOn, a = instrument, b = note, c = velocity, d = track };
         /// <summary>Exact normalized audition gain. Integer-rounded velocity is used only for zone selection.</summary>
         public static TrackerCommand Audition(int instrument,int note,float velocity,int track=0)=>new TrackerCommand{kind=TrackerCommandKind.AuditionNormalized,a=instrument,b=note,c=(int)math.round(velocity*127),d=track,value=velocity};

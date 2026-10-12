@@ -55,11 +55,13 @@ namespace Laubrary.ZTracker.Editor
             var selection = DrumSelection;
             if (selection != null) { drumLow = selection.noteMin; drumHigh = selection.noteMax; }
             refreshDrumCategory = null;
+            stage.focusable = true;
             BuildDrumBrowser(controls);
-            root.Add(Flow(Named(Z.MicroSlider("Octave", drumFirstOctave, 0, 8, "Show two octaves of keys. Z–M plays the lower octave; Q–U plays the next.", v => { drumFirstOctave = Mathf.RoundToInt(v); redrawDrumMap?.Invoke(); }, 150, defaultValue: 3, decimals: 0), "drum-octave"),
+            root.Add(Flow(
+                Named(Z.MicroSlider("Octave", drumFirstOctave, 0, 8, "Show two octaves of keys. Z–M plays the lower octave; Q–U plays the next.", v => { ReleaseInstrumentKeys(); drumFirstOctave = Mathf.RoundToInt(v); redrawDrumMap?.Invoke(); }, 150, defaultValue: 3, decimals: 0), "drum-octave"),
                 Button("Assign", "Assign the selected browser sound to the selected key range.", () => AssignDrumItem(drumPicked, drumLow, drumHigh), "drum-assign"),
                 Button("File…", "Choose an external audio file and assign it to the selected keys. A copy is imported into this project.", ChooseDrumFile, "drum-file"),
-                Named(Z.IconButton("trash", "Remove the selected key assignment; Undo restores it.", () => { var m = DrumSelection; if (m != null) DrumEdit("remove drum", () => Instrument.drumKit.mappings.Remove(m)); }), "drum-remove")));
+                Named(Z.IconButton("trash", "Remove the selected key assignment; Undo restores it.", () => { var m = DrumSelection; if (m != null) DrumEdit("remove drum", () => Instrument.drumKit.mappings.Remove(m)); }), "drum-remove"),InstrumentKeyboardStatus()));
             drumKeys = new VisualElement { name = "drum-key-map", focusable = true, tooltip = "Click a key to play. Drag across empty keys to select a range, then drop a sound or press Assign. Drag a coloured assignment to move it; drag either end to resize it. Z–M / Q–U plays these two octaves." };
             drumKeys.style.height = 144; drumKeys.style.flexShrink = 0; drumKeys.style.backgroundColor = new Color(.075f, .09f, .12f);
             root.Add(drumKeys);
@@ -70,7 +72,7 @@ namespace Laubrary.ZTracker.Editor
         void BuildDrumBrowser(VisualElement root)
         {
             root.Add(Named(Z.Segmented(drumSourceTab, new[] { "Folder", "Project", "Synth" }, "Choose external audio, project clips, or synth instruments.", v => { drumSourceTab = v; drumPicked = null; ReloadDrumBrowser(); }), "drum-source-tabs"));
-            root.Add(Flow(Button("Folder…", "Set the drum library folder. Each file's immediate parent folder supplies its tag.", () => { var path = EditorUtility.OpenFolderPanel("Drum library", ZTrackerDrumLibrary.GetRoot(), ""); if (path.Length > 0) { ZTrackerDrumLibrary.SetRoot(path); drumSourceTab = 0; BuildPane(); } }, "drum-folder"), Button("↻", "Rescan the sound browser.", ReloadDrumBrowser, "drum-rescan")));
+            root.Add(Flow(Button("Folder…", "Set the drum library folder. Each file's immediate parent folder supplies its tag.", ChooseDrumFolder, "drum-folder"), Button("↻", "Rescan the sound browser.", ReloadDrumBrowser, "drum-rescan")));
             root.Add(Named(Z.TextInput(drumSearch, "Find sounds by name or folder tag, ignoring spaces, hyphens, underscores and case. Drum aliases match the same category.", v => { drumSearch = v; FilterDrumBrowser(); }, 170), "drum-search"));
             root.Add(Named(Z.MiniRadio(Array.IndexOf(DrumCategories, drumTagFilter.Length == 0 ? "All" : drumTagFilter), DrumCategories, "Filter by drum sound category.", v => { drumTagFilter = v == 0 ? "" : DrumCategories[v]; FilterDrumBrowser(); }, wrap: true), "drum-tag-filter"));
             drumBrowserStatus = Z.Text("", tooltip: "Sound browser results."); drumBrowserStatus.style.height = 20; drumBrowserStatus.style.overflow = Overflow.Hidden;
@@ -179,8 +181,21 @@ namespace Laubrary.ZTracker.Editor
         void DrumError(string message) { if (drumBrowserStatus != null) { drumBrowserStatus.text = "⚠ Sound unavailable"; drumBrowserStatus.tooltip = message; } Debug.LogWarning("ZTracker drum kit: " + message); }
         void ChooseDrumFile()
         {
-            var path = EditorUtility.OpenFilePanelWithFilters("Drum sample", ZTrackerDrumLibrary.GetRoot(), new[] { "Audio", "wav,ogg,mp3,aiff,aif" });
-            if (path.Length > 0) AssignDrumItem(new DrumBrowserItem { path = path, name = Path.GetFileNameWithoutExtension(path), tag = Path.GetFileName(Path.GetDirectoryName(path)) }, drumLow, drumHigh);
+            EditorApplication.delayCall += () => {
+                if (this == null) return;
+                var path = EditorUtility.OpenFilePanelWithFilters("Drum sample", ZTrackerDrumLibrary.GetRoot(), new[] { "Audio", "wav,ogg,mp3,aiff,aif" });
+                if (path.Length > 0) AssignDrumItem(new DrumBrowserItem { path = path, name = Path.GetFileNameWithoutExtension(path), tag = Path.GetFileName(Path.GetDirectoryName(path)) }, drumLow, drumHigh);
+            };
+        }
+        void ChooseDrumFolder()
+        {
+            // As in Zounds, let UI Toolkit finish the click and release capture before opening a native dialog.
+            EditorApplication.delayCall += () => {
+                if (this == null) return;
+                var path = EditorUtility.OpenFolderPanel("Drum library", ZTrackerDrumLibrary.GetRoot(), "");
+                if (string.IsNullOrEmpty(path)) return;
+                ZTrackerDrumLibrary.SetRoot(path); drumSourceTab = 0; drumPicked = null; BuildPane();
+            };
         }
         void AssignDrumItem(DrumBrowserItem item, int low, int high)
         {
@@ -275,7 +290,6 @@ namespace Laubrary.ZTracker.Editor
                 selecting = false; canvas.ReleasePointer(e.pointerId); PaintLabels(); canvas.MarkDirtyRepaint(); RefreshDrumDetails();
             });
             canvas.RegisterCallback<PointerCaptureOutEvent>(_ => { if (moving != null) { moving.noteMin = oldLow; moving.noteMax = oldHigh; moving = null; EndInstrumentGesture(); } selecting = false; });
-            canvas.RegisterCallback<KeyDownEvent>(e => { if (e.ctrlKey || e.commandKey || e.altKey) return; int offset = PianoOffset(e.keyCode); if (offset < 0) return; PlayDrum(Math.Min(119, first + offset)); e.StopPropagation(); e.PreventDefault(); });
             canvas.RegisterCallback<DragUpdatedEvent>(e => { if (DrumDropItem() != null) { DragAndDrop.visualMode = DragAndDropVisualMode.Copy; e.StopPropagation(); } });
             canvas.RegisterCallback<DragPerformEvent>(e => { var item = DrumDropItem(); if (item == null) return; int at = Key(canvas.WorldToLocal(e.mousePosition).x); int low = at >= drumLow && at <= drumHigh ? drumLow : at, high = at >= drumLow && at <= drumHigh ? drumHigh : at; DragAndDrop.AcceptDrag(); DragAndDrop.SetGenericData(DrumDrag, null); AssignDrumItem(item, low, high); e.StopPropagation(); });
         }
