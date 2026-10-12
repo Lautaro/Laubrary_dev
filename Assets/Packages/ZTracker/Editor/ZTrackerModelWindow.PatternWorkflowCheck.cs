@@ -4,6 +4,7 @@ using System.Text;
 using Laubrary.ZTracker.Engine;
 using Laubrary.ZTracker.Model;
 using UnityEditor;
+using Laubrary.Zui;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -66,6 +67,16 @@ namespace Laubrary.ZTracker.Editor
                     selected.sends.Add(new SendDestination{trackId=send.id});var record=window.Pattern.tracks.Find(t=>t.trackId==selected.id);record.automation.Add(new AutomationLane{id="move-lane",target=new ParameterTarget{kind=ParameterKind.Mixer,trackId=selected.id,parameter="postVolume"}});
                     window.ReorderTracks(0,1);Need(window.SelectedTrack.id==selected.id&&song.model.tracks[1].id==selected.id,"Selection changed owner");Need(record.automation.Last().target.trackId==selected.id&&selected.sends[0].trackId==send.id,"References followed an index");
                     Undo.PerformUndo();Need(song.model.tracks.Select(t=>t.id).SequenceEqual(before),"Undo did not restore order");Undo.PerformRedo();Need(song.model.tracks[1].id==selected.id,"Redo did not restore order");
+                });
+                Check("pattern header drag slides its column live, drops once and Undoes in one step",()=>{
+                    window.pane=0;window.track=0;window.row=0;window.BuildPane();LayoutChain(window);var before=song.model.tracks.Select(t=>t.id).ToArray();
+                    var h0=window.gridCanvas.Q<Label>("pattern-track-header-0");var h1=window.gridCanvas.Q<Label>("pattern-track-header-1");Need(h0!=null&&h1!=null&&h0.worldBound.width>0,"Pattern headers not laid out");
+                    int cellField=window.fields.FindIndex(f=>f.track==0);var cell=window.gridCanvas.Q<Label>("cell-0-"+cellField);Need(cell!=null,"Track 0 cell missing");
+                    float pitch=h1.worldBound.xMin-h0.worldBound.xMin;var dropAt=new Vector2(h1.worldBound.xMax-2,h0.worldBound.center.y);float travel=dropAt.x-h0.worldBound.center.x;
+                    PointerDrag(h0,dropAt,8,midDrag:()=>{Need(Mathf.Abs(TranslateX(h0)-travel)<.5f,"Header does not follow the pointer: "+TranslateX(h0)+" vs "+travel);Need(Mathf.Abs(TranslateX(cell)-TranslateX(h0))<.01f,"Column cells did not travel with their header");Need(TranslateX(h1)<-1f&&Mathf.Abs(TranslateX(h1)+(h0.worldBound.width+(pitch-h0.worldBound.width)))<1.5f,"Next header did not slide over to make room: "+TranslateX(h1));Need(Mathf.Abs(TranslateY(h0))<.01f,"Horizontal drag moved vertically");Need(song.model.tracks.Select(t=>t.id).SequenceEqual(before),"Data changed before the drop");},finish:false);
+                    Need(song.model.tracks.Select(t=>t.id).SequenceEqual(before),"Data changed before the header settled");ZuiReorder.FinishPending();
+                    Need(song.model.tracks[1].id==before[0]&&song.model.tracks[0].id==before[1]&&window.SelectedTrack.id==before[0],"Drop did not swap the tracks or lost selection");
+                    Undo.PerformUndo();Need(song.model.tracks.Select(t=>t.id).SequenceEqual(before),"One Undo did not restore the order");window.BuildPane();
                 });
                 Check("retained cell click selects after reorder and first FX character opens suggestions",()=>{
                     foreach(var t in song.model.tracks)t.visibleEffectColumns=Math.Max(1,t.visibleEffectColumns);

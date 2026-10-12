@@ -198,8 +198,8 @@ namespace Laubrary.ZTracker.Editor
         }
         void BuildPatternSidebar(VisualElement root)
         {
-            var sequence=Z.BoxKeyed("Sequence","Drag slots to change their order.","tracker.model.sequence");var slots=Flow();
-            for(int i=0;i<Data.sequence.Count;i++){int at=i;var slot=Data.sequence[i];var p=Data.patterns.Find(x=>x.id==slot.patternId);var b=Button($"{i:00} {p?.name}","Select this slot; drag to another slot to reorder.",()=>{order=at;row=0;BuildPane();});b.EnableInClassList("tracker-picked",i==order);Reorder(b,"model-sequence",i,(a,z)=>SongEdit("reorder sequence",()=>Move(Data.sequence,a,z),true));slots.Add(b);}sequence.Add(slots);
+            var sequence=Z.BoxKeyed("Sequence","Drag slots to change their order.","tracker.model.sequence");var slots=Flow();var slotOrder=new ZuiReorderList(ZuiReorderLayout.Wrap,(a,z)=>SongEdit("reorder sequence",()=>Move(Data.sequence,a,z),true));
+            for(int i=0;i<Data.sequence.Count;i++){int at=i;var slot=Data.sequence[i];var p=Data.patterns.Find(x=>x.id==slot.patternId);var b=Button($"{i:00} {p?.name}","Select this slot; drag to another slot to reorder.",()=>{order=at;row=0;BuildPane();});b.EnableInClassList("tracker-picked",i==order);slotOrder.Add(b);slots.Add(b);}sequence.Add(slots);
             sequence.Add(Flow(Button("Append","Append another use of the selected pattern.",()=>SongEdit("append slot",()=>Data.sequence.Add(new SequenceSlot{id=Id(),patternId=Pattern.id}),true)),Button("Remove","Remove the selected sequence slot while keeping its pattern.",()=>{if(Data.sequence.Count>1)SongEdit("remove slot",()=>Data.sequence.RemoveAt(order),true);})));root.Add(sequence);
             BuildInstrumentSelector(root);
             var patterns=Z.BoxKeyed("Pattern","Choose or create patterns independently of their sequence slots.","tracker.model.pattern");
@@ -271,12 +271,5 @@ namespace Laubrary.ZTracker.Editor
         // view only; it must never fill those holes in the authored payload.
         static IEnumerable<T> Records<T>(IEnumerable<T> values) where T:class=>values?.Where(v=>v!=null)??Enumerable.Empty<T>();
         static void Move<T>(IList<T> list,int from,int to){var value=list[from];list.RemoveAt(from);list.Insert(to,value);}
-        static void Reorder(VisualElement item,string kind,int index,Action<int,int> moved)
-        {
-            item.RegisterCallback<PointerDownEvent>(e=>{if(e.button==0){DragAndDrop.PrepareStartDrag();DragAndDrop.SetGenericData("tracker."+kind,index);}},TrickleDown.TrickleDown);
-            item.RegisterCallback<PointerMoveEvent>(e=>{if((e.pressedButtons&1)!=0&&DragAndDrop.GetGenericData("tracker."+kind)is int)DragAndDrop.StartDrag("Reorder "+kind);},TrickleDown.TrickleDown);
-            item.RegisterCallback<DragUpdatedEvent>(e=>{if(DragAndDrop.GetGenericData("tracker."+kind)is int){DragAndDrop.visualMode=DragAndDropVisualMode.Move;e.StopPropagation();}});
-            item.RegisterCallback<DragPerformEvent>(e=>{if(DragAndDrop.GetGenericData("tracker."+kind)is int from){DragAndDrop.AcceptDrag();DragAndDrop.SetGenericData("tracker."+kind,null);if(from!=index)moved(from,index);e.StopPropagation();}});
-        }
     }
 }

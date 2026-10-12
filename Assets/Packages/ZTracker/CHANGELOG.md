@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Track reordering is animated: in the Pattern view a track's header and its whole visible column follow the pointer sideways while the other tracks slide aside; in the Mixer the row follows the pointer up or down. The order changes once, on drop, as one Undo step, keeping pattern data, routing, automation and selection. Sequence slots, samples, modulation sets and devices, instrument chains and macro mappings reorder the same way; the native drag-and-drop reorder path is removed.
 - Synth note behavior uses None / Glide / Legato / Both with Glide ms alongside. Legato preserves envelopes across overlapping notes independently of pitch glide. Tune steps is additive to Tune cents, and all Vibrato settings remain visible at zero depth.
 - Waveforms, blend mode, synth/FM engine, unison, tuning, FM routing and sound parameters update held notes and playing songs without restarting the renderer. Modern FM honors the Amplifier envelope independently of its operator envelopes; legacy native envelope behavior stays compatible.
 - Switching to FM initializes missing operators within the same Undo action. Older incomplete FM instruments expose an explicit repair action that preserves existing operators. The routing diagram has bounded labels and stable height at narrow widths.

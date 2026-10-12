@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- ZUI drag-to-reorder is animated everywhere: the dragged item follows the pointer and the other items slide smoothly into the places they would take, with the data changed only once, after the drop settles. Works for vertical lists, horizontal strips and wrapping flows (`ZuiReorderList`, `ZuiReorderLayout`), for absolutely placed items, and with followers that travel with an item. A press that does not travel is still a click, including on Button grips. Every existing `ZuiReorder.MakeGrip` list gets the new motion unchanged; the insertion line is gone.
+
 - ZUI section view persistence retains the user's fold preference while its enable checkbox is off, so rebuilding and Undo/Redo restore the expected open body when enabled again.
 
 - ZUI fixed-stage envelopes expose per-stage reset defaults; both compact sliders and graph stages support double-click reset through their normal edit callbacks.

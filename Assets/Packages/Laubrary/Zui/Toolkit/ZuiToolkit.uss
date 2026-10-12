@@ -950,10 +950,15 @@
 
 .zui-reorder__dragging {
     background-color: var(--zui-accent-soft);
+    opacity: 0.92;
 }
 
-.zui-reorder__line {
-    background-color: var(--zui-accent);
+/* The items that make room (and the dropped item settling into its slot) slide; the dragged item
+   itself follows the pointer with no easing. Duration matches ZuiReorder.SlideMs. */
+.zui-reorder__shifting {
+    transition-property: translate;
+    transition-duration: 0.11s;
+    transition-timing-function: ease-out-cubic;
 }
 
 /* Asset-window chrome ---------------------------------------------------- */
