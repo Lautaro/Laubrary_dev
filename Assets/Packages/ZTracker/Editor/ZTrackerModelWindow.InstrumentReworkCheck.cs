@@ -406,7 +406,6 @@ namespace Laubrary.ZTracker.Editor
                             ZuiAudit.ExpandAll(window); Layout(); Need(!Visible(Find<VisualElement>(prefix + "-body")), prefix + " ExpandAll revealed disabled settings");
                         }
                     }
-                    Verify("synth-glide", () => inst.model.parameters.glideEnabled, v => inst.model.parameters.glideEnabled = v);
                     Verify("synth-blend-envelope", () => inst.model.parameters.blendEnvelope, v => inst.model.parameters.blendEnvelope = v);
                     inst.model.family = InstrumentFamily.Sampler; inst.model.parameters.type = InstrumentType.Sample;
                     inst.model.sampler.samples.Add(new SampleData { id = "section-sample", name = "Section sample" });

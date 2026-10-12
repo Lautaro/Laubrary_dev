@@ -33,6 +33,7 @@ namespace Laubrary.ZTracker.Editor
                 case "unisonSpread": r.label = "Spread %"; r.tip = "Stereo width of the unison voices."; break;
                 case "vibratoRandomness": r.label = "Vibrato random %"; r.tip = "Random variation of vibrato speed; zero gives an even vibrato."; break;
                 case "fineTune": case "fineTuneB": case "fineTuneBCents": r.label = "Tune cents"; r.min = -1200; r.max = 1200; r.scale = 1; r.tip = "Pitch offset in cents; 100 cents is one semitone."; break;
+                case "transpose": r.label = "Tune steps"; r.min = -48; r.max = 48; r.scale = 1; r.tip = "Pitch offset in semitone steps, added to Tune cents. Twelve steps is one octave."; break;
                 case "baseNote": case "baseNoteB": r.label = "Base note"; r.max = 119; r.scale = 1; r.tip = "MIDI note number played at the sample's original pitch."; break;
                 case "unisonVoices": r.label = "Unison"; r.min = 1; r.max = 8; r.scale = 1; r.tip = "Detuned copies of the oscillator stacked inside ONE note, for a thicker sound. This is not polyphony: how many notes overlap is set by New note."; break;
                 case "unisonDetune": r.label = "Detune cents"; r.max = 100; r.scale = 1; r.tip = "Unison pitch spread in cents; 100 cents is one semitone."; break;

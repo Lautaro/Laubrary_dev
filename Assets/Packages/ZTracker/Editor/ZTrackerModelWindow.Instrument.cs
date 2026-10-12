@@ -238,7 +238,7 @@ namespace Laubrary.ZTracker.Editor
             var columns = InstrumentColumns(root, "synth-columns", 420);
             var source = InstrumentSection(columns, "Oscillators", "oscillators", "Sound source and pitch. Right-click a numeric parameter for its per-note envelope.");
             if (d.synthMode == SynthMode.FM) source.AddToClassList("tracker-instrument-wide");
-            source.Add(Flow(InstrumentChoice("Engine", (int)d.synthMode, new[] { "Subtractive", "FM" }, "Switch synth topology. Inactive settings are retained.", v => { d.synthMode = (SynthMode)v; q.type = v == 0 ? InstrumentType.Synth : InstrumentType.FM; }, "synth-mode"), InstrumentChoice("New note", (int)d.sampler.nna, new[] { "Cut", "Note off", "Continue" }, "Cut stops the previous note; Note off plays its release; Continue lets it keep sounding.", v => d.sampler.nna = (NewNoteAction)v, "synth-nna")));
+            source.Add(Flow(InstrumentChoice("Engine", (int)d.synthMode, new[] { "Subtractive", "FM" }, "Switch synth topology. Inactive settings are retained.", v => { d.synthMode = (SynthMode)v; q.type = v == 0 ? InstrumentType.Synth : InstrumentType.FM; if (d.synthMode == SynthMode.FM) EnsureFmOperators(q); }, "synth-mode"), InstrumentChoice("New note", (int)d.sampler.nna, new[] { "Cut", "Note off", "Continue" }, "Cut stops the previous note; Note off plays its release; Continue lets it keep sounding.", v => d.sampler.nna = (NewNoteAction)v, "synth-nna")));
             if (d.synthMode == SynthMode.Subtractive)
             {
                 source.Add(Flow(InstrumentChoice("Wave A", q.waveA, WaveLabels(q.enumDomain), "Primary waveform.", v => q.waveA = v, "synth-wave-a"), InstrumentChoice("Wave B", q.waveB, WaveLabels(q.enumDomain), "Secondary waveform.", v => q.waveB = v, "synth-wave-b")));
@@ -252,12 +252,13 @@ namespace Laubrary.ZTracker.Editor
                 InstrumentEnabledBody(blend, q.blendEnvelope, v => q.blendEnvelope = v, "synth-blend-envelope", "Enable the fixed blend envelope; switching off retains its stages.").Add(FixedAdsr("Blend", q, "blend", "blend-adsr"));
             }
             else BuildFm(source, q);
-            BuildNumericFields(source, q, new[] { "fineTune" }, "synth");
-            var glide = InstrumentSection(source, "Glide", "glide", "Pitch slides from the preceding note.");
-            var glideBody = InstrumentEnabledBody(glide, q.glideEnabled, v => q.glideEnabled = v, "synth-glide", "Enable slides from the previous pitch; switching off retains tuning and glide time.");
-            // Tuning applies independently of glide and stays outside its enabled body.
-            BuildNumericFields(glideBody, q, new[] { "glideSeconds" }, "synth");
-            glideBody.Add(InstrumentToggle("Legato", q.glideLegato, "Only glide when notes overlap.", v => q.glideLegato = v));
+            BuildNumericFields(source, q, new[] { "fineTune", "transpose" }, "synth");
+            int noteMode = (q.glideEnabled ? 1 : 0) | (q.legatoEnabled ? 2 : 0);
+            var glideTime = NumberForField("glideSeconds", q.glideSeconds, v => q.glideSeconds = v, "synth-glideSeconds");
+            // Leave room for all four note modes inside a normal two-column workspace.
+            glideTime.style.width = 140; glideTime.style.minWidth = 140;
+            glideTime.SetEnabled(q.glideEnabled);
+            source.Add(Flow(InstrumentChoice("Notes", noteMode, new[] { "None", "Glide", "Legato", "Both" }, "Glide slides pitch between notes. Legato keeps the envelope running across overlapping notes. Both combines them; None starts each note normally.", v => { q.glideEnabled = (v & 1) != 0; q.legatoEnabled = (v & 2) != 0; q.glideLegato = false; }, "synth-note-mode"), glideTime));
             BuildNumericFields(source, q, new[] { "vibratoDepth", "vibratoRate", "vibratoFadeIn", "vibratoRandomness" }, "synth");
             var amp = InstrumentSection(columns, "Amplifier", "amplifier", "Note loudness, stereo position and fixed amplitude stages.");
             var ampParts = InstrumentColumns(amp, "amplifier-parts", 340);
