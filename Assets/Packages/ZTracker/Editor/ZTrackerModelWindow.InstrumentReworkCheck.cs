@@ -398,7 +398,10 @@ namespace Laubrary.ZTracker.Editor
                             Need(JsonUtility.ToJson(inst.model) == expected, prefix + " enabling changed other authored settings");
                             Undo.PerformUndo(); Layout();
                             Need(!read() && !Visible(Find<VisualElement>(prefix + "-body")) && JsonUtility.ToJson(inst.model) == before, prefix + " Undo failed");
-                            Undo.PerformRedo(); Layout(); Need(read() && Visible(Find<VisualElement>(prefix + "-body")) && JsonUtility.ToJson(inst.model) == expected, prefix + " Redo failed");
+                            Undo.PerformRedo(); Layout();
+                            Need(read(), prefix + " Redo did not restore authored enablement");
+                            Need(JsonUtility.ToJson(inst.model) == expected, prefix + " Redo changed retained authored settings");
+                            Need(Visible(Find<VisualElement>(prefix + "-body")), prefix + " Redo restored enabled data but lost the open fold preference");
                             Header(prefix).value = !Header(prefix).value; Layout(); Need(!read() && JsonUtility.ToJson(inst.model) == before, prefix + " disabling changed authored settings");
                             ZuiAudit.ExpandAll(window); Layout(); Need(!Visible(Find<VisualElement>(prefix + "-body")), prefix + " ExpandAll revealed disabled settings");
                         }
