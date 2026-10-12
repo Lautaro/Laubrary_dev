@@ -15,7 +15,7 @@ namespace Laubrary.ZTracker.Editor
 {
     public sealed partial class ZTrackerModelWindow
     {
-        int newTrackKind, mixerTab;
+        int mixerTab;
         readonly Dictionary<string,Vector2> authoringScroll=new Dictionary<string,Vector2>();
         ScrollView AuthoringScroll(VisualElement root,string key)
         {
@@ -65,8 +65,8 @@ namespace Laubrary.ZTracker.Editor
         }
         void BuildTrackSelector(VisualElement root)
         {
-            var types=Enum.GetNames(typeof(TrackKind)).Concat(new[]{"Drums"}).ToArray();root.Add(Named(Z.MiniRadio(newTrackKind,types,"Choose the role of the new track. Drums shows percussion icons instead of pitches.",v=>newTrackKind=v,wrap:true),"new-track-kind"));root.Add(Flow(Button("Add track","Add the selected track role. Only one Master is allowed.",()=>AddTrack(newTrackKind==types.Length-1?TrackKind.Sequencer:(TrackKind)newTrackKind,newTrackKind==types.Length-1),"add-track"),Button("Clone","Clone this track and all its pattern records.",CloneTrack,"clone-track"),Button("Remove","Remove this track, clear routes and flag references; Undo restores everything.",RemoveTrack,"remove-track")));
-            var list=Z.BoxKeyed("Tracks","Select a track; drag a row to reorder it.","tracker.mixer.tracks");for(int i=0;i<Data.tracks.Count;i++){int at=i;var t=Data.tracks[i];var b=Button(t.name,"Select "+t.kind+" track; drag to reorder.",()=>{track=at;BuildPane();},"track-select-"+i);b.AddToClassList("tracker-track-row");b.style.width=Length.Percent(100);b.style.borderLeftWidth=4;b.style.borderLeftColor=t.color;b.style.backgroundColor=at==track?new Color(.18f,.42f,.62f):new Color(.14f,.14f,.14f);b.style.color=Color.white;b.EnableInClassList("tracker-picked",at==track);Reorder(b,"tracks",at,(a,z)=>SongEdit("reorder tracks",()=>{var selected=SelectedTrack;Move(Data.tracks,a,z);track=Data.tracks.IndexOf(selected);},true));list.Add(b);}root.Add(list);
+            VisualElement add=null;add=Button("Add track…","Choose a track role to add.",()=>{var menu=Z.Menu(add);menu.Item("Notes","Add a sequencer track for pitched notes.",()=>AddTrack(TrackKind.Sequencer));menu.Item("Drums","Add a sequencer track displayed as percussion.",()=>AddTrack(TrackKind.Sequencer,true));menu.Item("Group","Add a group bus.",()=>AddTrack(TrackKind.Group));menu.Item("Send","Add a send bus.",()=>AddTrack(TrackKind.Send));menu.Item("Event","Add an event track.",()=>AddTrack(TrackKind.Event));if(!Data.tracks.Any(t=>t.kind==TrackKind.Master))menu.Item("Master","Add the song's output track.",()=>AddTrack(TrackKind.Master));menu.Show();},"add-track");root.Add(Flow(add,Button("Clone","Clone this track and all its pattern records.",CloneTrack,"clone-track"),Button("Remove","Remove this track, clear routes and flag references; Undo restores everything.",RemoveTrack,"remove-track")));
+            var list=Z.BoxKeyed("Tracks","Select a track; drag a row to reorder it.","tracker.mixer.tracks");for(int i=0;i<Data.tracks.Count;i++){int at=i;var t=Data.tracks[i];var b=Button(t.name,"Select "+t.kind+" track; drag to reorder.",()=>{track=at;BuildPane();},"track-select-"+i);b.AddToClassList("tracker-track-row");b.style.width=Length.Percent(100);b.style.borderLeftWidth=4;b.style.borderLeftColor=t.color;b.style.backgroundColor=at==track?new Color(.18f,.42f,.62f):new Color(.14f,.14f,.14f);b.style.color=Color.white;b.EnableInClassList("tracker-picked",at==track);Reorder(b,"tracks",at,ReorderTracks);list.Add(b);}root.Add(list);
         }
         void AddTrack(TrackKind kind,bool drums=false)
         {

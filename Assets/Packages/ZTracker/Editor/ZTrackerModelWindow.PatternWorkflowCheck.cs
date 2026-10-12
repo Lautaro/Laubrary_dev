@@ -1,0 +1,58 @@
+using System;
+using System.Linq;
+using System.Text;
+using Laubrary.ZTracker.Engine;
+using Laubrary.ZTracker.Model;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace Laubrary.ZTracker.Editor
+{
+    public sealed partial class ZTrackerModelWindow
+    {
+        /// <summary>Disposable direct checks for the pattern entry points; the PM performs the attached visual walk.</summary>
+        public static string CheckPatternOverhaul()
+        {
+            var report=new StringBuilder();int passed=0,failed=0;
+            var window=CreateInstance<ZTrackerModelWindow>();var song=CreateInstance<ZTrackerSong>();var instrument=CreateInstance<ZTrackerInstrument>();
+            void Need(bool okay,string why){if(!okay)throw new InvalidOperationException(why);}
+            void Check(string title,Action test){try{test();passed++;report.AppendLine("PASS "+title);}catch(Exception e){failed++;report.AppendLine("FAIL "+title+": "+e.Message);}}
+            bool Shortcut(KeyCode code,VisualElement target=null)
+            {
+                using(var e=KeyDownEvent.GetPooled(new Event{type=EventType.KeyDown,keyCode=code}))
+                {e.target=target??window.rootVisualElement;return window.HandleTrackerShortcut(e);}
+            }
+            try
+            {
+                instrument.schemaVersion=1;instrument.model=NewInstrumentData();song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSong(instrument);
+                window.song=song;window.instrument=instrument;window.pane=0;window.Show();window.CreateGUI();
+                Check("pattern counts and selected track settings exist",()=>{Need(window.rootVisualElement.Q("pattern-length")!=null,"Missing pattern length");Need(window.rootVisualElement.Q("pattern-track-name")!=null,"Missing track name");Need(window.rootVisualElement.Q("pattern-note-columns")!=null,"Missing note count");Need(window.rootVisualElement.Q("pattern-fx-columns")!=null,"Missing FX count");});
+                Check("Tab advances by Step; Escape toggles Edit; text input keeps shortcuts",()=>{
+                    window.row=2;window.step=3;Need(Shortcut(KeyCode.Tab),"Tab unhandled");Need(window.row==5,"Tab did not use Step");bool before=window.editMode;Need(Shortcut(KeyCode.Escape)&&window.editMode!=before,"Escape did not toggle Edit");
+                    var text=window.rootVisualElement.Q("pattern-track-name")?.Q<TextField>();Need(text!=null,"Track name input missing");text.Focus();Need(!Shortcut(KeyCode.Escape,text)&&!Shortcut(KeyCode.Space,text)&&!Shortcut(KeyCode.KeypadPlus,text),"Text entry lost normal keys");Need(window.editMode!=before,"Typing changed Edit mode");window.rootVisualElement.Focus();
+                });
+                Check("octave shortcuts work in every tab",()=>{
+                    for(int pane=0;pane<=4;pane++){window.pane=pane;window.BuildPane();window.octave=5;Need(Shortcut(KeyCode.KeypadPlus),"Plus unhandled in tab "+pane);Need(window.octave==6,"Plus missed tab "+pane);Need(Shortcut(KeyCode.KeypadMinus),"Minus unhandled in tab "+pane);Need(window.octave==5,"Minus missed tab "+pane);}
+                    window.pane=0;window.BuildPane();
+                });
+                Check("pattern length cropping and Undo restore rows and automation",()=>{
+                    var p=window.Pattern;int original=p.lineCount;var pt=p.tracks[0];pt.WriteLine(new PatternLine{line=original-1,events={new EventCell{column=0,present=true,payload="tail"}}});
+                    pt.automation.Add(new AutomationLane{id="length-lane",target=new ParameterTarget{kind=ParameterKind.Mixer,trackId=song.model.tracks[0].id,parameter="postVolume"},points={new AutomationPoint{line=original-1,value=.5f}}});
+                    window.SongEdit("pattern length",()=>ZTrackerPatternOperations.Resize(window.Pattern,Math.Max(1,original-2)),true);
+                    Need(window.Pattern.lineCount==original-2&&!window.Pattern.tracks[0].lines.Any(l=>l.line==original-1),"Resize did not crop rows");Undo.PerformUndo();
+                    Need(window.Pattern.lineCount==original&&window.Pattern.tracks[0].lines.Any(l=>l.line==original-1)&&window.Pattern.tracks[0].automation.Any(l=>l.id=="length-lane"&&l.points.Any(point=>point.line==original-1)),"Undo did not restore rows and automation");
+                });
+                Check("track move keeps IDs, routing, automation, selection and Undo/Redo",()=>{
+                    window.AddTrack(TrackKind.Send);window.track=0;var selected=window.SelectedTrack;var before=song.model.tracks.Select(t=>t.id).ToArray();var send=song.model.tracks.Find(t=>t.kind==TrackKind.Send);
+                    selected.sends.Add(new SendDestination{trackId=send.id});var record=window.Pattern.tracks.Find(t=>t.trackId==selected.id);record.automation.Add(new AutomationLane{id="move-lane",target=new ParameterTarget{kind=ParameterKind.Mixer,trackId=selected.id,parameter="postVolume"}});
+                    window.ReorderTracks(0,1);Need(window.SelectedTrack.id==selected.id&&song.model.tracks[1].id==selected.id,"Selection changed owner");Need(record.automation.Last().target.trackId==selected.id&&selected.sends[0].trackId==send.id,"References followed an index");
+                    Undo.PerformUndo();Need(song.model.tracks.Select(t=>t.id).SequenceEqual(before),"Undo did not restore order");Undo.PerformRedo();Need(song.model.tracks[1].id==selected.id,"Redo did not restore order");
+                });
+                Check("FX catalog exposes only supported locations",()=>{Need(FxCommandCatalog.Find("0U",FieldKind.LocalId)!=null,"Local slide missing");Need(FxCommandCatalog.Find("ZT",FieldKind.LocalId)==null,"Global command offered locally");Need(FxCommandCatalog.Find("ZT",FieldKind.EffectId)!=null,"Global tempo missing");Need(FxCommandCatalog.Find("R0",FieldKind.Volume)==null,"Invalid zero retrigger presented as supported");});
+            }
+            finally{window.StopPreview();window.Close();DestroyImmediate(window);Undo.ClearUndo(song);DestroyImmediate(song);DestroyImmediate(instrument);}
+            report.AppendLine($"TOTAL passed={passed} failed={failed}");return report.ToString();
+        }
+    }
+}
