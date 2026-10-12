@@ -47,7 +47,7 @@ namespace Laubrary.ZTracker.Editor
                 case "instReverbSend": r.label = "Reverb %"; r.tip = "Send level to the first Reverb send bus declared in Mixer."; break;
                 case "freqRatio": case "waveBRatio": r.label = "Ratio ×"; r.min = .125f; r.max = 16; r.scale = 1; r.decimals = 2; r.tip = "Frequency relative to the played note; 2 is one octave higher."; break;
                 case "freqFixed": r.label = "Fixed Hz"; r.max = 20000; r.scale = 1; r.tip = "Fixed frequency in Hz; zero follows the played note and ratio."; break;
-                case "fmFeedback": r.label = "Feedback"; r.max = 8; r.scale = 1; r.decimals = 2; r.tip = "Operator phase feedback, from clean sine to a brighter, noisier tone."; break;
+                case "fmFeedback": r.label = "Feedback"; r.max = 8; r.scale = 1; r.decimals = 2; r.tip = "Feed the previous summed output into Operator 1, from clean sine to a brighter, noisier tone."; break;
                 case "pmDepth": r.label = "PM cycles"; r.max = 8; r.scale = 1; r.decimals = 2; r.tip = "Phase modulation depth in oscillator cycles."; break;
                 case "phase": r.label = "Phase °"; r.max = 360; r.scale = 360; r.tip = "Initial LFO position in one cycle."; break;
                 case "attack": case "blendAttack": case "hold": r.label = field == "hold" ? "Hold ms" : "Attack ms"; r.max = 5000; r.scale = 1000; r.tip = "Envelope stage duration."; break;
@@ -74,6 +74,8 @@ namespace Laubrary.ZTracker.Editor
         {
             var r = Musical(field);
             if (r.unbounded) return InstrumentNumber(r.label, value, r.tip, apply, name);
+            if (field == "unisonVoices" || field == "baseNote" || field == "baseNoteB")
+                return Named(Z.ScrubNumber(r.label, Mathf.RoundToInt(value), Mathf.RoundToInt(r.min), Mathf.RoundToInt(r.max), r.tip, v => InstrumentEdit(r.label, () => apply(v)), 100, field == "unisonVoices" ? new InstrumentParameters().unisonVoices : new SampleData().baseNote), name);
             var control = Z.MicroSlider(r.label, value * r.scale, r.min, r.max, r.tip, v => InstrumentEdit(r.label, () => apply(v / r.scale)), 170, decimals: r.decimals, logarithmic: r.logarithmic);
             return Named(control, name);
         }
@@ -146,7 +148,7 @@ namespace Laubrary.ZTracker.Editor
                     if (env.loopEnd <= env.loopStart) env.loopEnabled = false;
                 }
                 // Switching to Static keeps the curve available for a later switch back.
-                setEnvelope(env); EndInstrumentGesture();
+                setEnvelope(env); EndInstrumentGesture(); RefreshSynthConditionalControls(rootVisualElement);
             }
             control = Z.Value(r.label, ui, new ZuiValueControl.Options { absMin = r.min, absMax = r.max, decimals = r.decimals, logarithmic = r.logarithmic, controlWidth = 170, allowMinMax = false, allowSteps = false, allowOscillation = false, preserveCurveOnModeSwitch = true, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true, valueUnit = r.unit ?? "", xAxisLabel = "Note progress", yAxisLabel = r.label }, r.tip + " Right-click for a per-note envelope. Every new note restarts it; held loops leave on note-off.", Publish, () => BeginInstrumentGesture(r.label));
             control.name = name;
