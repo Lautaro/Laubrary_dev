@@ -30,7 +30,7 @@ Verified on 2026-10-12 in the running canonical editor at `D:\UNITY\Laubrary Dev
 - Keyboard focus and polyphony checks passed: button-focused chords, repeat suppression, text input exclusion, blank-space input, focus-loss release and voice handling. The existing unified computer-key/MIDI input path remains in use.
 - Shared controls check passed: disabled sections stay folded, re-enable restores availability, scrub numbers clamp to bounds.
 - Drum catalogue check passed: 205 synthetic records reach all three pages (100/100/5), custom parent tags span pages correctly, aliases and normalized search match. Recursive filesystem scanner check passed.
-- Read-only scan of the configured `E:\Audio Resources\Drumz\Arcade Drumz` found 26 supported clips: Hats 2, Kicks 6, Snares 18, no scan errors.
+- Read-only scan of the configured `E:\Audio Resources\Drumz\Arcade Drumz` found all 55 clips: Hats 18, Kicks 8, Snares 29, with 29 FLAC and 26 WAV files and no scan errors.
 
 ## Verified by eye and native input
 
@@ -41,7 +41,7 @@ Wide synth/FM views, narrow FM stacking, true enable checkboxes, compact transpo
 ## Limits and compatibility
 
 - Native MIDI hardware and listening through the owner's physical audio device were not tested in this overhaul. Audio correctness evidence is rendered PCM and input/voice probes, not a listening claim.
-- Large-library paging was checked with 205 generated catalogue records; the configured real folder has 26 supported files. Supported external formats remain WAV, OGG, MP3, AIF and AIFF.
+- Large-library paging was checked with 205 generated catalogue records; the configured real folder has 55 supported files. Supported external formats are WAV, OGG, MP3, AIF, AIFF and FLAC.
 - Existing enabled per-voice filtering cannot be silently replaced by one post-mix chain filter without potentially changing polyphonic sound. Its compatibility controls therefore remain under Effects; the standalone Synth Filter section is removed.
 - No OS file picker was driven during this final overhaul walk. Earlier folder-selection work remains intact; this pass used the configured folder read-only.
 
