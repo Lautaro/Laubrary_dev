@@ -22,7 +22,8 @@ namespace Laubrary.ZTracker.Editor
         readonly ZTrackerMidiRouter midiRouter = new ZTrackerMidiRouter();
         ZTrackerMidiWindows midiWindows;
         bool midiOn, midiStarted;
-        internal bool midiPersistPreferences = true;
+        [SerializeField] bool midiPreferenceRestoreEnabled;
+        internal bool midiPersistPreferences;
         string midiDevice, midiProblem, midiTargetText = "";
         double midiNextScan, midiRouteRetry;
         ZuiToggleButton midiToggleButton, midiRecordButton;
@@ -67,7 +68,7 @@ namespace Laubrary.ZTracker.Editor
             var panic = Named(Z.Button("Panic", "Silence every note played from the MIDI keyboard or the computer keyboard at once (the song keeps playing).", MidiPanic), "midi-panic");
             panic.style.flexShrink = 0; panic.style.flexGrow = 0; cluster.Add(panic);
             RefreshMidiStatus();
-            if (midiOn && !midiSimulatedOnly) SetMidiEnabled(true);
+            if (midiOn && midiPreferenceRestoreEnabled && !midiSimulatedOnly) SetMidiEnabled(true);
             return cluster;
         }
 
@@ -79,8 +80,8 @@ namespace Laubrary.ZTracker.Editor
                 (key, fallback) => EditorPrefs.GetFloat(key, fallback),
                 (key, fallback) => EditorPrefs.GetBool(key, fallback));
             midiDevice = saved.device;
-            midiOn = !midiSimulatedOnly && saved.enabled;
-            midiRecord = !midiSimulatedOnly && saved.record;
+            midiOn = midiPreferenceRestoreEnabled && !midiSimulatedOnly && saved.enabled;
+            midiRecord = midiPreferenceRestoreEnabled && !midiSimulatedOnly && saved.record;
             midiRouter.Channel = saved.channel;
             midiRouter.OctaveShift = saved.octave;
             midiRouter.VelocityCurve = (ZTrackerVelocityCurve)saved.curve;
@@ -99,12 +100,15 @@ namespace Laubrary.ZTracker.Editor
 
         void ShowMidiMenu(VisualElement anchor)
         {
-            if (midiWindows == null) midiWindows = new ZTrackerMidiWindows(); else midiWindows.RefreshDevices();
+            if (!midiSimulatedOnly)
+            {
+                if (midiWindows == null) midiWindows = new ZTrackerMidiWindows(); else midiWindows.RefreshDevices();
+            }
             var devices = MidiDevices();
             var menu = Z.Menu(anchor).Width(300).Section("Device", "MIDI inputs Windows reports. A device held by another program (a DAW) cannot be opened until that program releases it.");
             if (devices.Count == 0) menu.Item("No MIDI input found", "Plug in a MIDI keyboard; the list refreshes on its own.", null, enabled: false);
             else menu.Radio("", devices.ToArray(), Math.Max(-1, devices.IndexOf(CurrentMidiDevice(devices))), "The MIDI input to listen to. Simulated keyboard is driven by checks only.", i => { midiDevice = devices[i]; SaveMidiString("Device", midiDevice); ReopenMidi(); });
-            menu.Item("Refresh devices", "Read the device list again now (it also refreshes on its own every two seconds).", () => { midiWindows.RefreshDevices(); ReopenMidi(); });
+            menu.Item("Refresh devices", "Read the device list again now (it also refreshes on its own every two seconds).", () => { midiWindows?.RefreshDevices(); ReopenMidi(); });
             menu.Section("Keyboard");
             var channels = new string[17]; channels[0] = "Omni"; for (int i = 1; i <= 16; i++) channels[i] = i.ToString();
             menu.Radio("Channel", channels, midiRouter.Channel + 1, "Listen to every MIDI channel (Omni) or only one.", i => { midiRouter.Channel = i - 1; SaveMidiInt("Channel", i - 1); });
@@ -124,6 +128,7 @@ namespace Laubrary.ZTracker.Editor
 
         void SetMidiEnabled(bool on)
         {
+            if (on && !midiSimulatedOnly && midiPersistPreferences) midiPreferenceRestoreEnabled = true;
             if (midiPersistPreferences) EditorPrefs.SetBool(MidiPrefs + "Enabled", on);
             if (!on) MidiShutdown();
             else
@@ -132,8 +137,8 @@ namespace Laubrary.ZTracker.Editor
                 midiOn = true;
                 midiStarted = true;
                 if (midiRecordButton != null) midiRecordButton.style.visibility = UnityEngine.UIElements.Visibility.Visible;
-                if (midiWindows == null) midiWindows = new ZTrackerMidiWindows();
-                if (midiBuffer != 0) ApplyMidiBuffer();
+                if (!midiSimulatedOnly && midiWindows == null) midiWindows = new ZTrackerMidiWindows();
+                if (!midiSimulatedOnly && midiBuffer != 0) ApplyMidiBuffer();
                 midiNextScan = 0; ReopenMidi(); MidiPump();
             }
             RefreshMidiStatus();
@@ -387,6 +392,7 @@ namespace Laubrary.ZTracker.Editor
         }
 
         static string MidiInstrumentName(ZTrackerInstrument value) { var t = InstrumentTitle(value); return string.IsNullOrEmpty(t) && value != null ? value.name : t; }
+        internal void EnableMidiPreferenceRestore() { midiPreferenceRestoreEnabled = true; midiPersistPreferences = true; }
         void SaveMidiString(string key, string value) { if (midiPersistPreferences) EditorPrefs.SetString(MidiPrefs + key, value ?? ""); }
         void SaveMidiInt(string key, int value) { if (midiPersistPreferences) EditorPrefs.SetInt(MidiPrefs + key, value); }
         void SaveMidiFloat(string key, float value) { if (midiPersistPreferences) EditorPrefs.SetFloat(MidiPrefs + key, value); }
@@ -401,7 +407,7 @@ namespace Laubrary.ZTracker.Editor
         internal int channel, octave, curve, modWheel, buffer;
         internal float bend;
 
-        internal static MidiPreferenceSnapshot Read(string prefix, Func<string, string> getString, Func<string, int> getInt, Func<string, float> getFloat, Func<string, bool> getBool)
+        internal static MidiPreferenceSnapshot Read(string prefix, Func<string, string, string> getString, Func<string, int, int> getInt, Func<string, int, float> getFloat, Func<string, bool, bool> getBool)
             => new MidiPreferenceSnapshot
             {
                 enabled = getBool(prefix + "Enabled", false), record = getBool(prefix + "Record", false),
