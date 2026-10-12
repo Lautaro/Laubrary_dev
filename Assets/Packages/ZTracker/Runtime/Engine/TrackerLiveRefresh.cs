@@ -140,6 +140,7 @@ namespace Laubrary.ZTracker.Engine
                     voice.releaseStep=seconds>0?voice.envelope/(seconds*state.sampleRate):1;
                 }
                 var before=old.tones[voice.sample];var after=state.tones[voice.sample];
+                if (old.samples[voice.sample].filterType!=state.samples[voice.sample].filterType) {voice.filterCutoff=-1;voice.filterQ=-1;}
                 if (voice.blendStage==3 && before.blendSustain!=after.blendSustain) voice.blendLevel=after.blendSustain;
                 for (int op=0;op<4;op++)
                 {

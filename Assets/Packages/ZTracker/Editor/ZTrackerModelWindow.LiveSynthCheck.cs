@@ -72,7 +72,7 @@ namespace Laubrary.ZTracker.Editor
             var edits=new Dictionary<string,Action<InstrumentParameters>>{
                 ["Wave A"]=q=>q.waveA=1,["Wave B"]=q=>q.waveB=2,["Blend mode"]=q=>q.blendMode=1,
                 ["FM routing"]=q=>q.fmAlgorithm=5,["Volume"]=q=>q.volume=.6f,["Sustain"]=q=>q.sustain=.3f,
-                ["Retained filter enable"]=q=>{q.instFilterEnabled=true;q.instFilterCutoff=.05f;},["Transpose"]=q=>q.transpose=12};
+                ["Retained filter enable"]=q=>{q.instFilterEnabled=true;q.instFilterCutoff=.05f;},["Retained filter mode"]=q=>q.instFilterMode=1,["Transpose"]=q=>q.transpose=12};
             foreach(var edit in edits)foreach(bool transport in new[]{false,true})
             {
                 var chosen=edit;bool running=transport;
@@ -80,6 +80,7 @@ namespace Laubrary.ZTracker.Editor
                     var asset=LiveSynthAsset(chosen.Key=="FM routing");var song=ColdSong(asset);
                     try{
                         var q=asset.model.parameters;q.blend=.4f;q.waveB=1;
+                        if(chosen.Key=="Retained filter mode"){q.instFilterEnabled=true;q.instFilterCutoff=.05f;}
                         using(var snapshot=PlaybackSnapshot.Create(song,null,-1))using(var controlSnapshot=PlaybackSnapshot.Create(song,null,-1))
                         using(var engine=new TrackerOffline(TrackerPreparedSong.Prepare(snapshot.Data)))using(var control=new TrackerOffline(TrackerPreparedSong.Prepare(controlSnapshot.Data)))
                         using(var left=new NativeArray<float>(1024,Allocator.TempJob))using(var right=new NativeArray<float>(1024,Allocator.TempJob))
