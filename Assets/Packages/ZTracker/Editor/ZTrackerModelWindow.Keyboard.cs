@@ -16,7 +16,7 @@ namespace Laubrary.ZTracker.Editor
         readonly Dictionary<KeyCode, int> instrumentKeys = new Dictionary<KeyCode, int>();
         ZTrackerInstrument keyboardInstrument;
         Label keyboardStatus;
-        string keyboardProblem;
+        [NonSerialized] string keyboardProblem;
 
         void WireInstrumentKeyboard(VisualElement root)
         {

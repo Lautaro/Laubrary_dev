@@ -67,4 +67,6 @@ Not verified: physical MIDI key presses and listening through the owner's speake
 
 ## Cleanup
 
+The reload follow-up also removed `.bugfix-ahq.ps1`, `.bugfix-check.cs`, `.bugfix-save.cs`, `.bugfix-walk.cs` and its temporary SessionState snapshots. Only the user's original ZTracker window remains in `D:\UNITY\Laubrary Dev`, deliberately left open with LKMK3 MIDI connected for testing. No test processes or builds were started. The final reload check also confirms no stale preview-warning state.
+
 The temporary `ZTracker overhaul check` windows and their in-memory songs/instruments were closed and destroyed. Root `.overhaul-*.cs` and `.overhaul-ahq.ps1` scratch files were removed. No test server, extra Unity editor, player executable or network listener was launched. The user's canonical editor and pre-existing project/sample changes remain in place.
