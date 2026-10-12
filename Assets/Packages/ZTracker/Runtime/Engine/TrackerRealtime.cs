@@ -240,6 +240,31 @@ namespace Laubrary.ZTracker.Engine
             EvaluateParameters();
             // NNA applies only to the foreground cohort in this note column; layered siblings remain a bundle.
             int ci=state.tracks[track].columns+column;var col=state.columns[ci];
+            // Legato replaces only an overlapping foreground synth cohort with the
+            // same instrument and mapped members. A released tail always retriggers.
+            int legatoMembers=0;bool legato=true;
+            for(int i=0;i<state.voices.Length;i++)
+            {
+                var held=state.voices[i];if(!held.active||held.track!=track||held.column!=column||held.cohort!=col.cohort)continue;
+                if(held.released||held.instrument!=instrument||state.tones[held.sample].kind==0||!state.tones[held.sample].legatoEnvelopes){legato=false;break;}
+                bool mappedMember=false;
+                for(int z=0;z<ins.zoneCount;z++){var zone=state.zones[ins.zoneStart+z];if(zone.sample==held.sample&&note>=zone.minNote&&note<=zone.maxNote&&velocity>=zone.minVelocity&&velocity<=zone.maxVelocity&&zone.tracking)mappedMember=true;}
+                if(!mappedMember){legato=false;break;}legatoMembers++;
+            }
+            if(legato&&legatoMembers>0&&legatoMembers==required)
+            {
+                long previousCohort=col.cohort;col.cohort=++state.cohort;col.instrument=instrument;col.previousNote=note;col.hasPreviousNote=true;state.columns[ci]=col;
+                for(int i=0;i<state.voices.Length;i++)
+                {
+                    var held=state.voices[i];if(!held.active||held.cohort!=previousCohort||held.track!=track||held.column!=column)continue;
+                    var tone=state.tones[held.sample];double before=held.step;
+                    held.step=SafeInitialStep(before,(note-held.note)/12d);
+                    held.glideCurrent=tone.glide?held.glideCurrent*before/held.step:1;
+                    held.note=note;held.velocity=velocity;held.volume=col.volume;held.pan=col.pan;held.cohort=col.cohort;
+                    state.voices[i]=held;
+                }
+                Emit(TrackerEventKind.NoteOn,track,column,note,instrument);return;
+            }
             bool previousHeld=false;for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&!state.voices[i].released&&state.voices[i].cohort==col.cohort)previousHeld=true;
             for(int i=0;i<state.voices.Length;i++){var old=state.voices[i];if(old.active&&old.track==track&&old.column==column&&old.cohort==col.cohort){var nna=state.samples[old.sample].nna;if(nna==NewNoteAction.Cut){old.active=false;state.voices[i]=old;}else if(nna==NewNoteAction.NoteOff)Release(i);}}
             long cohort=++state.cohort;col.cohort=cohort;col.instrument=instrument;state.columns[ci]=col;
@@ -265,7 +290,7 @@ namespace Laubrary.ZTracker.Engine
                 for(int m=0;m<state.modStride;m++)state.modulationState[voice.modulationOffset+m]=default;
                 for(int m=0;m<sample.modCount;m++){var mod=state.mods[sample.modStart+m];if(mod.parameterEnvelope)state.modulationState[voice.modulationOffset+m]=new TrackerModState{output=Curve(in mod,0)};}
                 InitTone(ref voice,in tone,in sample,member,!zone.tracking?voice.note:col.hasPreviousNote?col.previousNote:note,previousHeld);
-                double sourceExponent=tone.kind==0?math.log2(clip.frequency/(double)state.sampleRate)+((zone.tracking?note-zone.baseNote:0)+(double)sample.tune)/12d:math.log2(440d/state.sampleRate)+(note-69)/12d+((double)tone.baseGlobalTune+voice.memberSpread*voice.detuneCurrent)/1200d;
+                double sourceExponent=tone.kind==0?math.log2(clip.frequency/(double)state.sampleRate)+((zone.tracking?note-zone.baseNote:0)+(double)sample.tune)/12d:math.log2(440d/state.sampleRate)+(note-69)/12d+((double)tone.baseGlobalTune+tone.transposeCents+voice.memberSpread*voice.detuneCurrent)/1200d;
                 if(math.isfinite(sourceExponent)&&(sourceExponent<-20||sourceExponent>20))ReportPitchLimit(ref voice);
                 voice.filterCutoff=-1;voice.filterQ=-1;state.voices[index]=voice;
                 }

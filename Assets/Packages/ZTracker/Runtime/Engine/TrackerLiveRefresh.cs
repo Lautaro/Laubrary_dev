@@ -31,7 +31,16 @@ namespace Laubrary.ZTracker.Engine
             foreach(var i in source.instruments){if(i==null){key.Append("null");continue;}key.Append('|').Append(i.playbackSourceIdentity!=0?i.playbackSourceIdentity:i.GetInstanceID());var data=ZTrackerMigration.Copy(i.model);var q=data.parameters;
                 q.volume=q.pan=q.fineTune=q.blend=q.pulseWidth=q.waveBRatio=q.pmDepth=q.unisonDetune=q.unisonSpread=0;
                 q.attack=q.decay=q.sustain=q.release=q.vibratoDepth=q.vibratoRate=q.vibratoFadeIn=q.instFilterCutoff=q.instFilterResonance=q.glideSeconds=q.fmFeedback=0;
-                if(q.fmOperators!=null)for(int op=0;op<q.fmOperators.Length;op++){var value=q.fmOperators[op];value.freqRatio=value.freqFixed=value.level=value.attack=value.decay=value.sustain=value.release=0;q.fmOperators[op]=value;}
+                // These definitions are read from the new tone/sample on each rendered block.
+                // They do not alter native memory topology or invalidate held oscillator phases.
+                q.waveA=q.waveB=q.blendMode=q.fmAlgorithm=q.instFilterMode=0;
+                q.enumDomain=SoundEnumDomain.NativeDirect;
+                q.instFilterEnabled=q.glideEnabled=q.glideLegato=q.legatoEnabled=q.blendEnvelope=false; q.transpose=0;
+                q.blendAttack=q.blendDecay=q.blendSustain=q.blendRelease=q.vibratoRandomness=q.instDelaySend=q.instReverbSend=0;
+                // The renderer always has four native FM slots, including when the
+                // authored subtractive instrument has not initialized its operators.
+                q.fmOperators=new ZTrackerInstrument.FMOperatorData[4];
+                if(data.family==InstrumentFamily.Synth){data.synthMode=SynthMode.Subtractive;q.type=InstrumentType.Synth;q.unisonVoices=1;data.sampler.nna=NewNoteAction.Cut;}
                 NormalizeParameterEnvelope(q.blendEnvelopeData);NormalizeParameterEnvelope(q.pulseWidthEnvelopeData);NormalizeParameterEnvelope(q.waveBRatioEnvelopeData);NormalizeParameterEnvelope(q.pmDepthEnvelopeData);NormalizeParameterEnvelope(q.unisonDetuneEnvelopeData);
                 if(q.parameterEnvelopes!=null)foreach(var envelope in q.parameterEnvelopes)if(envelope!=null)NormalizeParameterEnvelope(envelope.envelope);
                 data.sampler.volume=data.sampler.pan=data.sampler.fineTuneCents=0;foreach(var s in data.sampler.samples){s.volume=s.pan=0;s.name="";}foreach(var m in data.macros)m.value=0;
@@ -83,6 +92,7 @@ namespace Laubrary.ZTracker.Engine
         {
             var old=state;
             CopyLive(old.voices,next.voices);CopyLive(old.modulationState,next.modulationState);CopyLive(old.columns,next.columns);
+            AdaptSynthMembers(in old,ref next);
             // Held cursors retain a step computed at launch from the old authored tuning.
             // Move that base with the authored definition; live direct/macro deltas remain
             // relative to the new base and therefore preserve unrelated game overrides.
@@ -90,7 +100,7 @@ namespace Laubrary.ZTracker.Engine
             {
                 var v=next.voices[i];if(!v.active||v.sample<0||v.sample>=old.tones.Length||v.sample>=next.tones.Length)continue;
                 var before=old.tones[v.sample];var after=next.tones[v.sample];
-                double cents=(double)after.baseGlobalTune-before.baseGlobalTune;
+                double cents=(double)after.baseGlobalTune-before.baseGlobalTune+after.transposeCents-before.transposeCents;
                 // Unison detune is also part of the launch-time step. Keep its authored
                 // base in sync while the retained live detune continues smoothing.
                 if(after.kind!=0){int at=v.instrument*TrackerParameters.Stride+(int)TrackerParameter.UnisonDetune;cents+=v.memberSpread*((double)next.parameterBase[at]-old.parameterBase[at]);}
@@ -116,7 +126,68 @@ namespace Laubrary.ZTracker.Engine
             next.rowStart=old.rowStart;next.rowEnd=old.rowEnd;next.rowDuration=old.rowDuration;next.clockCompensation=old.clockCompensation;next.tickDeadline=old.tickDeadline;next.tickRemaining=old.tickRemaining;
             next.liveTimingPending=old.liveTimingPending||next.authoredBpm!=old.authoredBpm||next.authoredLinesPerBeat!=old.authoredLinesPerBeat||next.authoredTicksPerLine!=old.authoredTicksPerLine;next.bpm=old.bpm;next.linesPerBeat=old.linesPerBeat;next.ticksPerLine=old.ticksPerLine;
             next.playing=old.playing;next.paused=old.paused;next.held=old.held;next.holdRemaining=old.holdRemaining;next.rowPending=old.rowPending;next.loopSong=old.loopSong;next.normalization=old.normalization;next.rowOccurrence=old.rowOccurrence;next.automationTime=old.automationTime;next.automationDeadline=old.automationDeadline;
-            SapRenderTicket.Enter(old.ticket);SapRenderTicket.Exit(old.ticket,0,true);state=next;EvaluateParameters();ScheduleAutomationPoint(state.automationTime);Emit(TrackerEventKind.PreparedSwap);
+            SapRenderTicket.Enter(old.ticket);SapRenderTicket.Exit(old.ticket,0,true);state=next;EvaluateParameters();
+            // Sustain and release slopes are cached by held voices rather than read anew
+            // every frame. Refresh only an edited stage, preserving its age and phase.
+            for (int i=0;i<state.voices.Length;i++)
+            {
+                var voice=state.voices[i]; if (!voice.active) continue;
+                int at=voice.instrument*TrackerParameters.Stride;
+                if (voice.stage==3 && old.parameterBase[at+(int)TrackerParameter.Sustain]!=state.parameterBase[at+(int)TrackerParameter.Sustain]) voice.envelope=VoiceParameter(in voice,TrackerParameter.Sustain);
+                if (voice.stage==4 && old.parameterBase[at+(int)TrackerParameter.Release]!=state.parameterBase[at+(int)TrackerParameter.Release])
+                {
+                    float seconds=VoiceParameter(in voice,TrackerParameter.Release);
+                    voice.releaseStep=seconds>0?voice.envelope/(seconds*state.sampleRate):1;
+                }
+                var before=old.tones[voice.sample];var after=state.tones[voice.sample];
+                if (voice.blendStage==3 && before.blendSustain!=after.blendSustain) voice.blendLevel=after.blendSustain;
+                for (int op=0;op<4;op++)
+                {
+                    var parameter=(TrackerParameter)((int)TrackerParameter.Op0Ratio+op*7+5);
+                    if (voice.fmStage[op]==3 && old.parameterBase[at+(int)parameter]!=state.parameterBase[at+(int)parameter]) voice.fmLevel[op]=VoiceParameter(in voice,parameter);
+                }
+                state.voices[i]=voice;
+            }
+            ScheduleAutomationPoint(state.automationTime);Emit(TrackerEventKind.PreparedSwap);
+        }
+        static void AdaptSynthMembers(in TrackerState old,ref TrackerState next)
+        {
+            for(int first=0;first<next.voices.Length;first++)
+            {
+                var template=next.voices[first];if(!template.active)continue;
+                var before=old.tones[template.sample];var after=next.tones[template.sample];
+                if(before.kind==0||after.kind==0||(before.members==after.members&&before.kind==after.kind))continue;
+                bool seen=false;for(int n=0;n<first;n++){var prior=next.voices[n];if(prior.active&&prior.cohort==template.cohort&&prior.sample==template.sample){seen=true;break;}}if(seen)continue;
+                int count=0;for(int n=first;n<next.voices.Length;n++){var voice=next.voices[n];if(voice.active&&voice.cohort==template.cohort&&voice.sample==template.sample)count++;}
+                int available=count;for(int n=0;n<next.voices.Length;n++)if(!next.voices[n].active)available++;
+                int wanted=math.min(after.members,available),member=0;
+                // Additional members inherit the held oscillator/envelope state;
+                // bounded native slots are the only storage used on the audio thread.
+                for(int n=0;n<next.voices.Length&&count<wanted;n++)if(!next.voices[n].active)
+                {
+                    var added=template;added.modulationOffset=n*next.modStride;next.voices[n]=added;
+                    for(int m=0;m<next.modStride;m++)next.modulationState[added.modulationOffset+m]=next.modulationState[template.modulationOffset+m];count++;
+                }
+                for(int n=0;n<next.voices.Length;n++)
+                {
+                    var voice=next.voices[n];if(!voice.active||voice.cohort!=template.cohort||voice.sample!=template.sample)continue;
+                    if(member>=wanted){voice.active=false;next.voices[n]=voice;continue;}
+                    float spread=wanted>1?member*(2f/(wanted-1))-1:0;
+                    float oldDetune=old.parameterBase[voice.instrument*TrackerParameters.Stride+(int)TrackerParameter.UnisonDetune];
+                    voice.step=SafeInitialStep(voice.step,(spread-voice.memberSpread)*oldDetune/1200d);
+                    voice.memberSpread=spread;voice.memberGain=1/math.sqrt((float)wanted);member++;
+                    if(before.kind!=after.kind)
+                    {
+                        if(after.kind==2)
+                        {
+                            voice.fmPhase=new float4(voice.phaseA);
+                            for(int op=0;op<4;op++){int at=voice.instrument*TrackerParameters.Stride+(int)TrackerParameter.Op0Ratio+op*7;voice.fmLevel[op]=next.parameterBase[at+5];voice.fmReleaseStart[op]=voice.fmLevel[op];voice.fmStage[op]=voice.released?4:3;}
+                        }
+                        else {voice.phaseA=voice.fmPhase.x;voice.phaseB=voice.fmPhase.y;}
+                    }
+                    next.voices[n]=voice;
+                }
+            }
         }
     }
 }

@@ -147,6 +147,8 @@ namespace Laubrary.ZTracker.Model
         public int[] arpeggioNotes = {0,4,7};
         public float arpeggioSpeed = .05f;
         public bool glideEnabled, glideLegato;
+        public bool legatoEnabled;
+        public int transpose;
         public float glideSeconds = .1f;
         public bool arpeggioSpeedIsPerNote = true;
         public List<ModulationPoint> arpeggioSpeedPoints = new List<ModulationPoint>();
