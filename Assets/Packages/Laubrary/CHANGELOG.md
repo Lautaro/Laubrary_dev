@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- ZUI section view persistence retains the user's fold preference while its enable checkbox is off, so rebuilding and Undo/Redo restore the expected open body when enabled again.
+
 - ZUI fixed-stage envelopes expose per-stage reset defaults; both compact sliders and graph stages support double-click reset through their normal edit callbacks.
 - ZUI fixed-stage envelopes accept a drag from anywhere in a stage's labelled lane, so missed tiny handles no longer hand the gesture to a surrounding scroll view.
 ### ZUI compact authoring controls (2026-10-12)

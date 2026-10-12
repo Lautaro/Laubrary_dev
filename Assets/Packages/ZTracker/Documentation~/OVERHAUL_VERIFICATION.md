@@ -55,6 +55,16 @@ Not verified: every individual slider was not separately exercised with native m
 
 The disposable reset window and its in-memory assets were closed; the root reset scratch script was removed. The user's editor and authored assets were retained.
 
+## Reload and audition follow-up (2026-10-12, T-0583 through T-0587)
+
+The five cards cover MIDI persistence, direct Pitch/Vibrato controls, cold Pattern playback, workspace persistence and duplicate octave steps respectively. The final MIDI UI run passed 36/0, including recording, mixed keyboard chords, audio-buffer changes, unplug/replug and leaving every saved preference unchanged. The expanded instrument gesture/curve/enable/Undo regression passed 22/0. Shared section capture now preserves the underlying fold when disabled and keeps existing windows independent.
+
+Verified by probe: clean compilation; cold offline PCM 12/0; cold live SAP 12/0; recovery after a stopped audio graph 12/0; retained sends with missing destinations 4/0; Pattern workflow including duplicate key/character and held-repeat events 9/0; instrument overhaul 13/0; all 205 slider/range instances still declare defaults, with eight reset/Undo event cases. Fresh and stopped-graph playback tests cover model and legacy Synth/FM through typing, MIDI and transport without opening Instrument preview.
+
+Verified by eye: Pitch and Vibrato appear directly inside Oscillators, with explicit units and dependent controls hidden at zero depth. The parent used native clicks to switch synth type and collapse an FM operator, scrolled the page, then compared serialized workspace state after actual compilation. Two reloads preserved window position, tabs, cursor/count state, section folds and scroll positions, including a nonzero 157.5-pixel scroll. The selected LKMK3 MIDI input reconnected automatically after compilation. The UI Guide compliance pass found no new padded chrome, subsection arrows or ineffective controls; existing reset and Undo paths remain intact.
+
+Not verified: physical MIDI key presses and listening through the owner's speakers. Native keyboard injection could not target the floating test window reliably, so octave evidence is dispatched UI key events rather than a physical keyboard claim. The user's exact silence sequence was not supplied; fresh startup already passed, while closed-stream reuse and missing send destinations were concrete defects repaired and covered by PCM checks.
+
 ## Cleanup
 
 The temporary `ZTracker overhaul check` windows and their in-memory songs/instruments were closed and destroyed. Root `.overhaul-*.cs` and `.overhaul-ahq.ps1` scratch files were removed. No test server, extra Unity editor, player executable or network listener was launched. The user's canonical editor and pre-existing project/sample changes remain in place.

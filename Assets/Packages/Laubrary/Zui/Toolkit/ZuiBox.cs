@@ -40,6 +40,7 @@ namespace Laubrary.Zui
         readonly VisualElement _body;
         readonly Label _caret;
         readonly string _key;
+        bool _open = true; // Existing instances keep their own fold while another window changes the default.
         readonly VisualElement _titleRow;   // null for an untitled box (nothing to host a gear)
         Label _title;                       // the title label (null for an untitled box) — updated for the collapsed suffix
         string _titleText;                  // base title text, so a collapsed-only suffix can be appended/removed
@@ -159,8 +160,8 @@ namespace Laubrary.Zui
 
         public bool IsOpen
         {
-            get => (_headerToggle==null||_headerToggle.value)&&(_key == null || !s_open.TryGetValue(_key, out bool open) || open);
-            set { if (_key != null) { s_open[_key] = value; Apply(); } }
+            get => (_headerToggle==null||_headerToggle.value)&&_open;
+            set { if (_key != null) { _open = value; s_open[_key] = value; Apply(); } }
         }
 
         /// `stateKey` distinguishes boxes that share a title — several identical "Matte" boxes down a layer
@@ -179,6 +180,7 @@ namespace Laubrary.Zui
             if (!string.IsNullOrEmpty(title))
             {
                 _key = stateKey ?? title + "" + (tooltip ?? string.Empty);
+                _open = !s_open.TryGetValue(_key, out bool savedOpen) || savedOpen;
 
                 _titleRow = new VisualElement();
                 _titleRow.AddToClassList("zui-box__titlerow");
@@ -310,7 +312,9 @@ namespace Laubrary.Zui
         public void CaptureView(Dictionary<string, bool> into)
         {
             if (into == null || _key == null) return;   // an untitled box has no persistent identity
-            into[_key + "/fold"] = IsOpen;
+            // Disabling a section hides its body without changing the user's fold preference.
+            // Persist that preference so rebuild/Undo/Redo can re-enable the same open section.
+            into[_key + "/fold"] = _open;
             if (HasGear) into[_key + "/gear"] = GearOpen;
             foreach (var t in _toggleables) into[_key + "/" + t.key] = ControlOn(t.key);
         }

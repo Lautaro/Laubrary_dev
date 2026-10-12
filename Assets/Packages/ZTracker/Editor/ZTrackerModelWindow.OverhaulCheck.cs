@@ -27,6 +27,11 @@ namespace Laubrary.ZTracker.Editor
             if(!state||!box.IsOpen||box.contentContainer.style.display!=DisplayStyle.Flex)throw new Exception("Enabled section did not restore");
             box.Q<Toggle>().value=false;
             if(box.IsOpen)throw new Exception("Disabled section remained unfolded");
+            var saved=new Dictionary<string,bool>();box.CaptureView(saved);
+            box.IsOpen=false;box.ApplyView(saved);box.Q<Toggle>().value=true;
+            if(!box.IsOpen)throw new Exception("Disabled capture lost the open fold preference");
+            var sibling=Z.BoxKeyed("Proof","Temporary header toggle test","tracker.overhaul.proof");sibling.IsOpen=false;
+            if(!box.IsOpen)throw new Exception("Another window changed this section's fold");
             var number=Z.ScrubNumber("Notes",3,1,12,"Proof",v=>{},defaultValue:1);
             number.value=100;if(number.value!=12)throw new Exception("Count upper bound");number.value=-100;if(number.value!=1)throw new Exception("Count lower bound");
             return "PASS section disabled-fold gate, re-enable restore, discrete number bounds";
