@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Laubrary.ZTracker.Engine;
 using Laubrary.ZTracker.Model;
@@ -57,7 +58,8 @@ namespace Laubrary.ZTracker
         // block-sized steps; a jump bigger than SnapSeconds (pause, seek, a hitch) is taken at once instead.
         const double Gain = 0.06, SnapSeconds = 0.12;
 
-        readonly ZTrackerPlayback playback;
+        readonly Func<TrackerSapGenerator> generatorOf;
+        readonly Func<SongData> songOf;
         double anchorTime, anchorPosition;
         bool haveAnchor, frozen;
         long lastBlocks = -1;
@@ -66,7 +68,10 @@ namespace Laubrary.ZTracker
         readonly Dictionary<string, PatternData> patternsById = new Dictionary<string, PatternData>();
         readonly Dictionary<string, int> trackIndexById = new Dictionary<string, int>();
 
-        internal ZTrackerSongClock(ZTrackerPlayback playback) { this.playback = playback; }
+        internal ZTrackerSongClock(ZTrackerPlayback playback) : this(() => playback.IsPlaying ? playback.Generator : null, () => playback.PlayingSong) { }
+        /// <summary>A clock over any renderer that plays a song (for example an editor's own preview), given the
+        /// renderer and the detached song data it plays. Either may return null while nothing plays.</summary>
+        public ZTrackerSongClock(Func<TrackerSapGenerator> generator, Func<SongData> song) { generatorOf = generator; songOf = song; }
 
         /// <summary>Added to the estimated output delay. Positive when the sound reaches the player later than
         /// estimated (e.g. Bluetooth headphones). Tune by ear or with a tap-along calibration.</summary>
@@ -87,9 +92,9 @@ namespace Laubrary.ZTracker
 
         /// <summary>The detached song data that is actually playing (a copy, not the asset). Read only: its tracks,
         /// patterns, order list, instruments and their models. Edits to it do not reach the playing audio.</summary>
-        public SongData Song => playback != null ? playback.PlayingSong : null;
+        public SongData Song => songOf();
 
-        public bool IsPlaying => playback != null && playback.IsPlaying;
+        public bool IsPlaying => generatorOf() != null;
 
         /// <summary>The row the player hears right now (rendered position minus the output delay).</summary>
         public bool TryGetHeard(out ZTrackerSongPosition position) => TryGetHeardAt(Time.realtimeSinceStartupAsDouble, out position);
@@ -173,7 +178,7 @@ namespace Laubrary.ZTracker
         bool TryRenderHead(double now, out double head)
         {
             head = 0;
-            var generator = playback != null && playback.IsPlaying ? playback.Generator : null;
+            var generator = generatorOf();
             if (generator == null || !generator.TryReadClockHead(out var h)) return false;
             if (h.sampleRate > 0) sampleRate = h.sampleRate;
             if (h.playing == 0 || h.paused != 0)
@@ -202,7 +207,7 @@ namespace Laubrary.ZTracker
         bool TryResolve(double at, out ZTrackerSongPosition position)
         {
             position = default;
-            var generator = playback != null ? playback.Generator : null;
+            var generator = generatorOf();
             if (generator == null) return false;
             long written = generator.ClockRowsWritten;
             long oldest = System.Math.Max(0, written - TrackerEventRing.ClockRowCapacity);

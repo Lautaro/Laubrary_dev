@@ -256,19 +256,28 @@ namespace Laubrary.ZTracker
         readonly ZTrackerSong source;
         readonly ZTrackerInstrument audition;
         readonly int preset;
+        readonly int auditionColumns=1;
         readonly Dictionary<ZTrackerInstrument, ZTrackerInstrument> copies = new Dictionary<ZTrackerInstrument, ZTrackerInstrument>();
         ZTrackerInstrument[] slots;
         public SongData Data { get; private set; }
-        PlaybackSnapshot(ZTrackerSong source, ZTrackerInstrument audition, int preset) { this.source = source; this.audition = audition; this.preset = preset; }
+        PlaybackSnapshot(ZTrackerSong source, ZTrackerInstrument audition, int preset, int columns = 1) { this.source = source; this.audition = audition; this.preset = preset; auditionColumns = Math.Max(1, columns); }
         public bool Contains(ZTrackerInstrument instrument) => instrument != null && copies.ContainsKey(instrument);
         public static PlaybackSnapshot Create(ZTrackerSong source, ZTrackerInstrument audition, int preset)
         {
             var result = new PlaybackSnapshot(source, audition, preset);
             try { result.Build(null, null); return result; } catch { result.Dispose(); throw; }
         }
+        /// <summary>A clean one-instrument channel for live preview: one track with <paramref name="columns"/> note columns
+        /// (its polyphony), default gain and pan and no track devices, so only the instrument's own effect chains apply.</summary>
+        public static PlaybackSnapshot CreateClean(ZTrackerInstrument instrument, int columns, int preset = -1)
+        {
+            if (instrument == null) throw new ArgumentNullException(nameof(instrument));
+            var result = new PlaybackSnapshot(null, instrument, preset, columns);
+            try { result.Build(null, null); return result; } catch { result.Dispose(); throw; }
+        }
         public PlaybackSnapshot CreateRefresh(ZTrackerInstrument instrument = null)
         {
-            var result = new PlaybackSnapshot(source, audition, preset);
+            var result = new PlaybackSnapshot(source, audition, preset, auditionColumns);
             try { result.Build(this, instrument); return result; } catch { result.Dispose(); throw; }
         }
         ZTrackerInstrument Copy(ZTrackerInstrument original, PlaybackSnapshot previous, bool update)
@@ -322,7 +331,7 @@ namespace Laubrary.ZTracker
             {
                 slots = new[] { audition };
                 Data = new SongData { id = "audition", instruments = new List<ZTrackerInstrument> { audition } };
-                Data.tracks.Add(new TrackData { id = "audition-track", visibleNoteColumns = 1, outputTrackId = "master" });
+                Data.tracks.Add(new TrackData { id = "audition-track", visibleNoteColumns = auditionColumns, outputTrackId = "master" });
                 Data.tracks.Add(new TrackData { id = "master", kind = TrackKind.Master, visibleNoteColumns = 0, visibleEffectColumns = 0 });
                 var pattern = new PatternData { id = "audition-pattern", lineCount = 64 };
                 pattern.tracks.Add(new PatternTrack { trackId = "audition-track" }); pattern.tracks.Add(new PatternTrack { trackId = "master" });

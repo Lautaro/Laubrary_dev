@@ -26,6 +26,11 @@ namespace Laubrary.ZTracker.Engine
         public DiscreteTime? length=>null;
         TrackerPreparedSong initial,current;
         TrackerEventRing ring;
+        TrackerLiveRing live;
+        TrackerLiveTarget liveTarget;
+        /// <summary>Door for live performance events (MIDI keys and controllers) into this renderer. Null before Configure;
+        /// closed when the host stops.</summary>
+        public TrackerLiveTarget LiveInput=>liveTarget;
         GeneratorInstance instance;
         NativeArray<long> controlDisposed;
         bool hasInstance,hasRing,accepting=true,transferred,autoplay;
@@ -40,7 +45,7 @@ namespace Laubrary.ZTracker.Engine
         public void Configure(TrackerPreparedSong song,bool playSong=true)
         {
             if(initial!=null||hasInstance||song==null||song.Disposed||song.Published)throw new InvalidOperationException("Host needs a fresh prepared song");
-            ring=TrackerEventRing.Create(65536);hasRing=true;initial=current=song;configuredRate=song.state.sampleRate;song.Published=true;owned.Add(song);autoplay=playSong;TrackerSapRegistry.Register(this);
+            ring=TrackerEventRing.Create(65536);hasRing=true;live=TrackerLiveRing.Create(1024);liveTarget=new TrackerLiveTarget(live);initial=current=song;configuredRate=song.state.sampleRate;song.Published=true;owned.Add(song);autoplay=playSong;TrackerSapRegistry.Register(this);
             AudioSettings.OnAudioConfigurationChanged+=ReconfigureOutput;
 #if UNITY_EDITOR
             AssemblyReloadEvents.beforeAssemblyReload+=BeforeReload;
@@ -51,7 +56,7 @@ namespace Laubrary.ZTracker.Engine
         public GeneratorInstance CreateInstance(ControlContext context,AudioFormat? nestedConfiguration,CreationParameters creationParameters)
         {
             if(!accepting||TrackerSapRegistry.RefuseNewRendering||initial==null||transferred)return default;
-            var realtime=new TrackerRealtime{state=initial.state,events=ring};
+            var realtime=new TrackerRealtime{state=initial.state,events=ring,live=live};
             if(autoplay){var play=TrackerCommand.Play();realtime.Apply(in play);}
             foreach(var command in pending)realtime.Apply(in command);pending.Clear();
             initial.Published=true;transferred=true;
@@ -106,7 +111,7 @@ namespace Laubrary.ZTracker.Engine
         public bool RenderCompiled { get{if(!retiredCompiled)return false;bool rendered=retiredFrames>0;foreach(var p in owned)if(!p.Disposed){var ptr=(long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket);long frames=Volatile.Read(ref ptr[1]);if(frames>0){rendered=true;if(Volatile.Read(ref ptr[3])!=1)return false;}}return rendered;} }
         public bool StopAndConfirm(double timeout=.5)
         {
-            accepting=false;var carrier=GetComponent<AudioSource>();if(carrier!=null)carrier.Stop();
+            accepting=false;liveTarget?.Close();var carrier=GetComponent<AudioSource>();if(carrier!=null)carrier.Stop();
             if(!transferred)return true;
             double settle=SapLifetime.DefaultSettleSeconds(1024,configuredRate);
             bool quiet=SapLifetime.WaitUntilQuiet(owned.Count,i=>SapRenderTicket.Read(owned[i].state.ticket),settle,timeout);
@@ -139,11 +144,12 @@ namespace Laubrary.ZTracker.Engine
             EditorApplication.quitting-=BeforeReload;
 #endif
             TrackerSapRegistry.Unregister(this);
+            liveTarget?.Close();
             bool quiet=!transferred||StopAndConfirm(.25);
             bool disposed=!transferred||ControlDisposed(controlDisposed);
-            if(quiet&&disposed){foreach(var p in owned)if(!p.Disposed)p.DisposeAfterQuiet();if(hasRing)ring.Dispose();if(controlDisposed.IsCreated)controlDisposed.Dispose();}
-            else TrackerSapRegistry.Retain(owned,ring,hasRing,instance,hasInstance,controlDisposed);
-            owned.Clear();hasRing=false;initial=current=null;transferred=false;hasInstance=false;
+            if(quiet&&disposed){foreach(var p in owned)if(!p.Disposed)p.DisposeAfterQuiet();if(hasRing)ring.Dispose();live.Dispose();if(controlDisposed.IsCreated)controlDisposed.Dispose();}
+            else TrackerSapRegistry.Retain(owned,ring,hasRing,live,instance,hasInstance,controlDisposed);
+            owned.Clear();hasRing=false;live=default;initial=current=null;transferred=false;hasInstance=false;
             controlDisposed=default;
         }
         public void ReconfigureOutput(bool deviceChanged)
@@ -175,7 +181,7 @@ namespace Laubrary.ZTracker.Engine
     internal static class TrackerSapRegistry
     {
         static readonly List<TrackerSapGenerator> hosts=new List<TrackerSapGenerator>();
-        sealed class Retained { public List<TrackerPreparedSong> songs;public TrackerEventRing ring;public bool hasRing;public NativeArray<long> controlDisposed;public GeneratorInstance instance;public bool hasInstance; }
+        sealed class Retained { public List<TrackerPreparedSong> songs;public TrackerEventRing ring;public bool hasRing;public TrackerLiveRing live;public NativeArray<long> controlDisposed;public GeneratorInstance instance;public bool hasInstance; }
         static readonly List<Retained> retained=new List<Retained>();
         static SapQuitDrain drain;
         static bool installed;
@@ -196,7 +202,7 @@ namespace Laubrary.ZTracker.Engine
 #endif
         public static void Register(TrackerSapGenerator host){Install();hosts.Add(host);}
         public static void Unregister(TrackerSapGenerator host){hosts.Remove(host);}
-        public static void Retain(List<TrackerPreparedSong> songs,TrackerEventRing ring,bool hasRing,GeneratorInstance instance,bool hasInstance,NativeArray<long> controlDisposed){retained.Add(new Retained{songs=new List<TrackerPreparedSong>(songs),ring=ring,hasRing=hasRing,instance=instance,hasInstance=hasInstance,controlDisposed=controlDisposed});EnsurePump();}
+        public static void Retain(List<TrackerPreparedSong> songs,TrackerEventRing ring,bool hasRing,TrackerLiveRing live,GeneratorInstance instance,bool hasInstance,NativeArray<long> controlDisposed){retained.Add(new Retained{songs=new List<TrackerPreparedSong>(songs),ring=ring,hasRing=hasRing,live=live,instance=instance,hasInstance=hasInstance,controlDisposed=controlDisposed});EnsurePump();}
         // The drain is a standalone-player workaround (T-0503). The editor quitting, or leaving Play mode, is handled by the
         // generators' own reload/mode hooks, so it never starts a drain that would outlive Play mode.
         static bool WantsQuit(){if(Application.isEditor)return true;if(drain.complete)return true;if(!drain.draining){drain.Begin(Time.realtimeSinceStartupAsDouble);foreach(var host in hosts)if(host!=null)host.Silence();EnsurePump();}return false;}
@@ -219,7 +225,7 @@ namespace Laubrary.ZTracker.Engine
                 // An accepted swap may never have reached realtime before Stop, so that unused owner's
                 // ticket can legitimately have no terminal mark. Observe every ticket, then free the bundle.
                 bool quiet=true;foreach(var p in bundle.songs)if(!p.WaitUntilQuiet(.06,.07))quiet=false;
-                if(!quiet)continue;foreach(var p in bundle.songs)p.DisposeAfterQuiet();if(bundle.hasRing)bundle.ring.Dispose();if(bundle.controlDisposed.IsCreated)bundle.controlDisposed.Dispose();retained.RemoveAt(i);
+                if(!quiet)continue;foreach(var p in bundle.songs)p.DisposeAfterQuiet();if(bundle.hasRing)bundle.ring.Dispose();bundle.live.Dispose();if(bundle.controlDisposed.IsCreated)bundle.controlDisposed.Dispose();retained.RemoveAt(i);
             }
         }
     }
