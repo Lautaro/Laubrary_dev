@@ -55,6 +55,12 @@ namespace Laubrary.ZTracker.Editor
                     Need(element != null, "Missing control " + name);
                     return element;
                 }
+                VisualElement FlowItem(VisualElement element)
+                {
+                    for (var current = element; current != null; current = current.parent)
+                        if (current.parent != null && current.parent.ClassListContains("tracker-flow")) return current;
+                    throw new InvalidOperationException("Control is not inside a ZTracker flow row: " + element.name);
+                }
                 void ChooseMode(string label)
                 {
                     var mode = Find("synth-note-mode");
@@ -85,7 +91,7 @@ namespace Laubrary.ZTracker.Editor
                 {
                     q.glideEnabled = false; q.legatoEnabled = false; q.glideLegato = false; q.glideSeconds = .37f;
                     Undo.ClearUndo(instrumentAsset); window.BuildPane(); Layout();
-                    var mode = Find("synth-note-mode"); var time = Find("synth-glideSeconds");
+                    var mode = FlowItem(Find("synth-note-mode")); var time = FlowItem(Find("synth-glideSeconds"));
                     Need(Visible(time) && !time.enabledSelf, "Glide time should be visible but disabled in None mode");
                     Need(ReferenceEquals(mode.parent, time.parent) && Math.Abs(mode.worldBound.yMin - time.worldBound.yMin) < 2 && mode.worldBound.xMax <= time.worldBound.xMin + 1,
                         "Notes choice and Glide time do not share a horizontal row");
@@ -125,7 +131,7 @@ namespace Laubrary.ZTracker.Editor
                 Check("Tune cents and semitone steps share a row and edit independent stored values", () =>
                 {
                     q.fineTune = 17.25f; q.transpose = 4; window.BuildPane(); Layout();
-                    var cents = Find("synth-fineTune"); var steps = Find("synth-transpose");
+                    var cents = FlowItem(Find("synth-fineTune")); var steps = FlowItem(Find("synth-transpose"));
                     Need(ReferenceEquals(cents.parent, steps.parent), "Tune cents and Tune steps are not in the same row");
                     Need(Math.Abs(cents.worldBound.yMin - steps.worldBound.yMin) < 2 && cents.worldBound.xMax <= steps.worldBound.xMin + 1,
                         "Tune controls do not fit side-by-side in the wide Synth layout");
