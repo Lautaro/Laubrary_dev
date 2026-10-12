@@ -58,9 +58,9 @@ namespace Laubrary.ZTracker.Editor
                 var sends = InstrumentSection(root, "Mixer sends", "mixer-sends", "These levels route to matching song Send tracks in Mixer, independently of this instrument's effect chain. Stored levels are retained when a destination is absent.");
                 var row = Flow();
                 if (delay) row.Add(NumberForField("instDelaySend", q.instDelaySend, v => q.instDelaySend = v, "synth-instDelaySend"));
-                else if (q.instDelaySend != 0) row.Add(Diagnostic("Delay destination", "The stored delay send is " + q.instDelaySend.ToString("P0") + "; playback requires a Mixer Send track containing Delay. The authored amount is preserved."));
+                else if (q.instDelaySend != 0) row.Add(Diagnostic("Delay destination", supportsSends ? "The stored delay send is " + q.instDelaySend.ToString("P0") + "; playback requires a Mixer Send track containing Delay. The authored amount is preserved." : "The stored delay send is " + q.instDelaySend.ToString("P0") + "; this imported sampler does not use retained instrument sends. The amount is preserved; route it through Mixer instead."));
                 if (reverb) row.Add(NumberForField("instReverbSend", q.instReverbSend, v => q.instReverbSend = v, "synth-instReverbSend"));
-                else if (q.instReverbSend != 0) row.Add(Diagnostic("Reverb destination", "The stored reverb send is " + q.instReverbSend.ToString("P0") + "; playback requires a Mixer Send track containing Reverb. The authored amount is preserved."));
+                else if (q.instReverbSend != 0) row.Add(Diagnostic("Reverb destination", supportsSends ? "The stored reverb send is " + q.instReverbSend.ToString("P0") + "; playback requires a Mixer Send track containing Reverb. The authored amount is preserved." : "The stored reverb send is " + q.instReverbSend.ToString("P0") + "; this imported sampler does not use retained instrument sends. The amount is preserved; route it through Mixer instead."));
                 sends.Add(row);
             }
         }
