@@ -54,6 +54,20 @@ namespace Laubrary.ZTracker.Editor
                     window.ReorderTracks(0,1);Need(window.SelectedTrack.id==selected.id&&song.model.tracks[1].id==selected.id,"Selection changed owner");Need(record.automation.Last().target.trackId==selected.id&&selected.sends[0].trackId==send.id,"References followed an index");
                     Undo.PerformUndo();Need(song.model.tracks.Select(t=>t.id).SequenceEqual(before),"Undo did not restore order");Undo.PerformRedo();Need(song.model.tracks[1].id==selected.id,"Redo did not restore order");
                 });
+                Check("retained cell click selects after reorder and first FX character opens suggestions",()=>{
+                    foreach(var t in song.model.tracks)t.visibleEffectColumns=Math.Max(1,t.visibleEffectColumns);
+                    window.pane=0;window.row=0;window.BuildPane();LayoutChain(window);
+                    var cell=window.gridCanvas.Q<Label>("cell-0-3");Need(cell!=null&&cell.worldBound.width>0,"Nonfirst cell was not laid out");
+                    using(var click=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,mousePosition=cell.worldBound.center})){click.target=cell;cell.SendEvent(click);}
+                    Need(window.sub==3,"Retained cell pointer did not select column 3");
+                    int fx=window.fields.FindIndex(f=>f.kind==FieldKind.EffectId||f.kind==FieldKind.LocalId);Need(fx>0,"No FX identifier field");
+                    window.grid.scrollOffset=new Vector2(Mathf.Max(0,window.fieldX[fx]-30),0);window.BuildVisibleCells();LayoutChain(window);
+                    cell=window.gridCanvas.Q<Label>("cell-0-"+fx);Need(cell!=null&&cell.worldBound.width>0,"FX cell was not laid out");
+                    using(var click=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,mousePosition=cell.worldBound.center})){click.target=cell;cell.SendEvent(click);}
+                    Need(window.sub==fx,"Retained FX cell pointer did not select it");
+                    window.grid.Focus();using(var key=KeyDownEvent.GetPooled(new Event{type=EventType.KeyDown,keyCode=KeyCode.Alpha0,character='0'})){key.target=window.grid;window.grid.SendEvent(key);}
+                    Need(window.pendingId=="0"&&window.fxSuggestions?.IsOpen==true,"First typed FX character did not open suggestions");window.CloseFxSuggestions();
+                });
                 Check("FX catalog matches the compiler's supported locations",()=>{
                     string Ids(FieldKind kind)=>string.Join(",",FxCommandCatalog.For(kind).Select(e=>e.id).OrderBy(id=>id));
                     string Canonical(string ids)=>string.Join(",",ids.Split(' ').OrderBy(id=>id));
