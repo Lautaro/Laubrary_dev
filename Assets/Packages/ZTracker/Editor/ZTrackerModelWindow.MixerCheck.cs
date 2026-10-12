@@ -6,6 +6,7 @@ using System.Text;
 using Laubrary.Audio;
 using Laubrary.Audio.Editor;
 using Laubrary.Zounds;
+using Laubrary.Zounds.Dsp;
 using Laubrary.ZTracker.Engine;
 using Laubrary.ZTracker.Model;
 using Laubrary.Zui;
