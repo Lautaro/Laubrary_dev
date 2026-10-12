@@ -15,6 +15,8 @@ namespace Laubrary.ZTracker.Editor
 {
     public sealed partial class ZTrackerModelWindow
     {
+        static readonly TrackData MixerTrackDefaults=new TrackData();
+        static readonly SendDestination MixerSendDefaults=new SendDestination();
         int mixerTab;
         readonly Dictionary<string,Vector2> authoringScroll=new Dictionary<string,Vector2>();
         ScrollView AuthoringScroll(VisualElement root,string key)
@@ -43,8 +45,8 @@ namespace Laubrary.ZTracker.Editor
                 return;
             }
             if(mixerTab==2){BuildSources(scroll,t);return;}
-            scroll.Add(Flow(Named(DialSong("Pre gain",t.preVolume,0,16,"Amplitude multiplier before effects.",v=>t.preVolume=v,decimals:3),"mixer-pre-volume"),DialSong("Pre pan",t.prePan,-1,1,"Stereo balance before effects.",v=>t.prePan=v,decimals:3),DialSong("Width",t.preWidth,0,4,"Stereo width before effects.",v=>t.preWidth=v,decimals:3)));
-            scroll.Add(Flow(Named(DialSong("Post gain",t.postVolume,0,16,"Amplitude multiplier after effects.",v=>t.postVolume=v,decimals:3),"mixer-post-volume"),DialSong("Post pan",t.postPan,-1,1,"Stereo balance after effects.",v=>t.postPan=v,decimals:3)));
+            scroll.Add(Flow(Named(DialSong("Pre gain",t.preVolume,0,16,"Amplitude multiplier before effects.",v=>t.preVolume=v,decimals:3,defaultValue:MixerTrackDefaults.preVolume),"mixer-pre-volume"),DialSong("Pre pan",t.prePan,-1,1,"Stereo balance before effects.",v=>t.prePan=v,decimals:3,defaultValue:MixerTrackDefaults.prePan),DialSong("Width",t.preWidth,0,4,"Stereo width before effects.",v=>t.preWidth=v,decimals:3,defaultValue:MixerTrackDefaults.preWidth)));
+            scroll.Add(Flow(Named(DialSong("Post gain",t.postVolume,0,16,"Amplitude multiplier after effects.",v=>t.postVolume=v,decimals:3,defaultValue:MixerTrackDefaults.postVolume),"mixer-post-volume"),DialSong("Post pan",t.postPan,-1,1,"Stereo balance after effects.",v=>t.postPan=v,decimals:3,defaultValue:MixerTrackDefaults.postPan)));
             scroll.Add(Flow(Named(Z.Toggle("Output mute","Mute this track's output while its effects continue processing.",t.outputMute,v=>SongEdit("output mute",()=>t.outputMute=v)),"mixer-output-mute"),Z.Toggle("Trigger mute","Suppress new notes and track commands.",t.triggerMute,v=>SongEdit("trigger mute",()=>t.triggerMute=v)),Z.Toggle("Solo","Hear this track and its necessary routing buses.",t.solo,v=>SongEdit("solo",()=>t.solo=v))));
             if(t.kind!=TrackKind.Master)
             {
@@ -52,7 +54,7 @@ namespace Laubrary.ZTracker.Editor
                 scroll.Add(ReferencePicker("Output",t.outputTrackId,Data.tracks.Where(x=>(x.kind==TrackKind.Group||x.kind==TrackKind.Send||x.kind==TrackKind.Master)&&x.id!=t.id&&RouteAllowed(t,x.id,false)).ToList(),"Group / Master","Choose the output bus. Feedback routes are excluded.",v=>SongEdit("track output",()=>t.outputTrackId=v,true)));
             }
             var beat=Flow(Z.Toggle("Beat events","Emit beat events for this track.",t.beatTicks,v=>SongEdit("track beat events",()=>t.beatTicks=v,true)));
-            if(t.beatTicks)beat.Add(Named(DialSong("Interval",t.beatIntervalLines,1,512,"Lines between this track's beat events.",v=>t.beatIntervalLines=(int)v),"mixer-beat-interval"));
+            if(t.beatTicks)beat.Add(Named(DialSong("Interval",t.beatIntervalLines,1,512,"Lines between this track's beat events.",v=>t.beatIntervalLines=(int)v,defaultValue:MixerTrackDefaults.beatIntervalLines),"mixer-beat-interval"));
             scroll.Add(beat);
             var sends=Z.BoxKeyed("Sends","Tap this track before or after its fader into a Send bus.","tracker.mixer.sends");
             var destinations=Data.tracks.Where(x=>x.kind==TrackKind.Send&&x.id!=t.id&&SendAllowed(t,x.id)).ToList();
@@ -61,7 +63,7 @@ namespace Laubrary.ZTracker.Editor
             foreach(var s in t.sends.ToArray())
             {
                 var options=Data.tracks.Where(x=>x.kind==TrackKind.Send&&x.id!=t.id&&SendAllowed(t,x.id,s)).ToList();sends.Add(ReferencePicker("Destination",s.trackId,options,"None","Choose the Send bus.",v=>{if(v!="")SongEdit("send destination",()=>s.trackId=v,true);}));
-                sends.Add(Flow(DialSong("Gain",s.gain,0,16,"Send amplitude multiplier.",v=>s.gain=v,decimals:3),DialSong("After FX",s.devicePosition,0,t.devices.nodes.Count,"Zero taps before the first effect; each following position taps after that effect.",v=>s.devicePosition=(int)v,true),Z.Toggle("Post fader","Take the send after the track fader.",s.postfader,v=>SongEdit("send tap",()=>s.postfader=v,true)),Z.IconButton("trash","Remove this send.",()=>SongEdit("remove send",()=>t.sends.Remove(s),true))));
+                sends.Add(Flow(DialSong("Gain",s.gain,0,16,"Send amplitude multiplier.",v=>s.gain=v,decimals:3,defaultValue:MixerSendDefaults.gain),DialSong("After FX",s.devicePosition,0,t.devices.nodes.Count,"Zero taps before the first effect; each following position taps after that effect.",v=>s.devicePosition=(int)v,true,defaultValue:MixerSendDefaults.devicePosition),Z.Toggle("Post fader","Take the send after the track fader.",s.postfader,v=>SongEdit("send tap",()=>s.postfader=v,true)),Z.IconButton("trash","Remove this send.",()=>SongEdit("remove send",()=>t.sends.Remove(s),true))));
             }
             scroll.Add(sends);
         }

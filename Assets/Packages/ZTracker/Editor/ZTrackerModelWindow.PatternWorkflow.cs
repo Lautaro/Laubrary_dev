@@ -8,11 +8,13 @@ namespace Laubrary.ZTracker.Editor
 {
     public sealed partial class ZTrackerModelWindow
     {
+        static readonly PatternData PatternDefaults=new PatternData();
+        static readonly TrackData PatternTrackDefaults=new TrackData();
         VisualElement patternTrackSettings;
 
         void BuildPatternSettings(VisualElement tools)
         {
-            tools.Add(Named(Z.ScrubNumber("Length",Pattern.lineCount,1,512,"Number of rows in this pattern; Undo restores cropped rows and automation.",v=>SongEdit("pattern length",()=>{ZTrackerPatternOperations.Resize(Pattern,v);row=Mathf.Min(row,v-1);},true),width:115,defaultValue:64),"pattern-length"));
+            tools.Add(Named(Z.ScrubNumber("Length",Pattern.lineCount,1,512,"Number of rows in this pattern; Undo restores cropped rows and automation.",v=>SongEdit("pattern length",()=>{ZTrackerPatternOperations.Resize(Pattern,v);row=Mathf.Min(row,v-1);},true),width:115,defaultValue:PatternDefaults.lineCount),"pattern-length"));
             patternTrackSettings=new VisualElement{name="pattern-track-settings"};tools.Add(patternTrackSettings);RefreshPatternTrackSettings();
         }
 
@@ -22,8 +24,8 @@ namespace Laubrary.ZTracker.Editor
             patternTrackSettings.Clear();var t=SelectedTrack;if(t==null)return;
             patternTrackSettings.Add(Named(Z.Field("Name","Rename the selected track.",Z.TextInput(t.name,"Rename the selected track.",v=>{SongEdit("track name",()=>t.name=v);for(int i=0;i<Data.tracks.Count;i++)if(Data.tracks[i].id==t.id){var header=gridCanvas?.Q<Label>("pattern-track-header-"+i);if(header!=null)header.text=v;break;}},88)),"pattern-track-name"));
             if(t.kind==TrackKind.Sequencer)
-                patternTrackSettings.Add(Named(Z.ScrubNumber("Notes",t.visibleNoteColumns,1,12,"Number of visible note columns; hidden note data stays stored.",v=>SongEdit("note columns",()=>t.visibleNoteColumns=v,true),width:115,defaultValue:1),"pattern-note-columns"));
-            patternTrackSettings.Add(Named(Z.ScrubNumber("FX",t.visibleEffectColumns,0,8,"Number of visible track effect columns; hidden commands stay stored.",v=>SongEdit("effect columns",()=>t.visibleEffectColumns=v,true),width:115,defaultValue:1),"pattern-fx-columns"));
+                patternTrackSettings.Add(Named(Z.ScrubNumber("Notes",t.visibleNoteColumns,1,12,"Number of visible note columns; hidden note data stays stored.",v=>SongEdit("note columns",()=>t.visibleNoteColumns=v,true),width:115,defaultValue:PatternTrackDefaults.visibleNoteColumns),"pattern-note-columns"));
+            patternTrackSettings.Add(Named(Z.ScrubNumber("FX",t.visibleEffectColumns,0,8,"Number of visible track effect columns; hidden commands stay stored.",v=>SongEdit("effect columns",()=>t.visibleEffectColumns=v,true),width:115,defaultValue:PatternTrackDefaults.visibleEffectColumns),"pattern-fx-columns"));
         }
 
         void ReorderTracks(int from,int to)

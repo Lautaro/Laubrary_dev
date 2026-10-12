@@ -11,6 +11,7 @@ namespace Laubrary.ZTracker.Editor
 {
     public sealed partial class ZTrackerModelWindow
     {
+        internal const int DefaultPatternOctave=5,DefaultPatternStep=1;
         internal enum FieldKind{Note,Instrument,Volume,Pan,Delay,LocalId,LocalValue,EffectId,EffectValue,Event}
         struct FieldSlot{public int track,column;public FieldKind kind;public string title;public FieldSlot(int t,int c,FieldKind k,string label=""){track=t;column=c;kind=k;title=label;}}
         sealed class CopiedField{public int r,c;public FieldKind kind;public NoteCell note;public EffectCell effect;public EventCell evt;}
@@ -33,8 +34,8 @@ namespace Laubrary.ZTracker.Editor
             var tools=new VisualElement{name="pattern-tools"};tools.AddToClassList("tracker-tools");tools.style.flexDirection=FlexDirection.Column;tools.style.flexShrink=0;tools.style.width=146;tools.style.marginRight=6;pane.Add(tools);
             var edit=Named(Z.IconButton("pencil","Toggle pattern Edit mode. When on, note keys write into the pattern; when off, they only audition.",()=>{editMode=!editMode;BuildPane();}),"edit-mode");edit.EnableInClassList("tracker-picked",editMode);edit.style.alignSelf=Align.FlexStart;tools.Add(edit);
             BuildPatternSettings(tools);
-            tools.Add(Named(Z.ScrubNumber("Oct",octave,0,9,"Octave used by the QWERTY piano. Drag, click to type or double-click to reset.",v=>octave=v,width:115,defaultValue:5),"octave"));
-            tools.Add(Named(Z.ScrubNumber("Step",step,0,32,"Rows advanced after entering a note or field; Tab uses the same step.",v=>step=v,width:115,defaultValue:1),"edit-step"));
+            tools.Add(Named(Z.ScrubNumber("Oct",octave,0,9,"Octave used by the QWERTY piano. Drag, click to type or double-click to reset.",v=>octave=v,width:115,defaultValue:DefaultPatternOctave),"octave"));
+            tools.Add(Named(Z.ScrubNumber("Step",step,0,32,"Rows advanced after entering a note or field; Tab uses the same step.",v=>step=v,width:115,defaultValue:DefaultPatternStep),"edit-step"));
             tools.Add(ToolRow(Named(Z.IconButton("copy","Copy the selected rectangle of visible fields.",CopyBlock),"copy"),Named(Z.IconButton("clipboard","Paste copied fields at the cursor.",PasteBlock),"paste")));
             tools.Add(ToolRow(Named(Z.IconButton("list-plus","Insert a blank line at the cursor; Undo restores the shifted notes and automation.",()=>SongEdit("insert line",()=>ZTrackerPatternOperations.InsertLine(Pattern,row),true)),"insert-line"),Named(Z.IconButton("trash","Delete the line at the cursor and shift notes and automation upward.",()=>SongEdit("delete line",()=>ZTrackerPatternOperations.DeleteLine(Pattern,row),true)),"delete-line")));
             tools.Add(ToolRow(Button("−12","Transpose selected notes down an octave.",()=>Transpose(-12)),Button("+12","Transpose selected notes up an octave.",()=>Transpose(12))));
