@@ -63,7 +63,7 @@ namespace Laubrary.ZTracker.Editor
         {
             stage.focusable = true;
             root.Add(Flow(
-                Named(Z.MicroSlider("Octave", octave, 0, 8, "Starting octave for computer-keyboard audition.", v => { ReleaseInstrumentKeys(); octave = Mathf.RoundToInt(v); }, 145, defaultValue: 5, decimals: 0), "instrument-keyboard-octave"),
+                Named(Z.ScrubNumber("Octave", octave, 0, 8, "Starting octave for computer-keyboard audition.", v => { ReleaseInstrumentKeys(); octave = v; }, 100, defaultValue: 5), "instrument-keyboard-octave"),
                 InstrumentKeyboardStatus()));
         }
         void InstrumentKeyDown(KeyDownEvent e)

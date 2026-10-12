@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ZUI compact authoring controls (2026-10-12)
+
+- Added `Z.ScrubNumber` / `ZuiScrubNumber` for bounded discrete choices: large bold number, relative drag, click-to-type, double-click reset and a single change callback after a drag. Added `Z.CompactButton` and `Z.LinkButton` styles.
+- `ZuiBox.SetHeaderToggle` provides a plain enable checkbox before the title. Disabled bodies cannot unfold and retain their prior fold state and values. Existing boxes are unchanged until they opt in.
+- Shared chain fold carets have a separate style class, allowing ZTracker to hide arrows while preserving header folding and the normal Zounds appearance.
+
 ### Zounds — pinnable tool groups: the playback options and the edit tools, a popover or pinned into the bar (2026-10-10)
 
 Branch `feat/zounds-destructive-edit`.

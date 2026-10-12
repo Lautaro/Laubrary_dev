@@ -460,11 +460,14 @@ namespace Laubrary.Zounds.Uitk {
                 else {
                     var summary = Place(Text("", "", "zs-mini"), nameX + G.NameW, 0f, -1f, G.RowH);
                     summary.AddToClassList("zs-chain-editor__effect-summary");
+                    var foldCaret=new Label();foldCaret.AddToClassList("zs-chain-editor__fold-caret");foldCaret.pickingMode=PickingMode.Ignore;foldCaret.style.position=Position.Absolute;foldCaret.style.left=0;foldCaret.style.top=0;
+                    summary.Add(foldCaret);summary.style.paddingLeft=14;
                     summary.tooltip = selected ? "Click to fold the settings away." : "Click to show all " + units.Count + " settings. They do not fit on this row at the window's current width.";
                     refreshers.Add(() => {
                         var ch = Resolve(out _);
                         if (ni >= ch.nodes.Count) return;
-                        summary.text = (selected ? "▾ " : "▸ ") + G.Summary(zound, ch, ni, ch.nodes[ni], ZoundEffectDescriptors.Get(ch.nodes[ni].type));
+                        foldCaret.text=selected ? "▾" : "▸";
+                        summary.text = G.Summary(zound, ch, ni, ch.nodes[ni], ZoundEffectDescriptors.Get(ch.nodes[ni].type));
                     });
                     summary.AddManipulator(new Clickable(() => { selectedNode = selected ? -1 : ni; Tick(); }));
                     name.AddManipulator(new Clickable(() => { selectedNode = selected ? -1 : ni; Tick(); }));

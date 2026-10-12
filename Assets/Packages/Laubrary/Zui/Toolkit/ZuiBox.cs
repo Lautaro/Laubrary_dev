@@ -66,6 +66,23 @@ namespace Laubrary.Zui
         bool _gearRefreshScheduled;
         VisualElement _help;            // the "?" glyph — header content inserts before it
         VisualElement _headerContent;   // right-aligned controls hosted ON the title row (created lazily)
+        Toggle _headerToggle;
+        Action<bool> _headerToggleChanged;
+
+        /// <summary>Optional enable checkbox before the title. Disabled content cannot unfold; values remain intact.</summary>
+        public void SetHeaderToggle(bool enabled,Action<bool> onChanged,string tooltip)
+        {
+            if(_titleRow==null)return;
+            _headerToggleChanged=onChanged;
+            if(_headerToggle==null)
+            {
+                _headerToggle=new Toggle();_headerToggle.AddToClassList("zui-audit-allow-toggle");_headerToggle.AddToClassList("zui-box__enable");
+                _headerToggle.RegisterCallback<PointerDownEvent>(e=>e.StopPropagation());
+                _headerToggle.RegisterValueChangedCallback(e=>{Apply();_headerToggleChanged?.Invoke(e.newValue);});
+                _titleRow.Insert(0,_headerToggle);
+            }
+            _headerToggle.tooltip=tooltip;_headerToggle.SetValueWithoutNotify(enabled);Apply();
+        }
 
         /// Host a control ON the title row, right-aligned before the "?" — view dials that govern the
         /// box's content without costing a body row (a zoom, a display toggle). Clicks inside never fold
@@ -142,7 +159,7 @@ namespace Laubrary.Zui
 
         public bool IsOpen
         {
-            get => _key == null || !s_open.TryGetValue(_key, out bool open) || open;   // default: open
+            get => (_headerToggle==null||_headerToggle.value)&&(_key == null || !s_open.TryGetValue(_key, out bool open) || open);
             set { if (_key != null) { s_open[_key] = value; Apply(); } }
         }
 
@@ -199,7 +216,7 @@ namespace Laubrary.Zui
                     _titleRow.Add(_help);
                 }
 
-                _titleRow.AddManipulator(new Clickable(() => { IsOpen = !IsOpen; ViewChanged?.Invoke(); }));
+                _titleRow.AddManipulator(new Clickable(() => { if(_headerToggle!=null&&!_headerToggle.value)return;IsOpen = !IsOpen; ViewChanged?.Invoke(); }));
                 // RIGHT-CLICK the title row toggles the gear settings accordion (when the box has a gear) — a
                 // shortcut alongside the ⚙ (which stays, since a toggle needs its visible on/off state). Capture
                 // phase + StopPropagation so a right-click never also folds the box.
@@ -222,6 +239,7 @@ namespace Laubrary.Zui
         {
             if (_caret == null) return;
             bool open = IsOpen;
+            EnableInClassList("zui-box--disabled",_headerToggle!=null&&!_headerToggle.value);
             _caret.text = open ? "▾" : "▸";
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("zui-box--closed", !open);

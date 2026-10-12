@@ -9,7 +9,20 @@
 .tracker-track-gap { margin-right: 12px; }
 .tracker-compact .tracker-flow { margin: 0; padding: 0; }
 .tracker-compact .zui-button { min-height: 22px; height: 22px; margin: 1px; padding-left: 5px; padding-right: 5px; }
-.tracker-compact .zui-box { margin: 2px; padding: 3px; }
+.tracker-compact .zui-box { margin: 4px 5px; padding: 5px; }
+.tracker-compact .zui-box__body { padding: 4px 2px; }
+.tracker-compact .zui-box__caret { display: none; }
+.tracker-compact .zs-chain-editor__fold-caret { display: none; }
+.tracker-compact .zui-box__titlerow { min-height: 22px; }
+.tracker-compact .zui-section { margin: 5px 4px; }
+.tracker-compact .zui-button, .tracker-compact .zui-togglebutton, .tracker-compact .zui-segmented Button, .tracker-compact .zui-miniradio Button { --zui-button-metallic-strength: 0; min-height: 20px; height: 20px; padding: 0 5px; margin: 1px 2px; border-top-width: 0; border-bottom-width: 0; border-left-width: 0; border-right-width: 0; border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; background-color: rgba(115, 148, 171, 0.16); }
+.tracker-compact .zui-button:hover, .tracker-compact .zui-togglebutton:hover { background-color: rgba(126, 174, 207, 0.26); }
+.tracker-compact .zui-togglebutton--on, .tracker-compact .tracker-picked { background-color: rgba(83, 163, 210, 0.45); }
+.tracker-compact .tracker-visibility-toggles { flex-direction: row; flex-wrap: nowrap; margin: 2px 0; }
+.tracker-compact .tracker-visibility-toggles .zui-togglebutton { width: 24px; min-width: 24px; height: 18px; min-height: 18px; margin: 0; padding: 0 2px; font-size: 10px; border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.tracker-compact .zui-iconbtn { width: 23px; min-width: 23px; height: 23px; min-height: 23px; padding: 2px; margin: 1px; }
+.tracker-compact .zui-button-link { background-color: transparent; }
+.tracker-compact .tracker-drum-source { height: 20px; min-height: 20px; padding: 0 3px; font-size: 11px; }
 .tracker-track-row { height: 23px; min-height: 23px; -unity-text-align: middle-left; }
 .tracker-status-line { height: 20px; min-height: 20px; flex-shrink: 0; margin: 0; padding-left: 4px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tracker-axis-label { font-size: 10px; margin: 0; padding: 0; -unity-text-align: middle-left; }

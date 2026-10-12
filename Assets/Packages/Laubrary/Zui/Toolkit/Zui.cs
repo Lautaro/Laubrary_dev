@@ -25,6 +25,22 @@ namespace Laubrary.Zui
     // namespace, making `Zui.Button(...)` unresolvable exactly where it's most used.
     public static class Z
     {
+        /// <summary>Compact relative scrubber for a small set of discrete numeric choices.</summary>
+        public static ZuiScrubNumber ScrubNumber(string label,int value,int min,int max,string tooltip,Action<int> onChanged,float width=75,int defaultValue=0)
+        {
+            var control=new ZuiScrubNumber(label,value,min,max,tooltip,onChanged,defaultValue);
+            control.style.width=width;return control;
+        }
+        /// <summary>Small flat action for detail toolbars.</summary>
+        public static Button CompactButton(string label,string tooltip,Action action)
+        {
+            var button=Button(label,tooltip,action);button.AddToClassList("zui-button-compact");button.AddToClassList("zui-button-plain");return button;
+        }
+        /// <summary>Borderless text action; retains the same focus and click semantics as a button.</summary>
+        public static Button LinkButton(string label,string tooltip,Action action)
+        {
+            var button=CompactButton(label,tooltip,action);button.AddToClassList("zui-button-link");return button;
+        }
         // ── stylesheet ──────────────────────────────────────────────────────────────
         static StyleSheet _sheet;
         static readonly string[] PresentationSheetNames = { "ZuiPilotStandard", "ZuiPilotBands", "ZuiPilotEnvelope", "ZuiSharedEnvelope", "ZuiPresentation", "ZuiFoundationContainers", "ZuiFoundationFields", "ZuiFoundationLayout", "ZuiFoundationFlow", "ZuiFoundationAssetBrowser", "ZuiFoundationToolShell", "ZuiFieldPresentation", "ZuiSharedTheme", "ZuiButtonSurface" };

@@ -37,8 +37,8 @@ namespace Laubrary.ZTracker.Model
         {
             switch (Normalize(value))
             {
-                case "kd": case "kick": case "kickdrum": case "bd": case "bassdrum": return DrumCategory.Kick;
-                case "snare": case "snaredrum": return DrumCategory.Snare;
+                case "kd": case "kick": case "kicks": case "kickdrum": case "kickdrums": case "bd": case "bassdrum": case "bassdrums": return DrumCategory.Kick;
+                case "snare": case "snares": case "snaredrum": case "snaredrums": return DrumCategory.Snare;
                 case "hats": case "hh": case "hihat": case "hihats": return DrumCategory.Hats;
                 case "percussion": return DrumCategory.Percussion;
                 case "shaker": case "shakers": return DrumCategory.Shaker;
