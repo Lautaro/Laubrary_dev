@@ -85,7 +85,7 @@ At preparation each valid definition compiles to one fixed-size, reference-free 
 | Ticket | Reads |
 | --- | --- |
 | T-0597 FX columns | ids are plain two-character commands; stacking needs nothing new |
-| T-0598 bound columns | a column stores the definition's stable identity; the bar is `u` |
+| T-0598 bound columns | a column stores the definition's stable identity (a built-in, whose id never changes, is stored as its id); the bar is `u`; binding never moves a stored command, because the engine keeps per-column command memory |
 | T-0599 suggestions | `ZTrackerCommandRegistry.InContext` plus the built-in catalogue |
 | T-0600 colours | `scope` and `color` (transparent = scope default) |
 | T-0601 envelope columns | an automation lane with target kind Dynamic and the stable identity |
