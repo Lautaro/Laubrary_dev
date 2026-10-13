@@ -59,7 +59,7 @@ namespace Laubrary.ZTracker.Editor
                     Need(song.model.tracks[0].envelopeColumns.Count == 1 && Env() >= 0, "+ did not add an envelope column");
                     Need(window.rootVisualElement.Q("pattern-env-columns") != null, "the track settings do not show the envelope count");
                     // The + also opens this menu by itself on the next editor tick (seen in the walk); a synchronous check opens it directly.
-                    window.ShowEnvelopeMenu(0, 0);
+                    window.ShowEnvelopeMenu(0, 0, Cell("pattern-env-title-0-0"));
                     var search = Search(); Need(window.bindMenu?.IsOpen == true && search != null, "the bind menu did not open");
                     Enter(search, "0l"); Need(song.model.tracks[0].envelopeColumns[0].command == "0L", "Enter did not bind the column to 0L");
                     Need(Cell("pattern-env-title-0-0").text == "0L", "title does not show 0L: " + Cell("pattern-env-title-0-0")?.text);
