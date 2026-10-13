@@ -236,8 +236,14 @@ namespace Laubrary.ZTracker.Engine
         // released before the sustain point leaves from the level it has reached, like the amplifier's ADSR, and
         // reaches the last point's value over the release time (last point time minus the sustain position).
         public bool adsr;
+        // An LFO merged into the envelope (T-0641): added to its value per note, then the parameter's range applies.
+        // Depth 0 means none (every envelope saved before it). Speed in cycles per envelope time unit (seconds or rows),
+        // delay (the fade-in) in that unit; shape as ZUIEnvelopeData.LfoWave.
+        public float lfoDepth, lfoSpeed, lfoDelay;
+        public int lfoShape;
     }
-    public struct TrackerModState { public double position; public float releaseStart, output; public bool released, finished, seeked; public int direction; }
+    // lfo: the merged LFO's current offset for a per-note parameter envelope (T-0641), 0 when it has none.
+    public struct TrackerModState { public double position; public float releaseStart, output, lfo; public bool released, finished, seeked; public int direction; }
     public struct TrackerVoice
     {
         public bool active, released, pitchLimited;

@@ -59,6 +59,9 @@ namespace Laubrary.Zui
         /// A right-click on the plot that is not on a point (which a host can use for a context menu), with the
         /// pointer's world position.
         public Action<Vector2> onEmptyContext;
+        /// A second, read-only line drawn over the plot: the value at each point along it (0..1), in the curve's own
+        /// units, for example the curve with an LFO merged into it (T-0641). Clamped to the plot. Null = none.
+        public Func<float, float> overlay;
         public string xAxisLabel, yAxisLabel;
         /// <summary>Authored value-to-colour mapping; this is content, not theme.</summary>
         public Func<float, Color> yColorFor;

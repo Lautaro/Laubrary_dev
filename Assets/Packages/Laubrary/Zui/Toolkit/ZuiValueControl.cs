@@ -112,6 +112,10 @@ namespace Laubrary.Zui
             /// HOST stores and plays, from a Start value up to the slider's value (the peak). Null (default) = not
             /// offered, because a host that cannot play it would silently ignore it.
             public AdsrBinding adsr = null;
+            /// Offer an LFO merged with the Envelope or ADSR (T-0641): a switch in the right-click menu, and while on a
+            /// row of Depth / Speed / Delay sliders plus a shape choice under the curve or the ADSR. The HOST stores and
+            /// plays it; null (default) = not offered.
+            public LfoBinding lfo = null;
 
             public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
@@ -141,6 +145,31 @@ namespace Laubrary.Zui
             public string startLabel = "Start";
             public string startTooltip = "The value at the start of each note, and again once the release has ended; the attack rises from here to the peak.";
             public string tooltip = "This value's own attack, decay, sustain and release for each note: it rises from Start to the slider's value, falls to the sustain level while the key is held, and returns to Start on release. Drag a point or a slider; double-click resets a stage.";
+        }
+
+        /// <summary>Where an Envelope- or ADSR-mode value keeps its LFO (T-0641): the host's getters and setters (each
+        /// setter is one edit the host records for Undo), in this control's display units, and how its sliders read.
+        /// The LFO's wave is added to the envelope's value on every note; the host's player applies it.</summary>
+        public sealed class LfoBinding
+        {
+            public Func<bool> enabled; public Action<bool> setEnabled;
+            public Func<float> depth, speed, delay; public Action<float> setDepth, setSpeed, setDelay;
+            public Func<int> shape; public Action<int> setShape;
+            public string[] shapes = { "Sine", "Tri", "Saw", "Square" };
+            public float depthMax = 1f, depthDefault = .1f;
+            public float speedMin = .05f, speedMax = 20f, speedDefault = 4f;
+            public float delayMax = 2f, delayDefault = 0f;
+            public int depthDecimals = -1, speedDecimals = 2, delayDecimals = -1;
+            public bool speedLogarithmic = true;
+            public string depthLabel = "Depth", speedLabel = "Speed Hz", delayLabel = "Delay s";
+            public string depthTooltip = "How far the LFO swings the value either side of the envelope.";
+            public string speedTooltip = "How fast the LFO swings.";
+            public string delayTooltip = "How long after each note starts the LFO takes to fade in from nothing to its full depth.";
+            public string shapeTooltip = "The LFO's wave: Sine, Triangle, Saw or Square. Every shape starts from the envelope's own value.";
+            public string toggleTooltip = "Add an LFO to this value: a wave that swings it up and down around its envelope on every note, with its own depth, speed and fade-in delay.";
+            /// The LFO's offset at a point along the curve (0..1 of its length) in this control's units, used to draw the
+            /// merged wave over the curve. Null = not drawn.
+            public Func<float, float> offsetAt;
         }
 
         // Curve-mode UI state keyed by the ZUIValue instance so it survives window rebuilds
@@ -294,6 +323,7 @@ namespace Laubrary.Zui
             _content.Clear();
             _env = null;
             AdsrControl = null;
+            LfoRow = null;
             _inputsHost = null;
             _inputFields.Clear();
 
@@ -397,6 +427,69 @@ namespace Laubrary.Zui
             adsr.name = "zui-value-adsr";
             AdsrControl = adsr;
             _content.Add(adsr);
+            AddLfoRow(width);
+        }
+
+        // ── LFO (T-0641): Depth / Speed / Delay and the shape, under the curve or the ADSR, while switched on ──
+        bool LfoOn => _opt.lfo != null && _opt.lfo.enabled != null && _opt.lfo.enabled()
+            && (_v.mode == ZUIValue.Mode.Curve || _v.mode == ZUIValue.Mode.Adsr);
+
+        /// <summary>The LFO row while it is shown, otherwise null.</summary>
+        public VisualElement LfoRow { get; private set; }
+
+        void LfoEdit(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); _env?.MarkDirtyRepaint(); }
+
+        void AddLfoRow(float maxWidth)
+        {
+            LfoRow = null;
+            if (!LfoOn) return;
+            var b = _opt.lfo;
+            var box = new VisualElement { name = "zui-value-lfo", tooltip = b.toggleTooltip };
+            box.style.flexDirection = FlexDirection.Row; box.style.flexWrap = Wrap.Wrap; box.style.width = Length.Percent(100);
+            if (!float.IsNaN(maxWidth)) box.style.maxWidth = maxWidth;
+            box.style.marginTop = 2f; box.style.marginBottom = 1f;
+            // Two sliders per line in a narrow control, three in a wide one; each shrinks with the row.
+            VisualElement Cell(VisualElement e, string name)
+            {
+                e.name = name; e.style.width = StyleKeyword.Auto; e.style.flexGrow = 1; e.style.flexShrink = 1; e.style.flexBasis = 96; e.style.minWidth = 90; e.style.marginRight = 2f; e.style.marginBottom = 2f;
+                return e;
+            }
+            box.Add(Cell(Z.MicroSlider(b.depthLabel, b.depth(), 0f, b.depthMax, b.depthTooltip, v => LfoEdit(() => b.setDepth(v)), -1f, true, b.depthDefault, b.depthDecimals), "zui-value-lfo-depth"));
+            box.Add(Cell(Z.MicroSlider(b.speedLabel, b.speed(), b.speedMin, b.speedMax, b.speedTooltip, v => LfoEdit(() => b.setSpeed(v)), -1f, true, b.speedDefault, b.speedDecimals, logarithmic: b.speedLogarithmic), "zui-value-lfo-speed"));
+            box.Add(Cell(Z.MicroSlider(b.delayLabel, b.delay(), 0f, b.delayMax, b.delayTooltip, v => LfoEdit(() => b.setDelay(v)), -1f, true, b.delayDefault, b.delayDecimals), "zui-value-lfo-delay"));
+            if (b.shape != null && b.setShape != null)
+            {
+                // One compact button that steps through the shapes (a radio of four would take a line of its own in a
+                // narrow column); its tooltip names them all.
+                var shape = Z.CycleButton(Mathf.Clamp(b.shape(), 0, b.shapes.Length - 1), b.shapes, b.shapeTooltip + " Click for the next shape.", i => LfoEdit(() => b.setShape(i)));
+                shape.name = "zui-value-lfo-shape"; shape.style.flexShrink = 0; shape.style.flexGrow = 0; shape.style.width = 56f; shape.style.marginBottom = 2f; shape.style.marginLeft = 0f; shape.style.alignSelf = Align.Center;
+                box.Add(shape);
+            }
+            LfoRow = box;
+            _content.Add(box);
+        }
+
+        /// The curve's own value at a point along it (0..1), in this control's units: the points joined as the
+        /// envelope draws them (each segment bent by its end point's exponent).
+        float CurveValueAt(float x01)
+        {
+            var points = _v.points; int n = points.Count;
+            if (n == 0) return _v.staticValue;
+            if (x01 <= points[0].time) return points[0].value;
+            for (int i = 1; i < n; i++)
+            {
+                var a = points[i - 1]; var b = points[i];
+                if (x01 < b.time) { float span = b.time - a.time; float t = span > 0 ? (x01 - a.time) / span : 1f; return Mathf.Lerp(a.value, b.value, Mathf.Pow(t, Mathf.Max(.00001f, b.exponent))); }
+            }
+            return points[n - 1].value;
+        }
+
+        void ApplyLfoOverlay()
+        {
+            if (_env == null) return;
+            var b = _opt.lfo;
+            _env.configuration.overlay = LfoOn && b.offsetAt != null ? x => CurveValueAt(x) + b.offsetAt(x) : (Func<float, float>)null;
+            _env.MarkDirtyRepaint();
         }
 
         /// True when the clicked element is an editing surface whose own right-click gesture must survive —
@@ -603,6 +696,8 @@ namespace Laubrary.Zui
             _content.Add(envRow);
             _opt.decorateEnvelope?.Invoke(_env);
             if (st.showInputs) RebuildInputsRow();
+            AddLfoRow(float.NaN);
+            ApplyLfoOverlay();
 
             if (!_opt.hideCurveTiming) AddTimingRow();
 
@@ -1051,6 +1146,18 @@ namespace Laubrary.Zui
                 "held Steps, an Oscillation — a sine swinging between two envelopes at an animatable rate — or an ADSR, " +
                 "attack, decay, sustain and release for each note (where offered).",
                 i => SetMode(modes[i]), closeOnSelect: true);
+
+            // The LFO switch (T-0641), for a value that is an Envelope or an ADSR. A setting: the menu stays open.
+            if (_opt.lfo != null && _opt.lfo.enabled != null && _opt.lfo.setEnabled != null && (_v.mode == ZUIValue.Mode.Curve || _v.mode == ZUIValue.Mode.Adsr))
+            {
+                menu.Separator();
+                menu.Toggle("LFO", _opt.lfo.toggleTooltip, _opt.lfo.enabled(), on =>
+                {
+                    if (on && _v.mode == ZUIValue.Mode.Curve) GetState(_v).expanded = true;
+                    Mutate(() => _opt.lfo.setEnabled(on));
+                    RebuildAll();
+                });
+            }
 
             // Curve-display options → persistent toggle rows (stay open so several can be flipped in one visit).
             if (_v.mode == ZUIValue.Mode.Curve)

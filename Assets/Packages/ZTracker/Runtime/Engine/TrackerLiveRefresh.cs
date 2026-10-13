@@ -72,6 +72,10 @@ namespace Laubrary.ZTracker.Engine
             envelope.sustainPosition=0;envelope.durationInRows=false;
             // Loop and sustain switches, direction and length are read from the new envelope on every rendered sample.
             envelope.loopEnabled=envelope.sustainEnabled=false;envelope.loopMode=0;envelope.xMin=envelope.xMax=envelope.yMin=envelope.yMax=0;
+            // The merged LFO (T-0641) is read per sample from the compiled envelope, so switching it or moving its sliders applies live.
+            envelope.lfo=false;envelope.lfoDepth=envelope.lfoSpeed=envelope.lfoDelay=0;envelope.lfoShape=0;
+            // ADSR stages (T-0639) only write the points and the compiled ADSR flag; the envelope's Maximum is display only.
+            envelope.adsr=envelope.adsrSet=envelope.customMaximum=false;envelope.adsrAttack=envelope.adsrDecay=envelope.adsrSustain=envelope.adsrRelease=envelope.adsrStart=0;
             if(envelope.points!=null)foreach(var point in envelope.points){point.time=point.value=0;point.exponent=1;}
         }
         static void Expand<T>(ref NativeArray<T> values,int size) where T:unmanaged

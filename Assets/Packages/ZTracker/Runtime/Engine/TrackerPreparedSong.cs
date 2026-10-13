@@ -213,7 +213,7 @@ namespace Laubrary.ZTracker.Engine
                 if(compiled.pointCount==0)continue;
                 compiled.kind=ModulationDeviceKind.Multipoint;compiled.operation=ModulationOperation.Replace;
                 compiled.parameterEnvelope=true;compiled.parameter=parameter;
-                if(parameter==TrackerParameter.FilterCutoff)for(int p=0;p<compiled.pointCount;p++){var point=points[compiled.points+p];point.value*=state.sampleRate*.5f;points[compiled.points+p]=point;}
+                if(parameter==TrackerParameter.FilterCutoff){for(int p=0;p<compiled.pointCount;p++){var point=points[compiled.points+p];point.value*=state.sampleRate*.5f;points[compiled.points+p]=point;}compiled.lfoDepth*=state.sampleRate*.5f;}
                 mods.Add(compiled);
             }
         }

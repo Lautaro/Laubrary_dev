@@ -215,6 +215,31 @@ namespace Laubrary.ZTracker.Editor
                 startTooltip = "Where " + r.label + " starts each note, and returns to once the release has ended; the attack rises from here to the slider's value (the peak).",
                 tooltip = r.label + " follows its own attack, decay, sustain and release on every note: from Start up to the slider's value, down to the sustain level (a share of the way back to Start) while the key is held, and back to Start on release, from wherever it has got to. Drag a point or a slider; double-click resets a stage."
             };
+            // LFO (T-0641): stored on the parameter's own envelope data in its stored units; Speed is Hz, or (for an envelope
+            // in song rows) shown as rows per cycle; Delay is ms, or rows. Edits run inside the control's gesture (its
+            // OnBeforeMutate / OnChanged are this value's Undo step and publish).
+            void LfoSet(Action<ZUIEnvelopeData> edit) { var env = getEnvelope()?.DeepCopy() ?? NewEnvelope(); edit(env); setEnvelope(env); }
+            float depthDefault = (r.max - r.min) * .1f;
+            if (r.decimals >= 0) depthDefault = (float)Math.Round(depthDefault, r.decimals);
+            var lfo = new ZuiValueControl.LfoBinding
+            {
+                enabled = () => getEnvelope()?.lfo ?? false,
+                setEnabled = on => LfoSet(e => { e.lfo = on; if (on && e.lfoDepth == 0) e.lfoDepth = depthDefault / r.scale; if (on && e.lfoSpeed <= 0) e.lfoSpeed = rows ? .25f : 4f; }),
+                depth = () => (getEnvelope()?.lfoDepth ?? 0) * r.scale, setDepth = v => LfoSet(e => e.lfoDepth = v / r.scale),
+                speed = () => { float s = getEnvelope()?.lfoSpeed ?? 0; return rows ? (s > 0 ? 1f / s : 4f) : s; },
+                setSpeed = v => LfoSet(e => e.lfoSpeed = rows ? 1f / Math.Max(.01f, v) : v),
+                delay = () => (getEnvelope()?.lfoDelay ?? 0) * (rows ? 1 : 1000), setDelay = v => LfoSet(e => e.lfoDelay = rows ? v : v / 1000f),
+                shape = () => getEnvelope()?.lfoShape ?? 0, setShape = v => LfoSet(e => e.lfoShape = v),
+                depthMax = r.max - r.min, depthDefault = depthDefault, depthDecimals = r.decimals,
+                depthLabel = string.IsNullOrEmpty(r.unit) ? "Depth" : "Depth " + r.unit,
+                depthTooltip = "How far the LFO swings " + r.label + " above and below its envelope. The result stays inside the value's own range.",
+                speedLabel = rows ? "Cycle rows" : "Speed Hz", speedMin = rows ? .25f : .05f, speedMax = rows ? 64f : 20f, speedDefault = 4f, speedDecimals = 2,
+                speedTooltip = rows ? "Song rows one LFO cycle takes, so it follows the song's tempo like this envelope." : "LFO cycles per second.",
+                delayLabel = rows ? "Delay rows" : "Delay ms", delayMax = rows ? 64f : 5000f, delayDefault = 0f, delayDecimals = rows ? 1 : 0,
+                delayTooltip = "How long after each note starts the LFO takes to fade in from nothing to its full depth (" + (rows ? "song rows" : "milliseconds") + "). 0 starts at full depth.",
+                toggleTooltip = "Add an LFO to " + r.label + ": a wave that swings it above and below its envelope on every note, with its own depth, speed and fade-in delay. Each note starts its own LFO from the envelope's value.",
+                offsetAt = x => { var e = getEnvelope(); return e == null ? 0 : e.LfoAt(x * e.xMax) * r.scale; },
+            };
             void Publish()
             {
                 if (ui.staticValue != lastStatic) { apply(ui.staticValue / r.scale); lastStatic = ui.staticValue; }
@@ -295,7 +320,7 @@ namespace Laubrary.ZTracker.Editor
                     canvas.SetPlayheads(normalized, faded, count);
                 }).Every(33);
             }
-            control = Z.Value(r.label, ui, new ZuiValueControl.Options { adsr = adsr, absMin = r.min, absMax = r.max, staticDefault = (defaultValue ?? ParameterDefault(field, field)) * r.scale, decimals = r.decimals, logarithmic = r.logarithmic, controlWidth = 170, allowMinMax = false, allowSteps = false, allowOscillation = false, preserveCurveOnModeSwitch = true, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true, valueUnit = r.unit ?? "", editableMaximum = editableMaximum, maximumLimit = editableMaximum ? maximumLimit : float.PositiveInfinity, xAxisLabel = rows ? "Song rows" : "Seconds", yAxisLabel = r.label, yAxisLegend = true, showAxisLegends = EnvelopeAxisLegends, xTickLabel = Ticks, decorateEnvelope = Decorate },
+            control = Z.Value(r.label, ui, new ZuiValueControl.Options { adsr = adsr, lfo = lfo, absMin = r.min, absMax = r.max, staticDefault = (defaultValue ?? ParameterDefault(field, field)) * r.scale, decimals = r.decimals, logarithmic = r.logarithmic, controlWidth = 170, allowMinMax = false, allowSteps = false, allowOscillation = false, preserveCurveOnModeSwitch = true, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true, valueUnit = r.unit ?? "", editableMaximum = editableMaximum, maximumLimit = editableMaximum ? maximumLimit : float.PositiveInfinity, xAxisLabel = rows ? "Song rows" : "Seconds", yAxisLabel = r.label, yAxisLegend = true, showAxisLegends = EnvelopeAxisLegends, xTickLabel = Ticks, decorateEnvelope = Decorate },
                 r.tip + " Right-click for a per-note envelope. Every new note restarts it; held loops leave on note-off. On the curve: drag the loop and hold markers; right-click the curve's background for its display options.", Publish, () => BeginInstrumentGesture(r.label));
             control.name = name;
             host.Add(control);
@@ -350,6 +375,8 @@ namespace Laubrary.ZTracker.Editor
             float scale = duration / Math.Max(.0001f, env.xMax);
             if (env.points != null) foreach (var p in env.points) p.time *= scale;
             env.loopStart *= scale; env.loopEnd *= scale; env.sustainPosition *= scale; env.xMax = duration; env.durationInRows = toRows;
+            // The LFO keeps its timing too (T-0641): its delay is in the envelope's unit, its speed in cycles per that unit.
+            env.lfoDelay *= scale; if (scale > 0) env.lfoSpeed /= scale;
         }
 
         /// The envelope's own context menu (right-click on the curve's background): display options.

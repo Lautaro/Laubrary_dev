@@ -70,6 +70,42 @@ public class ZUIEnvelopeData
         m_xMin = 0; m_xMax = end; sustainEnabled = true; sustainPosition = held; m_loopEnabled = false; durationInRows = false; m_enabled = true; m_adsr = true;
     }
 
+    // LFO (T-0641): a wave added to the envelope's (or ADSR's) value on every note, in the parameter's stored units.
+    // Speed is cycles per second, or cycles per song row for an envelope measured in rows; Delay is how long the LFO
+    // takes to fade in from nothing to its full depth, in the envelope's own time unit (seconds or rows). Shape:
+    // 0 sine, 1 triangle, 2 saw, 3 square; every shape starts at the centre (0), so a note starts on the envelope.
+    // Off on everything saved before it existed, so those play exactly as before.
+    [SerializeField] bool m_lfo = false;
+    [SerializeField] float m_lfoDepth = 0f, m_lfoSpeed = 4f, m_lfoDelay = 0f;
+    [SerializeField] int m_lfoShape = 0;
+    public bool lfo { get => m_lfo; set => m_lfo = value; }
+    public float lfoDepth { get => m_lfoDepth; set => m_lfoDepth = value; }
+    public float lfoSpeed { get => m_lfoSpeed; set => m_lfoSpeed = value; }
+    public float lfoDelay { get => m_lfoDelay; set => m_lfoDelay = value; }
+    public int lfoShape { get => m_lfoShape; set => m_lfoShape = value; }
+
+    /// The LFO's offset (in the parameter's units) at <paramref name="time"/> since the note started, in the envelope's
+    /// own unit. The engine computes the same thing per note; editors use this to draw the merged wave.
+    public float LfoAt(float time)
+    {
+        if (!m_lfo || m_lfoDepth == 0f) return 0f;
+        float phase = time * m_lfoSpeed; phase -= Mathf.Floor(phase);
+        float fade = m_lfoDelay > 0 ? Mathf.Clamp01(time / m_lfoDelay) : 1f;
+        return LfoWave(m_lfoShape, phase) * m_lfoDepth * fade;
+    }
+
+    /// One cycle of an LFO shape (phase 0..1), from -1 to 1, starting at 0 and rising.
+    public static float LfoWave(int shape, float phase)
+    {
+        switch (shape)
+        {
+            case 1: return phase < .25f ? 4f * phase : phase < .75f ? 2f - 4f * phase : 4f * phase - 4f;
+            case 2: return phase < .5f ? 2f * phase : 2f * phase - 2f;
+            case 3: return phase < .5f ? 1f : -1f;
+            default: return Mathf.Sin(phase * 2f * Mathf.PI);
+        }
+    }
+
     public bool loopEnabled { get => m_loopEnabled; set => m_loopEnabled = value; }
     public int loopMode { get => m_loopMode; set => m_loopMode = value; }
     public float loopStart { get => m_loopStart; set => m_loopStart = value; }

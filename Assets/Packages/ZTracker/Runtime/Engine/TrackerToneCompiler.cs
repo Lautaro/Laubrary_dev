@@ -136,6 +136,10 @@ namespace Laubrary.ZTracker.Engine
             m.pointCount=env.Count;m.loopStart=env.loopStart;m.loopEnd=env.loopEnd;m.loopEnabled=env.loopEnabled;
             m.sustainEnabled=env.sustainEnabled;m.sustainPosition=env.sustainPosition;m.rows=env.durationInRows;
             m.adsr=env.adsr&&env.sustainEnabled&&!env.loopEnabled&&!env.durationInRows;
+            if(env.lfo&&env.lfoDepth!=0){
+                if(!math.isfinite(env.lfoDepth)||!math.isfinite(env.lfoSpeed)||!math.isfinite(env.lfoDelay)||env.lfoSpeed<0||env.lfoSpeed>1000||env.lfoDelay<0||env.lfoShape<0||env.lfoShape>3)throw new ArgumentException("Malformed envelope LFO");
+                m.lfoDepth=math.abs(env.lfoDepth);m.lfoSpeed=env.lfoSpeed;m.lfoDelay=env.lfoDelay;m.lfoShape=env.lfoShape;
+            }
             if(m.sustainEnabled&&(!math.isfinite(env.sustainPosition)||env.sustainPosition<0||env.sustainPosition>prev))throw new ArgumentException("Invalid parameter envelope sustain");
             if(m.loopEnabled){int mode=domain==SoundEnumDomain.NativeDirect?env.loopMode:env.loopMode-1;if(mode<0||mode>1||!math.isfinite(m.loopStart)||!math.isfinite(m.loopEnd)||m.loopEnd<=m.loopStart||m.loopStart<0||m.loopEnd>prev)throw new ArgumentException("Malformed tone loop");m.loop=mode==1?SampleLoop.PingPong:SampleLoop.Forward;}
             return m;

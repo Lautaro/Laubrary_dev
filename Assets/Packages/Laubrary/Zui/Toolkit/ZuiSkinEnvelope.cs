@@ -867,6 +867,22 @@ namespace Laubrary.Zui
                 for (float y = plot.y; y < plot.yMax; y += 6f) { painter.BeginPath(); painter.MoveTo(new Vector2(x, y)); painter.LineTo(new Vector2(x, Mathf.Min(plot.yMax, y + 3.5f))); painter.Stroke(); }
                 ctx.DrawText("S", new Vector2(x + 2f, plot.y + 1f), style.markerLabelSize, c);
             }
+            if (configuration.overlay != null && plot.width > 2f && rt.yMax > rt.yMin)
+            {
+                // The read-only second line (an LFO merged into the curve): one vertex per 2 px, clamped to the plot.
+                var c = style.curveColor; painter.strokeColor = new Color(c.r, c.g, c.b, .55f); painter.lineWidth = 1f;
+                painter.BeginPath();
+                int steps = Mathf.Clamp(Mathf.CeilToInt(plot.width / 2f), 8, 1024);
+                for (int i = 0; i <= steps; i++)
+                {
+                    float f = i / (float)steps, v = configuration.overlay(f);
+                    if (float.IsNaN(v) || float.IsInfinity(v)) v = rt.yMin;
+                    float y = plot.yMax - plot.height * Mathf.Clamp01((v - rt.yMin) / (rt.yMax - rt.yMin));
+                    var p = new Vector2(plot.x + plot.width * f, y);
+                    if (i == 0) painter.MoveTo(p); else painter.LineTo(p);
+                }
+                painter.Stroke();
+            }
             if (configuration.playheads01 != null)
                 for (int i = 0; i < configuration.playheadCount && i < configuration.playheads01.Length; i++)
                 {

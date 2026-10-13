@@ -11,7 +11,7 @@ namespace Laubrary.ZTracker.Engine
             int preset=state.tones[voice.sample].parameterSet;
             float value=preset>=0&&!Written(voice.instrument,parameter)?state.presetParameters[preset*TrackerParameters.Stride+(int)parameter]:Parameter(voice.instrument,parameter);
             var tone=state.tones[voice.sample];int slot=tone.parameterEnvelopeSlots[(int)parameter];
-            if(slot!=0)value=state.modulationState[voice.modulationOffset+slot-1].output;
+            if(slot!=0){var ms=state.modulationState[voice.modulationOffset+slot-1];value=ms.output;if(ms.lfo!=0)value+=ms.lfo;}
             return TrackerParameters.Clamp(parameter,value);
         }
         bool VoiceParameterActive(in TrackerVoice voice,TrackerParameter parameter)
@@ -105,6 +105,17 @@ namespace Laubrary.ZTracker.Engine
                 return releasePosition+math.max(0,time-releasedAt);
             }
             return TonePosition(in m,time);
+        }
+        /// An envelope's merged LFO (T-0641) for one note: its wave at the note's own clock (seconds, or song rows for an
+        /// envelope measured in rows) times the depth, faded in over the delay. Every shape starts at 0, so a note starts
+        /// exactly on its envelope. The note clock runs on through release, so the LFO keeps moving in the release.
+        float EnvelopeLfo(in TrackerMod m,in TrackerVoice v)
+        {
+            double time=m.rows?v.envRows:v.envTime,cycles=time*m.lfoSpeed;
+            float phase=(float)(cycles-math.floor(cycles)),wave;
+            switch(m.lfoShape){case 1:wave=phase<.25f?4*phase:phase<.75f?2-4*phase:4*phase-4;break;case 2:wave=phase<.5f?2*phase:2*phase-2;break;case 3:wave=phase<.5f?1:-1;break;default:wave=math.sin(phase*2*math.PI);break;}
+            float fade=m.lfoDelay>0?(float)math.saturate(time/m.lfoDelay):1;
+            return wave*m.lfoDepth*fade;
         }
         /// Song rows per rendered sample at the current tempo: how far an envelope measured in rows moves each sample.
         double RowsPerSample=>state.bpm*state.linesPerBeat/(60d*state.sampleRate);
@@ -212,7 +223,7 @@ namespace Laubrary.ZTracker.Engine
         {
             int ii=v.instrument;float blend=Written(ii,TrackerParameter.Blend)?VoiceParameter(in v,TrackerParameter.Blend):tone.baseBlend,pw=VoiceParameter(in v,TrackerParameter.PulseWidth),ratio=VoiceParameter(in v,TrackerParameter.WaveBRatio),pm=Written(ii,TrackerParameter.PMDepth)?VoiceParameter(in v,TrackerParameter.PMDepth):tone.basePM,detune=VoiceParameter(in v,TrackerParameter.UnisonDetune);
             if(tone.blendEnvelope&&v.blendStage!=5){if(v.released){if(v.blendStage!=4){v.blendStage=4;v.blendReleaseStart=v.blendLevel;}v.blendLevel=math.max(0,v.blendLevel-(tone.blendRelease>0?1/(tone.blendRelease*state.sampleRate):1));if(v.blendLevel<=0)v.blendStage=5;}else if(v.blendStage==0){v.blendLevel+=tone.blendAttack>0?1/(tone.blendAttack*state.sampleRate):1;if(v.blendLevel>=1){v.blendLevel=1;v.blendStage=2;}}else if(v.blendStage==2){v.blendLevel-=tone.blendDecay>0?(1-tone.blendSustain)/(tone.blendDecay*state.sampleRate):1;if(v.blendLevel<=tone.blendSustain){v.blendLevel=tone.blendSustain;v.blendStage=3;}}v.blendCurrent=v.blendLevel;}
-            for(int n=0;n<5;n++){var env=state.toneEnvelopes[tone.envelopes+n];if(env.pointCount==0)continue;float value=ToneCurve(in env,in v);switch(n){case 0:blend=value;break;case 1:pw=value;break;case 2:ratio=value;break;case 3:pm=value;break;case 4:detune=value;break;}}
+            for(int n=0;n<5;n++){var env=state.toneEnvelopes[tone.envelopes+n];if(env.pointCount==0)continue;float value=ToneCurve(in env,in v);if(env.lfoDepth!=0)value=TrackerParameters.Clamp(ToneEnvelopeParameter(n),value+EnvelopeLfo(in env,in v));switch(n){case 0:blend=value;break;case 1:pw=value;break;case 2:ratio=value;break;case 3:pm=value;break;case 4:detune=value;break;}}
             float smooth=1/(.005f*state.sampleRate);v.blendCurrent+=(blend-v.blendCurrent)*smooth;v.pulseCurrent+=(pw-v.pulseCurrent)*smooth;v.ratioCurrent+=(ratio-v.ratioCurrent)*smooth;v.pmCurrent+=(pm-v.pmCurrent)*smooth;v.detuneCurrent+=(detune-v.detuneCurrent)*smooth;v.envTime+=1d/state.sampleRate;v.envRows+=RowsPerSample;
         }
         float Synth(ref TrackerVoice v,in TrackerTone tone,float increment)

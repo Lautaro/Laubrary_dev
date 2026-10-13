@@ -593,7 +593,11 @@ namespace Laubrary.ZTracker.Engine
                     case ModulationDeviceKind.KeyTracking:value=math.lerp(m.min,m.max,math.pow(v.note/119f,m.curve));break;
                     case ModulationDeviceKind.Fader:if(m.fadeSeconds>0){if(!ms.finished){value=math.lerp(m.min,m.max,math.saturate((float)(ms.position/m.fadeSeconds)));ms.position+=1d/state.sampleRate;if(ms.position>=m.fadeSeconds)ms.finished=true;}}else value=m.depth;break;
                 }
-                ms.output=value;state.modulationState[si]=ms;
+                ms.output=value;
+                // A per-note parameter envelope's merged LFO (T-0641) is kept beside its value, so a release still starts
+                // from the envelope's own level; the parameter read adds the two and applies the parameter's range.
+                if(m.lfoDepth!=0)ms.lfo=EnvelopeLfo(in m,in v);
+                state.modulationState[si]=ms;
                 if(m.parameterEnvelope)continue;
                 switch(m.target){case ModulationTarget.Volume:volume=Combine(volume,value,m.operation);break;case ModulationTarget.Pan:pan=Combine(pan,value,m.operation);break;case ModulationTarget.Pitch:pitch=Combine(pitch,value,m.operation);break;case ModulationTarget.Cutoff:cutoff=Combine(cutoff,value,m.operation);break;case ModulationTarget.Resonance:resonance=Combine(resonance,value,m.operation);break;case ModulationTarget.Drive:drive=Combine(drive,value,m.operation);break;}
             }
