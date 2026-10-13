@@ -26,6 +26,7 @@ namespace Laubrary.Zui
         readonly int[] _stages;
         readonly ZuiMicroSlider[] _inputs = new ZuiMicroSlider[5];
         readonly VisualElement _canvas;
+        readonly Label _scale;
         readonly string _canvasTip;
         readonly ZuiEnvelopePresentation _presentation = new ZuiEnvelopePresentation();
         readonly ZUIEnvelopeDef _definition = new ZUIEnvelopeDef();
@@ -69,7 +70,7 @@ namespace Laubrary.Zui
             style.alignSelf = Align.FlexStart;
             if (!string.IsNullOrEmpty(label)) Add(Z.Text(label, ZuiText.Small, tooltip));
 
-            _canvasTip = tooltip + " Drag a point to edit only its stage; double-click a lane to reset it. Shift = fine adjustment.";
+            _canvasTip = tooltip + " Drawn to time: each stage is as wide as it lasts (the sustain plateau has a fixed width), so an attack of 0 is a vertical wall and changing one stage moves the stages after it. The faint lines are spaced by the time in the corner. Drag a point to edit only its stage; double-click a stage to reset it. Shift = fine adjustment.";
             _canvas = new VisualElement { name = "adsr-canvas", tooltip = _canvasTip };
             _canvas.AddToClassList("zui-envelope");
             _canvas.AddToClassList("zui-envelope--standard");
@@ -87,9 +88,18 @@ namespace Laubrary.Zui
             _canvas.RegisterCallback<PointerUpEvent>(e => { if (_dragStage < 0) return; EndDrag(); e.StopPropagation(); });
             _canvas.RegisterCallback<PointerCaptureOutEvent>(_ => EndDrag());
             _canvas.RegisterCallback<DetachFromPanelEvent>(_ => EndDrag());
+            // The time axis: the spacing of the faint grid lines, which follows every stage edit.
+            _scale = new Label { name = "adsr-scale", pickingMode = PickingMode.Ignore };
+            _scale.style.position = Position.Absolute; _scale.style.right = 3; _scale.style.top = 1;
+            _scale.style.fontSize = 8; _scale.style.unityTextAlign = TextAnchor.UpperRight;
+            _scale.style.paddingLeft = _scale.style.paddingRight = _scale.style.paddingTop = _scale.style.paddingBottom = 0;
+            _scale.style.marginLeft = _scale.style.marginRight = _scale.style.marginTop = _scale.style.marginBottom = 0;
+            _scale.style.color = new Color(1f, 1f, 1f, .45f);
+            _canvas.Add(_scale);
+            _canvas.RegisterCallback<GeometryChangedEvent>(_ => RefreshScale());
             Add(_canvas);
 
-            // One slider per stage, each as wide as its lane, so a slider sits under the point it edits.
+            // One slider per stage, in stage order, an equal share of the width each.
             var row = Z.Row();
             row.name = "adsr-sliders";
             row.style.flexWrap = Wrap.NoWrap;
@@ -145,6 +155,7 @@ namespace Laubrary.Zui
         public void Refresh()
         {
             foreach (int i in _stages) _inputs[i].value = Read(i) * (i == 3 ? 100f : 1000f);
+            RefreshScale();
             _canvas.MarkDirtyRepaint();
         }
 
@@ -183,16 +194,43 @@ namespace Laubrary.Zui
         }
 
         Rect Plot => new Rect(4, 5, Mathf.Max(1, _canvas.contentRect.width - 8), Mathf.Max(1, _canvas.contentRect.height - 10));
+        /// Drag sensitivity: one stage's share of the width, as when every stage had a lane of its own.
         float LaneWidth => Plot.width / _stages.Length;
+        /// Share of the width the sustain plateau takes; it has no duration of its own.
+        public const float SustainShare = .2f;
+        /// Shortest span the timed stages are drawn over, so an envelope of all-zero times still has a scale.
+        const float MinimumSpan = .01f;
+        /// Seconds per pixel of the drawn time axis (attack, hold, decay and release share one scale).
+        float SecondsPerPixel
+        {
+            get
+            {
+                float total = 0; foreach (int i in _stages) if (i != 3) total += Read(i);
+                return Mathf.Max(MinimumSpan, total) / Mathf.Max(1f, Plot.width * (1f - SustainShare));
+            }
+        }
+        /// Where each stage ends along the drawn time axis (canvas x). Stages: 0 attack, 1 hold, 2 decay,
+        /// 3 sustain (the end of the plateau), 4 release (the right edge).
+        float StageEnd(int stage)
+        {
+            Rect r = Plot; float spp = SecondsPerPixel, x = r.x;
+            foreach (int i in _stages)
+            {
+                x += i == 3 ? r.width * SustainShare : Read(i) / spp;
+                if (i == stage) return i == 4 ? r.xMax : Mathf.Min(x, r.xMax);
+            }
+            return r.xMax;
+        }
+        float StageStart(int stage)
+        {
+            int index = Array.IndexOf(_stages, stage);
+            return index <= 0 ? Plot.x : StageEnd(_stages[index - 1]);
+        }
         Vector2 Handle(int stage)
         {
             Rect r = Plot;
-            float lane = LaneWidth;
-            int index = Array.IndexOf(_stages, stage);
-            // Inset even the zero-time handle from the preceding stage, so every stage remains pickable.
-            float x = r.x + index * lane + 5f + (stage == 3 ? 0.5f : TimeToPosition(Read(stage), _max[stage])) * Mathf.Max(1, lane - 10f);
             float y = stage == 0 || stage == 1 ? r.y : stage == 4 ? r.yMax : Mathf.Lerp(r.yMax, r.y, Mathf.Clamp01(Read(3)));
-            return new Vector2(x, y);
+            return new Vector2(StageEnd(stage), y);
         }
 
         /// <summary>Canvas-local handle location. Stages: 0 attack, 1 hold, 2 decay, 3 sustain, 4 release.</summary>
@@ -202,14 +240,60 @@ namespace Laubrary.Zui
             return Handle(stage);
         }
 
-        /// <summary>Canvas-local centre of a stage's lane; any press inside the lane picks that stage.</summary>
+        /// <summary>Canvas-local centre of a stage's stretch of the time axis; any press inside it picks that stage.</summary>
         public Vector2 LaneCenter(int stage)
         {
-            int index = Array.IndexOf(_stages, stage);
-            if (index < 0) throw new ArgumentOutOfRangeException(nameof(stage));
-            Rect r = Plot;
-            return new Vector2(r.x + (index + 0.5f) * LaneWidth, r.center.y);
+            if (Array.IndexOf(_stages, stage) < 0) throw new ArgumentOutOfRangeException(nameof(stage));
+            return new Vector2((StageStart(stage) + StageEnd(stage)) * .5f, Plot.center.y);
         }
+
+        /// <summary>Canvas-local x where a stage begins and ends on the drawn time axis.</summary>
+        public Vector2 StageSpan(int stage)
+        {
+            if (Array.IndexOf(_stages, stage) < 0) throw new ArgumentOutOfRangeException(nameof(stage));
+            return new Vector2(StageStart(stage), StageEnd(stage));
+        }
+
+        /// <summary>The spacing of the faint time grid for the current stage values (1, 2 or 5 times a power
+        /// of ten, at least 14 px apart).</summary>
+        public float GridStepSeconds
+        {
+            get
+            {
+                float spp = SecondsPerPixel, step = .001f;
+                float[] nice = { 1f, 2f, 5f };
+                for (int decade = 0; decade < 6; decade++, step *= 10f)
+                    foreach (float n in nice) if (step * n / spp >= 14f) return step * n;
+                return step;
+            }
+        }
+        // Playheads (T-0639): one per sounding note, in seconds since that note started (a released note's position
+        // runs on from the end of decay through the release), drawn as thin lines; released notes fainter.
+        float[] _heads = new float[0]; bool[] _headsFaded = new bool[0]; int _headCount;
+
+        /// <summary>Shows where sounding notes are on this envelope: <paramref name="seconds"/> since each note started,
+        /// counting a released note's time from the end of decay. Pass a count of 0 to clear.</summary>
+        public void SetPlayheads(float[] seconds, bool[] faded, int count)
+        {
+            count = Mathf.Clamp(count, 0, seconds?.Length ?? 0);
+            if (count == 0 && _headCount == 0) return;
+            if (_heads.Length < count) { _heads = new float[count]; _headsFaded = new bool[count]; }
+            for (int i = 0; i < count; i++) { _heads[i] = seconds[i]; _headsFaded[i] = faded != null && i < faded.Length && faded[i]; }
+            _headCount = count;
+            _canvas.MarkDirtyRepaint();
+        }
+        /// <summary>Canvas x of a time (seconds since the note started) on the drawn time axis; times after the end
+        /// of decay are placed on the release, after the sustain plateau.</summary>
+        public float TimeToX(float seconds)
+        {
+            float spp = SecondsPerPixel, held = 0; foreach (int i in _stages) if (i < 3) held += Read(i);
+            if (seconds <= held + 1e-4f) return Mathf.Min(Plot.x + Mathf.Max(0, seconds) / spp, StageEnd(2));
+            return Mathf.Min(StageEnd(3) + (seconds - held) / spp, Plot.xMax);
+        }
+
+        /// <summary>The time-axis caption in the graph's corner: the grid spacing.</summary>
+        public string ScaleText => _scale.text;
+        void RefreshScale() { string t = FormatTime(GridStepSeconds); if (_scale.text != t) _scale.text = t; }
 
         /// <summary>Begin the same gesture used by pointer input; hosts can use it for accessible scrubbing.</summary>
         public void BeginDrag(int stage)
@@ -271,10 +355,11 @@ namespace Laubrary.Zui
             // The whole lane is the hit target, not only the small dot. Requiring a precision hit made the
             // graph appear read-only and let the surrounding ScrollView take the missed drag, which moved the
             // page instead of the envelope.
+            // Outside the dots, a press picks the stage whose stretch of the time axis it is in.
             if (stage < 0 && new Rect(0, 0, _canvas.contentRect.width, _canvas.contentRect.height).Contains(mouse))
             {
-                int lane = Mathf.Clamp(Mathf.FloorToInt((mouse.x - Plot.x) / Mathf.Max(1, LaneWidth)), 0, _stages.Length - 1);
-                stage = _stages[lane];
+                stage = _stages[_stages.Length - 1];
+                foreach (int i in _stages) if (mouse.x <= StageEnd(i) && StageEnd(i) > StageStart(i)) { stage = i; break; }
             }
             return stage;
         }
@@ -315,13 +400,20 @@ namespace Laubrary.Zui
             p.MoveTo(Vector2.zero); p.LineTo(new Vector2(_canvas.contentRect.width, 0));
             p.LineTo(new Vector2(_canvas.contentRect.width, _canvas.contentRect.height));
             p.LineTo(new Vector2(0, _canvas.contentRect.height)); p.ClosePath(); p.Fill();
+            // The time grid: faint lines every grid step over the timed stages (the sustain plateau has no time),
+            // then the stage boundaries. Both follow every edit, since each stage is drawn as long as it lasts.
+            float spp = SecondsPerPixel, gridStep = GridStepSeconds, sustainStart = StageStart(3), sustainEnd = StageEnd(3);
+            var faint = style.gridColor; faint.a *= .45f;
+            p.strokeColor = faint; p.lineWidth = 1;
+            for (float x = r.x + gridStep / spp; x < sustainStart - .5f; x += gridStep / spp) { p.BeginPath(); p.MoveTo(new Vector2(x, r.y)); p.LineTo(new Vector2(x, r.yMax)); p.Stroke(); }
+            for (float x = sustainEnd + gridStep / spp; x < r.xMax - .5f; x += gridStep / spp) { p.BeginPath(); p.MoveTo(new Vector2(x, r.y)); p.LineTo(new Vector2(x, r.yMax)); p.Stroke(); }
             p.strokeColor = style.gridColor;
-            p.lineWidth = 1;
-            for (int n = 1; n < _stages.Length; n++)
+            foreach (int i in _stages)
             {
-                float x = r.x + n * LaneWidth;
+                if (i == 4) continue; float x = StageEnd(i);
                 p.BeginPath(); p.MoveTo(new Vector2(x, r.y)); p.LineTo(new Vector2(x, r.yMax)); p.Stroke();
             }
+
             // The shape is filled: the area under the envelope, then its outline, then the stage points.
             var fill = style.curveColor; fill.a *= 0.35f;
             p.fillColor = fill;
@@ -342,6 +434,13 @@ namespace Laubrary.Zui
             {
                 p.fillColor = _dragStage == i ? style.selectedColor : style.curveColor;
                 p.BeginPath(); p.Arc(Handle(i), _dragStage == i ? 4.5f : 3.5f, 0, 360); p.Fill();
+            }
+            for (int h = 0; h < _headCount; h++)
+            {
+                var c = Color.white; c.a = _headsFaded[h] ? .35f : .85f;
+                float x = TimeToX(_heads[h]);
+                p.strokeColor = c; p.lineWidth = 1f;
+                p.BeginPath(); p.MoveTo(new Vector2(x, r.y)); p.LineTo(new Vector2(x, r.yMax)); p.Stroke();
             }
         }
     }

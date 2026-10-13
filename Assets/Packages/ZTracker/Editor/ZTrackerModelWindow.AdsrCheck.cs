@@ -106,7 +106,7 @@ namespace Laubrary.ZTracker.Editor
                     Need(ZuiAdsr.FormatTime(.0057f) == "6 ms" && ZuiAdsr.FormatTime(.25f) == "250 ms" && ZuiAdsr.FormatTime(1.5f) == "1.5 s" && ZuiAdsr.FormatTime(2f) == "2 s" && ZuiAdsr.FormatTime(.9999f) == "1 s",
                         "Readouts: " + ZuiAdsr.FormatTime(.0057f) + ", " + ZuiAdsr.FormatTime(.25f) + ", " + ZuiAdsr.FormatTime(1.5f) + ", " + ZuiAdsr.FormatTime(.9999f));
                 });
-                Check("compact: at most 30% of the old area, titled ADSR, sliders in one row under their lanes", () =>
+                Check("compact: at most 30% of the old area, titled ADSR, sliders in one row in stage order", () =>
                 {
                     var adsr = Find("amplitude-adsr"); var canvas = adsr.Q("adsr-canvas");
                     float area = adsr.worldBound.width * adsr.worldBound.height;
@@ -116,11 +116,10 @@ namespace Laubrary.ZTracker.Editor
                     Need(!window.rootVisualElement.Query<Label>().ToList().Any(l => l.text == "Amplitude"), "An Amplitude title remains");
                     var row = adsr.Q("adsr-sliders"); Need(row.worldBound.yMax <= adsr.worldBound.yMax + .5f && row.worldBound.height < 26, "Sliders wrapped or overflow: " + row.worldBound);
                     var sliders = new[] { "attack", "decay", "sustain", "release" }.Select(n => Slider(adsr, n)).ToArray();
-                    for (int i = 0; i < 4; i++)
-                    {
-                        var lane = adsr.LaneCenter(new[] { 0, 2, 3, 4 }[i]); float x = canvas.worldBound.x + lane.x;
-                        Need(x >= sliders[i].worldBound.xMin && x <= sliders[i].worldBound.xMax, sliders[i].name + " is not under its lane");
-                    }
+                    // Since T-0638 the graph is drawn to time (each stage as wide as it lasts), so the sliders no longer sit
+                    // under a lane each: they stay one row in stage order, an equal share of the width each.
+                    for (int i = 1; i < 4; i++) Need(sliders[i].worldBound.xMin >= sliders[i - 1].worldBound.xMax - .5f, sliders[i].name + " is not after " + sliders[i - 1].name);
+                    Need(Math.Abs(sliders[0].worldBound.xMin - canvas.worldBound.xMin) < 2 && Math.Abs(sliders[3].worldBound.xMax - canvas.worldBound.xMax) < 3, "Slider row does not span the graph");
                     Need(Readout(sliders[0]) == "10 ms" && Readout(sliders[1]) == "200 ms" && Readout(sliders[2]) == "70%" && Readout(sliders[3]) == "500 ms",
                         "Default readouts " + string.Join(", ", sliders.Select(Readout)));
                     Legible(adsr, "defaults");
