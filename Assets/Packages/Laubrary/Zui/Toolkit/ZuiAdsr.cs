@@ -15,7 +15,7 @@ namespace Laubrary.Zui
             public float attackMax = 5f, holdMax = 5f, decayMax = 10f, releaseMax = 10f;
             /// Whole control width. NaN = <see cref="laneWidth"/> per stage, so a five-stage AHDSR gets the
             /// same room per stage as a four-stage ADSR.
-            public float width = float.NaN, height = 46f, laneWidth = 68f;
+            public float width = float.NaN, height = 46f, laneWidth = 62f;
             public float attackDefault = .01f, holdDefault, decayDefault = .2f, sustainDefault = .7f, releaseDefault = .5f;
         }
 
@@ -31,6 +31,8 @@ namespace Laubrary.Zui
         readonly ZUIEnvelopeDef _definition = new ZUIEnvelopeDef();
         static readonly string[] Names = { "Attack", "Hold", "Decay", "Sustain", "Release" };
         static readonly string[] ShortNames = { "A", "H", "D", "S", "R" };
+        /// Stage-slider type size, height and text inset (points). Only this control's sliders use them.
+        public const float SliderFontSize = 10f, SliderHeight = 15f, SliderTextInset = 3f;
         const string TimeSteps = " Steps: whole milliseconds below 100 ms, 10 ms up to 1 s, then 0.05 s.";
         static readonly string[] Tips = {
             "Attack: time from note-on to full level." + TimeSteps,
@@ -113,6 +115,19 @@ namespace Laubrary.Zui
                 slider.style.marginLeft = 0;
                 slider.style.marginRight = stage == 4 ? 0 : 2;
                 slider.style.marginTop = slider.style.marginBottom = 0;
+                slider.style.height = SliderHeight;
+                // A smaller type than ordinary sliders, for these four (or five) stage sliders only: it is what
+                // lets the whole envelope be about 30% of its old area while a readout such as "990 ms" still
+                // clears its stage letter. Set inline, so no other slider anywhere changes.
+                foreach (var text in slider.Query<Label>().ToList())
+                {
+                    bool caption = text.ClassListContains("zui-microslider__caption");
+                    if (!caption && !text.ClassListContains("zui-microslider__value")) continue;
+                    text.style.fontSize = SliderFontSize;
+                    if (caption) text.style.left = SliderTextInset; else text.style.right = SliderTextInset;
+                    text.style.paddingLeft = text.style.paddingRight = 0;
+                    text.style.marginLeft = text.style.marginRight = 0;
+                }
                 _inputs[i] = slider;
                 row.Add(slider);
             }
