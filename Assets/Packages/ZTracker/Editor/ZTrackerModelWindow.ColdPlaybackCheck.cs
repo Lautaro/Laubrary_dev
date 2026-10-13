@@ -138,7 +138,7 @@ namespace Laubrary.ZTracker.Editor
             return report.ToString();
         }
         // Actual SAP graph startup without any Instrument preview or hardware MIDI device. Poll the report after completion.
-        public static void StartColdPlaybackUiCheck(bool stoppedByConfiguration = false)
+        public static void StartColdPlaybackUiCheck(bool stoppedByConfiguration = false, bool includeMidi = true)
         {
             ColdPlaybackCheckReport = "RUNNING"; var report = new StringBuilder(); int pass = 0, fail = 0;
             var previous = focusedWindow; ZTrackerModelWindow window = null; ZTrackerSong song = null; ZTrackerInstrument ins = null;
@@ -148,7 +148,7 @@ namespace Laubrary.ZTracker.Editor
                 if (window != null) { window.StopPreview(); window.DisposeMidiPreview(); window.Close(); window = null; }
                 if (song != null) { DestroyImmediate(song); song = null; } if (ins != null) { DestroyImmediate(ins); ins = null; }
             }
-            foreach (bool legacyValue in new[] { false, true }) foreach (bool fmValue in new[] { false, true }) foreach (string pathValue in new[] { "typed audition", "MIDI audition", "transport" })
+            foreach (bool legacyValue in new[] { false, true }) foreach (bool fmValue in new[] { false, true }) foreach (string pathValue in new[] { "typed audition", "MIDI audition", "transport" }.Where(p => includeMidi || p != "MIDI audition"))
             {
                 bool legacy = legacyValue, fm = fmValue; string path = pathValue;
                 string label = (legacy ? "legacy " : "model ") + (fm ? "FM " : "Synth ") + path; string before = null; double startEnergy = 0;

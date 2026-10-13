@@ -5,6 +5,7 @@
     "Editor"
   ],
   "references": [
+    "com.Lautaro-Arino.Laubrary.ZTracker.Renoise",
     "ZTracker",
     "com.Lautaro-Arino.Laubrary.ZTracker",
     "com.Lautaro-Arino.Laubrary.ZTracker.Engine",

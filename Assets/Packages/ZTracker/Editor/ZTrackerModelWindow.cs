@@ -82,6 +82,7 @@ namespace Laubrary.ZTracker.Editor
             var edit=Z.Row(Button("Save","Save this song and its edited instrument.",Save,"save"),Named(Z.IconButton("arrow-counter-clockwise","Undo the last authored change.",Undo.PerformUndo),"undo"),Named(Z.IconButton("arrow-clockwise","Redo the last undone change.",Undo.PerformRedo),"redo"));
             edit.style.flexShrink=0;row.Add(edit);
             row.Add(BuildMidiControls());
+            row.Add(Button("Renoise…","Inspect a Renoise or Redux file, import it, or edit the current asset's remembered mappings.",()=>RenoiseMapperWindow.OpenFor(pane==3 && instrument!=null ? (UnityEngine.Object)instrument : song),"renoise-import"));
         }
         protected override void BuildAsset(VisualElement root,ZTrackerSong edited)
         {
