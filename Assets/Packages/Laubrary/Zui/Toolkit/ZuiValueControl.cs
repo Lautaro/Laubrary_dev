@@ -571,7 +571,8 @@ namespace Laubrary.Zui
                 if (physical)
                 {
                     header.AddToClassList("zui-value__curve-field");
-                    var summary = new Label(CurveSummary()) { pickingMode = PickingMode.Ignore, tooltip = "Envelope start and end values. Click to edit the curve." };
+                    // A folded curve still says it carries an LFO (T-0641); its sliders show when it is opened.
+                    var summary = new Label(CurveSummary() + (LfoOn ? " + LFO" : "")) { pickingMode = PickingMode.Ignore, tooltip = "Envelope start and end values" + (LfoOn ? ", with an LFO" : "") + ". Click to edit the curve." };
                     summary.AddToClassList("zui-value__curve-summary");
                     header.Add(summary);
                 }
