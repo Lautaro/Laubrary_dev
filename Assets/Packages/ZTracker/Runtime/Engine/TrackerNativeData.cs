@@ -471,6 +471,9 @@ namespace Laubrary.ZTracker.Engine
         public float normalization;
         // Output safety limiter (T-0635): how far below unity its gain is now (0 = not limiting).
         public float limiterReduction;
+        // Measurement only (T-0647): the output limiter only records the peak and leaves the mix as summed, so a check can
+        // compare the mix with and without it. Never set by the editor or a game.
+        public bool limiterBypass;
         public bool playing, rowPending, loopSong, beatTicks, legacyMix;
         public bool paused, held, silentReplay;
         public int holdRemaining, opCount, deviceCount, deviceParameterCount, automationCount;

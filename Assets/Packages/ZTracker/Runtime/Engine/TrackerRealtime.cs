@@ -433,6 +433,7 @@ namespace Laubrary.ZTracker.Engine
             {
                 float l=state.outputLeft[f],r=state.outputRight[f],a=math.max(math.abs(l),math.abs(r));
                 if(a>peak)peak=a;
+                if(state.limiterBypass)continue;
                 if(reduction>0){reduction*=keep;if(reduction<1e-6f)reduction=0;}
                 float g=1-reduction;
                 // One step below 1/a when rounding would leave the loudest sample a hair above full scale.

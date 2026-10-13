@@ -457,3 +457,30 @@ Verified by probe: new `CheckAutoArp` 9/0 on rendered audio (sine synth at C6..B
 Verified by eye and in the real window (walk window, real pointer clicks and drags, computer keys): walk 1 at 1250 px: Notes › Legato, Legato › Poly showed AutoArp, clicking it showed Arp ms, Per, Retrigger, Window ms (w1-07-autoarp); Arp ms dragged to 23, double-click 100, Undo 23, Redo 100; Per › Cycle, Retrigger › Single, Window dragged to 203 (w1-08); keys Z C B played C E G and the window's own preview renderer cycled 60 64 67 upwards; releasing them 30 ms apart left them waiting, then the release cycled all three. Walk 2 at 760 px (reopened): Notes › Both, Poly, AutoArp, Retrigger › All (w2-04-autoarp-narrow; the narrow layout stacks labels as the rest of the panel does); keys cycled 60 64 67 at 100 ms a note.
 
 Not verified: listening; live keys from a MIDI device (ignored on purpose: synthetic events through the live-input door only).
+
+## Many-note clipping on every instrument type (2026-10-13, T-0647)
+
+Question: does the clipping found for FM chords in T-0635 also happen with the subtractive synth, samplers and drum kits, and does the output limiter (and the meter) cover every path? Measured on rendered audio, each case twice from the same input: once as summed (the limiter bypassed for the measurement only, a new verification-only state flag) and once as heard. Live keys at full velocity through the clean preview channel (12 note columns), and one song with a 12-column chord.
+
+| Case | Sum peak | Headroom | Samples over full scale (summed) | Heard peak | Over (heard) | Deepest limiting | Meter |
+|---|---|---|---|---|---|---|---|
+| Synth saw Mix, 12 keys, Volume 100% | 8.485 | -18.6 dB | 29924 | 1.0000 | 0 | -16.8 dB | 8.485 |
+| Synth Ring | 6.513 | -16.3 dB | 17937 | 1.0000 | 0 | -15.4 dB | 6.513 |
+| Synth Sync | 7.639 | -17.7 dB | 29018 | 1.0000 | 0 | -16.0 dB | 7.639 |
+| Synth PM | 8.485 | -18.6 dB | 28675 | 1.0000 | 0 | -16.1 dB | 8.485 |
+| Synth Mix, unison 8 | 22.020 | -26.9 dB | 37646 | 1.0000 | 0 | -22.7 dB | 22.020 |
+| Synth square, 4 keys | 2.828 | -9.0 dB | 16831 | 1.0000 | 0 | -9.0 dB | 2.828 |
+| FM, default levels | 1.296 | -2.3 dB | 71 | 1.0000 | 0 | -2.1 dB | 1.296 |
+| FM, loud (T-0635 setup) | 2.628 | -8.4 dB | 1484 | 1.0000 | 0 | -8.0 dB | 2.628 |
+| Sampler, loud looped saw (peak 0.95), 12 keys | 8.061 | -18.1 dB | 38281 | 1.0000 | 0 | -16.2 dB | 8.061 |
+| Sampler, same with 3 layers | 24.183 | -27.7 dB | 57431 | 1.0000 | 0 | -25.0 dB | 24.183 |
+| Sampler, quiet (peak 0.1), 4 keys | 0.283 | +11.0 dB | 0 | 0.2828 | 0 | none | 0.283 |
+| Drum kit, 12 pads hit together (peak 0.9 each) | 6.050 | -15.6 dB | 563 | 1.0000 | 0 | -13.9 dB | 6.050 |
+| Drum kit, 30 ms roll on one pad | 0.548 | +5.2 dB | 0 | 0.5480 | 0 | none | 0.548 |
+| Song, 12-column chord (pattern notes, track, master) | 5.657 | -15.1 dB | 34963 | 1.0000 | 0 | -13.6 dB | 5.657 |
+
+Answer: yes, without the limiter the same thing happens on every instrument type, and much more than on FM: notes are summed with no headroom, so 12 loud saw notes are 8.5 times full scale, a 3-layer sampler 24 times. Since T-0635 every case is held at full scale: 0 samples above full scale heard in every case, the meter reads the summed (pre-limiter) peak exactly in every case, and the cases that never reached full scale are sample-for-sample identical with and without the limiter. Coverage, from the code: every renderer (song player, clean preview, drum-source preview, offline) renders through the one `TrackerRealtime.Render`, every instrument type's voices are mixed into the tracks, groups, sends and master inside it, the master is the only thing copied to the output, and the limiter runs on that output after every branch (including row reverse and rewind); a paused renderer outputs silence. No instrument type or path bypasses it.
+
+What the limiter does to such loud chords (measured, not changed): it engages once at the chord's onset and holds the mix down for as long as the chord sounds (for example -16.8 dB for the 12-key saw chord), recovering over about 100 ms after the release; there is no pumping (one engagement per chord). Its attack is instant by design (no look-ahead, so no added latency), so the gain can fall a long way within one sample when the sum jumps (largest per-sample gain step 0.88 on 12 saws, whose waveform itself jumps at that sample; 0.12 on FM default). A sound that loud is squashed rather than clipped; how much headroom notes should leave is a level-design choice put to the owner on the ticket (any change there changes how existing loud sounds play).
+
+Verified by probe: new `CheckOutputLevelSynth` 1/0, `CheckOutputLevelFmSampler` 2/0, `CheckOutputLevelDrumsSong` 2/0 (the table above), `CheckOutputLevel` 4/0; bit-identity renders unchanged. Not verified: listening; group and send tracks were not rendered separately (covered by the code path above).
