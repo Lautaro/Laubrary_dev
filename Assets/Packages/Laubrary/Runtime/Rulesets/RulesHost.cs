@@ -19,6 +19,9 @@ namespace Laubrary.Rulesets
 
         [System.NonSerialized] public List<GameRule> Rules = new List<GameRule>();
 
+        // Reconcile activation while paused, but leave gameplay timers and simulation frozen.
+        [System.NonSerialized] public bool Paused;
+
         bool _started;
 
         void Awake()
@@ -92,6 +95,7 @@ namespace Laubrary.Rulesets
         {
             if (!_started) return;
             Reconcile();
+            if (Paused) return;
             float dt = Time.deltaTime;
             for (int i = 0; i < Rules.Count; i++)
                 Rules[i]?.HostTick(dt);
