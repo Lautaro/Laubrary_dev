@@ -21,6 +21,19 @@ namespace Laubrary.ZTracker.Engine
         // The song has used the command model, so an unknown id in a track FX column is worth naming.
         bool commandModelPresent;
 
+        /// <summary>Resolves an authored command definition's stable uid on the main thread. Values are normalized
+        /// 0..1 within that definition's range. Instrument-effect definitions require their sequencer track index.
+        /// Resolve against the current prepared song for each send; never cache the compiled record across refresh.</summary>
+        public bool TryCommandParameter(string uid, float normalized, int track, out TrackerCommand command)
+        {
+            command = default;
+            if (Disposed || string.IsNullOrEmpty(uid) || !math.isfinite(normalized) || normalized < 0 || normalized > 1 || !dynamicUids.TryGetValue(uid, out int mapped)) return false;
+            int record = DynamicRecord(mapped, track);
+            if (record < 0) return false;
+            command = new TrackerCommand { kind = TrackerCommandKind.DynamicParameterSet, a = record, value = normalized };
+            return true;
+        }
+
         /// <summary>The record a definition (as mapped in dynamicIds/dynamicUids) drives on <paramref name="track"/>, or -1.</summary>
         internal int DynamicRecord(int mapped, int track)
         {

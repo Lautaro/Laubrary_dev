@@ -34,21 +34,44 @@ namespace Laubrary.ZTracker.Engine
         {
             switch(c.kind){
                 case TrackerCommandKind.Play:
+                    CancelRowReverse();
+                    ClearRewind();
                     ClearVoices();ResetChains();ResetDefaults();ResetCommandState();state.sequenceIndex=0;state.row=0;state.tick=0;state.breakRow=-1;state.rowStart=0;state.clockCompensation=0;state.transportOrigin=state.samplePosition;state.rowPending=true;state.playing=true;state.loopSong=c.a!=0;ResetColumns();Emit(TrackerEventKind.Started);break;
                 case TrackerCommandKind.Stop:
-                    state.playing=false;state.rowPending=true;ClearVoices();ResetChains();ResetColumns();ResetCommandState();Emit(TrackerEventKind.Stopped);break;
+                    CancelRowReverse();
+                    ClearRewind();
+                    state.playing=false;state.rowPending=true;ClearVoices();ResetChains();ResetColumns();ResetCommandState();ResetRuntimeControls();Emit(TrackerEventKind.Stopped);break;
                 case TrackerCommandKind.Pause:state.paused=true;break;
                 case TrackerCommandKind.Resume:state.paused=false;break;
+                case TrackerCommandKind.Rewind:RequestRewind(c.value);break;
+                case TrackerCommandKind.ReverseRows:RequestReverseRows(c.value);break;
+                case TrackerCommandKind.TempoOverride:
+                    if(math.isfinite(c.value)&&(c.value==0||c.value>=32&&c.value<=999))state.runtimeTempo=c.value;break;
+                case TrackerCommandKind.TrackTranspose:
+                    if(c.a>=0&&c.a<state.trackCount&&c.b>=-120&&c.b<=120){var t=state.tracks[c.a];t.runtimeTranspose=c.b;state.tracks[c.a]=t;}break;
+                case TrackerCommandKind.TrackDetune:
+                    if(c.a>=0&&c.a<state.trackCount&&math.isfinite(c.value)&&math.abs(c.value)<=1200){var t=state.tracks[c.a];t.runtimeDetune=c.value;state.tracks[c.a]=t;}break;
+                case TrackerCommandKind.DynamicParameterSet:
+                    if(c.a>=0&&c.a<state.deviceParameterCount&&math.isfinite(c.value)&&c.value>=0&&c.value<=1){var parameter=state.deviceParameters[c.a];if(!parameter.dynamic)break;if(parameter.kind==5){parameter.runtimePending=true;parameter.runtimeValue=c.value;state.deviceParameters[c.a]=parameter;}else {parameter.laneRamp=false;state.deviceParameters[c.a]=parameter;SetDeviceParameter(c.a,c.value);}}break;
                 case TrackerCommandKind.ReleaseAll:
                     for(int i=0;i<state.voices.Length;i++)Release(i);break;
                 case TrackerCommandKind.Seek:
                     if(c.a<0||c.a>=state.sequence.Length)return;
                     int p=state.sequence[c.a].pattern;if(c.b<0||c.b>=state.patterns[p].lineCount)return;
+                    CancelRowReverse();
+                    ClearRewind();
                     Seek(c.a,c.b);break;
                 case TrackerCommandKind.AuditionOn:
                     if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.c/127f;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c,-1,true);}break;
                 case TrackerCommandKind.AuditionNormalized:
                     if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127&&math.isfinite(c.value)&&c.value>=0&&c.value<=1){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.value;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c,-1,true);}break;
+                case TrackerCommandKind.RetriggerNote:
+                    if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.a>=0&&c.a<state.instruments.Length&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127&&math.isfinite(c.value)&&c.value>0&&c.value<=1){
+                        // One fresh group: remove held voices AND prior release tails on this column, irrespective of authored NNA.
+                        for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.active&&v.track==c.d&&v.column==0){v.active=false;state.voices[i]=v;}}
+                        int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.value;col.glideTarget=-1;state.columns[ci]=col;
+                        NoteOn(c.d,0,c.a,c.b,c.c,-1,true);
+                    }break;
                 case TrackerCommandKind.ReleaseVoice:
                     if(c.a>=0&&c.a<state.voices.Length&&state.voices[c.a].active&&state.voices[c.a].cohort==c.generation)for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&state.voices[i].cohort==c.generation)Release(i);break;
                 case TrackerCommandKind.AuditionOff:
@@ -62,7 +85,8 @@ namespace Laubrary.ZTracker.Engine
                 case TrackerCommandKind.Swap:
                     // Update runs between blocks. The old ticket becomes terminal only after its last reader returned.
                     SapRenderTicket.Enter(state.ticket);SapRenderTicket.Exit(state.ticket,0,true);
-                    long position=state.samplePosition,generation=state.cohort;state=c.replacement;state.samplePosition=position;state.cohort=generation;state.transportOrigin=position;state.rowPending=true;Emit(TrackerEventKind.PreparedSwap);break;
+                    CancelRowReverse();var rowReverse=state.rowReverse;
+                    long position=state.samplePosition,generation=state.cohort;state=c.replacement;state.rowReverse=rowReverse;state.samplePosition=position;state.cohort=generation;state.transportOrigin=position;state.rowPending=true;Emit(TrackerEventKind.PreparedSwap);break;
                 case TrackerCommandKind.PreserveSwap:
                     PreserveSwap(c.replacement);break;
                 default:ApplyParameterCommand(in c);break;
@@ -71,7 +95,13 @@ namespace Laubrary.ZTracker.Engine
         void ResetColumns(){for(int i=0;i<state.columnCount;i++)state.columns[i]=new TrackerColumn{instrument=-1,volume=1,pan=0,due=-1,pendingCell=-1,glideTarget=-1,cutTick=-1,volumeCutTick=-1};}
         void ClearVoices(){for(int i=0;i<state.voices.Length;i++)state.voices[i]=default;for(int i=0;i<state.modulationState.Length;i++)state.modulationState[i]=default;}
         void ResetChains(){for(int i=0;i<state.chainCount;i++){ref var c=ref state.chains[i];c.processor.Reset(in c.layout,state.sampleRate,2463534242u,0);TrackerChainSeed.Apply(ref c.processor,in c.layout);}}
-        void ResetDefaults(){state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.normalization=1;for(int i=0;i<state.trackCount;i++){var t=state.tracks[i];t.livePostGain=t.postGain=t.authoredPostGain;t.livePostPan=t.postPan=t.authoredPostPan;t.outputMute=t.authoredOutputMute;t.triggerMute=t.authoredTriggerMute;t.gainRemaining=t.panRemaining=0;t.output=t.authoredOutput;t.instrumentGain=1;state.tracks[i]=t;}ResetToneDefaults();}
+        void ResetDefaults(bool preserveGameControls=false){if(!preserveGameControls)ResetRuntimeControls();state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.normalization=1;for(int i=0;i<state.trackCount;i++){var t=state.tracks[i];t.livePostGain=t.postGain=t.authoredPostGain;t.livePostPan=t.postPan=t.authoredPostPan;if(!preserveGameControls){t.outputMute=t.authoredOutputMute;t.triggerMute=t.authoredTriggerMute;}t.gainRemaining=t.panRemaining=0;t.output=t.authoredOutput;t.instrumentGain=1;state.tracks[i]=t;}ResetToneDefaults();}
+        void ResetRuntimeControls()
+        {
+            if(state.runtimeTempoApplied)state.bpm=state.underlyingBpm;
+            state.runtimeTempo=0;state.runtimeTempoApplied=false;state.underlyingBpm=0;
+            for(int i=0;i<state.trackCount;i++){var track=state.tracks[i];track.runtimeTranspose=0;track.runtimeDetune=0;state.tracks[i]=track;}
+        }
         void ClockCommands(in TrackerRow row)=>RowGlobals(in row);
         void Seek(int sequence,int row)
         {
@@ -111,7 +141,8 @@ namespace Laubrary.ZTracker.Engine
         void Emit(TrackerEventKind kind,int track=-1,int column=-1,int note=-1,int instrument=-1,int payload=-1)
         {
             if(events.counters==null||state.silentReplay)return;
-            events.Write(new TrackerEvent{kind=kind,samplePosition=state.samplePosition,bpm=state.bpm,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,tick=state.tick,track=track,column=column,note=note,instrument=instrument,payload=payload});
+            if(state.rewind.phase!=TrackerRewindPhase.Idle&&kind!=TrackerEventKind.RewindStarted&&kind!=TrackerEventKind.RewindCompleted&&kind!=TrackerEventKind.RewindRefused&&kind!=TrackerEventKind.RowReverseRefused&&kind!=TrackerEventKind.Diagnostic&&kind!=TrackerEventKind.PreparedSwap)return;
+            events.Write(new TrackerEvent{kind=kind,samplePosition=state.samplePosition,bpm=state.bpm,direction=RowDirection,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,tick=state.tick,track=track,column=column,note=note,instrument=instrument,payload=payload});
         }
         // Binary64 quantizer from COMMANDS.md P-CLOCK; no floating epsilon tied to musical time.
         public static bool ClockValid(double start,double end,double duration,double compensation)=>math.isfinite(duration)&&duration>=1&&math.isfinite(start)&&start>=0&&math.isfinite(end)&&end<=1099511627776d&&math.isfinite(compensation)&&Quantize(end)>Quantize(start);
@@ -131,13 +162,20 @@ namespace Laubrary.ZTracker.Engine
         void EnterRow()
         {
             double previousBpm=state.bpm;int previousLpb=state.linesPerBeat,previousTpl=state.ticksPerLine;
-            if(state.liveTimingPending){state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.liveTimingPending=false;}
+            if(!state.rowReverse.active&&state.runtimeTempoApplied){state.bpm=state.underlyingBpm;state.runtimeTempoApplied=false;}
+            if(!state.rowReverse.active&&state.liveTimingPending){state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.liveTimingPending=false;}
             var seq=state.sequence[state.sequenceIndex];var pat=state.patterns[seq.pattern];var rr=state.rows[pat.rows+state.row];state.tick=0;state.breakRow=-1;state.held=false;
             int occurrence=state.sequenceIndex*state.rows.Length+pat.rows+state.row;state.rowOccurrence=state.occurrences[occurrence]++;state.rowSerial++;
-            EvaluateAutomation(state.row,true);ClockCommands(in rr);
+            if(!state.rowReverse.active){EvaluateAutomation(state.row,true);ClockCommands(in rr);}
+            // Authoring keeps advancing beneath the game override. A clear therefore restores the current
+            // authored tempo, rather than the song's initial value or the last overridden BPM.
+            if(!state.rowReverse.active)for(int i=0;i<state.dynamicCount;i++){int at=state.dynamicParameters[i];var parameter=state.deviceParameters[at];if(!parameter.runtimePending)continue;parameter.runtimePending=false;state.deviceParameters[at]=parameter;SetDeviceParameter(at,parameter.runtimeValue);}
+            if(!state.rowReverse.active&&state.runtimeTempo>0&&state.bpm>0&&state.linesPerBeat>0){state.underlyingBpm=state.bpm;state.bpm=state.runtimeTempo;state.runtimeTempoApplied=true;}
             if(state.bpm!=previousBpm||state.linesPerBeat!=previousLpb||state.ticksPerLine!=previousTpl)Emit(TrackerEventKind.TempoChanged);
             if(state.bpm==0||state.linesPerBeat==0){var stop=TrackerCommand.Stop();Apply(in stop);return;}
-            double duration=(state.sampleRate*60d)/(state.bpm*state.linesPerBeat);state.rowDuration=duration;
+            BeginPatternHistory();
+            double duration=state.rowReverse.active?(state.rowReverse.phase==TrackerRowReversePhase.Slowing?ForwardRowBoundary(state.row-state.rowReverse.startRow+1):ReverseRowBoundary(state.rowReverse.turnRow-state.row+1))-state.rowStart:(state.sampleRate*60d)/(state.bpm*state.linesPerBeat);state.rowDuration=duration;
+            if(state.rowReverse.active)state.bpm=state.sampleRate*60d/(duration*state.linesPerBeat);
             state.rowEnd=ClockEnd(state.rowStart,duration,ref state.clockCompensation);
             if(!ClockValid(state.rowStart,state.rowEnd,duration,state.clockCompensation)){state.playing=false;ClearVoices();Emit(TrackerEventKind.Diagnostic,payload:(int)(!math.isfinite(duration)||duration<1?TrackerRuntimeDiagnostic.InvalidClock:TrackerRuntimeDiagnostic.ClockLimit));Emit(TrackerEventKind.Stopped);return;}
             state.tickDeadline=state.rowStart+duration/state.ticksPerLine;
@@ -158,6 +196,7 @@ namespace Laubrary.ZTracker.Engine
             state.tick++;
             if(state.tick>=state.ticksPerLine){
                 state.tick=0;
+                if(state.rowReverse.active){state.row+=state.rowReverse.phase==TrackerRowReversePhase.Slowing?1:-1;state.rowStart=state.rowEnd;state.rowPending=true;EnterRow();return;}
                 if(state.holdRemaining>0)
                 {
                     if(!state.held)EvaluateAutomation(state.row+1);
@@ -339,8 +378,9 @@ namespace Laubrary.ZTracker.Engine
             for(int t=0;t<state.trackCount;t++)for(int i=0;i<frames;i++){int a=t*state.maxFrames+i;state.left[a]=state.right[a]=0;}
             for(int b=0;b<state.busCount;b++)for(int i=0;i<frames;i++){int a=b*state.maxFrames+i;state.busLeft[a]=state.busRight[a]=0;}
             int offset=0;
-            if(state.paused){for(int f=0;f<frames;f++)state.outputLeft[f]=state.outputRight[f]=0;events.PublishHead(state.samplePosition,state.sampleRate,state.playing,true);state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);return;}
+            if(state.paused){for(int f=0;f<frames;f++)state.outputLeft[f]=state.outputRight[f]=0;events.PublishReadout(in state,RewindStatus(),RowReverseStatus());state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);return;}
             while(offset<frames){
+                if(state.rewind.phase==TrackerRewindPhase.Reversing){offset+=ReverseMix(offset,frames-offset);continue;}
                 if(state.playing&&state.rowPending)EnterRow();
                 if(state.playing){
                     double exactNext=state.tick==state.ticksPerLine-1?state.rowEnd:state.tickDeadline;long next=state.transportOrigin+Quantize(exactNext);
@@ -350,22 +390,23 @@ namespace Laubrary.ZTracker.Engine
                     int n=(int)math.min(frames-offset,next-state.samplePosition);
                     for(int ci=0;ci<state.columnCount;ci++){var c=state.columns[ci];if(c.pendingCell>=0&&c.due>state.samplePosition)n=(int)math.min(n,c.due-state.samplePosition);}
                     if(state.automationDeadline<exactNext)n=(int)math.min(n,state.transportOrigin+Quantize(state.automationDeadline)-state.samplePosition);
+                    n=RowReverseSliceLimit(RewindSliceLimit(n));
                     if(state.dynamicCount>0){n=DynamicSliceLimit(n);AdvanceDynamic(n);}
-                    RenderVoices(offset,n);Mix(offset,n);state.samplePosition+=n;offset+=n;
-                }else {int n=frames-offset;if(state.dynamicCount>0){n=DynamicSliceLimit(n);AdvanceDynamic(n);}RenderVoices(offset,n);Mix(offset,n);offset+=n;}
+                    RenderVoices(offset,n);Mix(offset,n);CaptureMix(offset,n);SlowMix(offset,n);RowReverseGain(offset,n);state.samplePosition+=n;offset+=n;TurnRowReverse();CompleteRowReverse();
+                }else {int n=RewindSliceLimit(frames-offset);if(state.dynamicCount>0){n=DynamicSliceLimit(n);AdvanceDynamic(n);}RenderVoices(offset,n);Mix(offset,n);if(state.rewind.phase==TrackerRewindPhase.Slowing){CaptureMix(offset,n);SlowMix(offset,n);state.samplePosition+=n;}offset+=n;}
             }
 #if UNITY_EDITOR || ZTRACKER_PROOF
             double energy=0;for(int f=0;f<frames;f++)energy+=(double)state.outputLeft[f]*state.outputLeft[f]+(double)state.outputRight[f]*state.outputRight[f];
             state.ticket[5]=math.aslong(math.asdouble(state.ticket[5])+energy);
 #endif
-            events.PublishHead(state.samplePosition,state.sampleRate,state.playing,state.paused);
+            events.PublishReadout(in state,RewindStatus(),RowReverseStatus());
             state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);
         }
         // Song clock: one entry per entered row (and per held repeat), on the transport sample timeline.
         void PublishClockRow(bool held)
         {
-            if(state.silentReplay)return;
-            events.PublishRow(new TrackerClockRow{start=state.transportOrigin+state.rowStart,duration=state.rowDuration,bpm=state.bpm,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,linesPerBeat=state.linesPerBeat,ticksPerLine=state.ticksPerLine,holdRemaining=state.holdRemaining,occurrence=state.rowOccurrence,held=held?(byte)1:(byte)0});
+            if(state.silentReplay||state.rewind.phase!=TrackerRewindPhase.Idle)return;
+            events.PublishRow(new TrackerClockRow{start=state.transportOrigin+state.rowStart,duration=state.rowDuration,bpm=state.bpm,direction=RowDirection,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,linesPerBeat=state.linesPerBeat,ticksPerLine=state.ticksPerLine,holdRemaining=state.holdRemaining,occurrence=state.rowOccurrence,held=held?(byte)1:(byte)0});
         }
         [BurstDiscard] void MarkManagedRender(){state.ticket[3]=-1;}
         void ApplyDue(double before,bool inclusive=true)
@@ -397,7 +438,7 @@ namespace Laubrary.ZTracker.Engine
                     if(HasParameterEnvelope(in v,TrackerParameter.FilterCutoff))cutoff=VoiceParameter(in v,TrackerParameter.FilterCutoff);
                     if(HasParameterEnvelope(in v,TrackerParameter.FilterResonance))resonance=VoiceParameter(in v,TrackerParameter.FilterResonance);
                     ToneTargets(ref v,in tone);
-                    double increment=ModulatedStep(ref v,in tone,pitch+liveBend+v.commandArp+(tone.kind==0?v.commandPitch+v.commandVibrato:0));
+                    double increment=ModulatedStep(ref v,in tone,pitch+liveBend+v.commandArp+(tone.kind==0?v.commandPitch+v.commandVibrato:0))*RowReversePitchScale(state.rowReverse.elapsed+f);
                     if(!math.isfinite(increment)||increment<=0){v.active=false;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.InvalidPitch);break;}
                     float l,r;
                     if(tone.kind!=0){l=tone.kind==2?(tone.algorithm>TrackerFmSetups.Base?FMSetupVoice(ref v,in tone,(float)increment):FM(ref v,in tone,(float)increment)):Synth(ref v,in tone,(float)increment);r=l;}

@@ -45,7 +45,7 @@ namespace Laubrary.ZTracker.Engine
         public void Configure(TrackerPreparedSong song,bool playSong=true)
         {
             if(initial!=null||hasInstance||song==null||song.Disposed||song.Published)throw new InvalidOperationException("Host needs a fresh prepared song");
-            ring=TrackerEventRing.Create(65536);hasRing=true;live=TrackerLiveRing.Create(1024);liveTarget=new TrackerLiveTarget(live);initial=current=song;configuredRate=song.state.sampleRate;song.Published=true;owned.Add(song);autoplay=playSong;TrackerSapRegistry.Register(this);
+            ring=TrackerEventRing.Create(65536,song.state.trackCount);hasRing=true;live=TrackerLiveRing.Create(1024);liveTarget=new TrackerLiveTarget(live);initial=current=song;configuredRate=song.state.sampleRate;song.Published=true;owned.Add(song);autoplay=playSong;TrackerSapRegistry.Register(this);
             AudioSettings.OnAudioConfigurationChanged+=ReconfigureOutput;
 #if UNITY_EDITOR
             AssemblyReloadEvents.beforeAssemblyReload+=BeforeReload;
@@ -73,6 +73,11 @@ namespace Laubrary.ZTracker.Engine
         public bool SetMacro(int instrument,int macro,float value)=>SendCommand(TrackerCommand.SetMacro(instrument,macro,value));
         public bool TargetMacro(int instrument,int macro,float value,float step)=>SendCommand(TrackerCommand.TargetMacro(instrument,macro,value,step));
         public bool SetExternal(string track,string device,int slot,float normalized)=>current!=null&&current.TryExternalCommand(track,device,slot,normalized,out var command)&&SendCommand(command);
+        /// <summary>Resolves a stable authored command identity on the main thread and queues its normalized value.</summary>
+        public bool SetCommandParameter(string uid,float normalized,int track=-1)=>current!=null&&current.TryCommandParameter(uid,normalized,track,out var command)&&SendCommand(command);
+        /// <summary>Coherent audio-published tape status; does not read mutable prepared-song scalar state.</summary>
+        public bool TryGetRewindStatus(out TrackerRewindStatus status){status=default;if(!hasRing||!ring.TryReadClockHead(out var head))return false;status=head.rewind;return true;}
+        public bool TryGetRowReverseStatus(out TrackerRowReverseStatus status){status=default;if(!hasRing||!ring.TryReadClockHead(out var head))return false;status=head.rowReverse;return true;}
         // A single atomic float observation; not a simultaneous snapshot of all eight values.
         public float ObserveMacro(int instrument,int macro){if(current==null||current.Disposed||instrument<0||instrument>=current.state.instrumentCount||macro<0||macro>=8)throw new ArgumentOutOfRangeException();var ptr=(TrackerMacroValue*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(current.state.macros);return Volatile.Read(ref ptr[instrument*8+macro].value);}
         public bool SwapPrepared(TrackerPreparedSong next,bool playSong=true)
@@ -110,6 +115,7 @@ namespace Laubrary.ZTracker.Engine
         public long ClockRowsWritten=>hasRing?ring.ClockRowsWritten:0;
         public bool TryReadClockRow(long serial,out TrackerClockRow value){if(!hasRing){value=default;return false;}return ring.TryReadClockRow(serial,out value);}
         public bool TryReadClockHead(out TrackerClockHead value){if(!hasRing){value=default;return false;}return ring.TryReadClockHead(out value);}
+        public bool TryReadTrack(int track,out TrackerTrackReadout value){if(!hasRing){value=default;return false;}return ring.TryReadTrack(track,out value);}
         public long RenderedFrames
         {
             get{long total=retiredFrames;foreach(var p in owned)if(!p.Disposed&&p.state.ticket.IsCreated)total+=Volatile.Read(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket))[1]);return total;}

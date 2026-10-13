@@ -92,7 +92,7 @@ namespace Laubrary.ZTracker.Editor
             WireInstrumentKeyboard(window);
             ApplyTrackerSkin();
             root.style.flexGrow=1;root.style.minHeight=0;
-            status=Z.Text("Idle",tooltip:"Preview status.");status.name="transport-status";status.style.width=210;status.style.height=24;status.style.whiteSpace=WhiteSpace.NoWrap;status.style.overflow=Overflow.Hidden;
+            status=Z.Text("Idle",tooltip:"Live transport and selected track state.");status.name="transport-status";status.style.flexGrow=1;status.style.minWidth=280;status.style.height=24;status.style.whiteSpace=WhiteSpace.NoWrap;status.style.overflow=Overflow.Hidden;status.style.textOverflow=TextOverflow.Ellipsis;
             root.Add(Flow(Named(Z.IconButton("play","Start the song from its first row. Space toggles play/stop.",()=>Play(false)),"play"),Named(Z.IconButton("play-circle","Start at the selected sequence slot and row.",()=>Play(true)),"play-cursor"),Named(Z.IconButton("stop","Stop preview and release its owned audio buffers.",StopPreview),"stop"),Z.Toggle("Follow","Scroll the pattern to each row reached by playback.",follow,v=>follow=v),status));
             root.Add(Z.Segmented(pane,new[]{"Pattern","Mixer","Automation","Instrument","Song"},"Choose the authoring workspace.",v=>{pane=v;BuildPane();if(pane==3)rootVisualElement.Focus();}));
             controlScroll=new ScrollView { name="workspace-sidebar" };controls=new VisualElement();controlScroll.Add(controls);
@@ -173,6 +173,7 @@ namespace Laubrary.ZTracker.Editor
         bool SendLive(TrackerCommand command)=>host!=null&&host.SendCommand(command);
         void Play(bool cursor)
         {
+            if(ZTrackerPlayback.Current!=null&&ZTrackerPlayback.Current.IsPlaying&&ZTrackerPlayback.Current.SourceSong==song)return;
             try{EnsurePreview();host.SendCommand(TrackerCommand.Play());if(cursor)host.SendCommand(new TrackerCommand{kind=TrackerCommandKind.Seek,a=order,b=row});playing=true;lastError=null;}
             catch(Exception ex){lastError=ex.Message;}RefreshTransport();
         }
@@ -203,7 +204,7 @@ namespace Laubrary.ZTracker.Editor
             if(host!=null){host.PollRetirement();if(pendingLive&&host.RenderedBlocks>0)RefreshLive();while(host.ReadEvent(out var e)){if(e.kind==TrackerEventKind.Stopped)playing=false;if(e.kind==TrackerEventKind.Row&&follow&&playing){bool changed=e.sequence!=order;order=e.sequence;if(changed&&pane==0){BuildPane();}HighlightPlaying(e.row);}}
             }MidiPump();RefreshTransport();
         }
-        void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Pending: Stop/Play":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
+        void RefreshTransport(){RefreshLiveReadout();}
         protected override void OnEnable(){if(asset==null&&legacySong!=null)asset=legacySong;legacySong=null;if(asset!=null)viewRestored=true;base.OnEnable();EditorApplication.quitting-=OnViewQuitting;EditorApplication.quitting+=OnViewQuitting;Undo.undoRedoPerformed-=OnUndo;Undo.undoRedoPerformed+=OnUndo;Upgrade();}
         void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();RefreshLive();BuildPane();}
         protected override void OnDisable(){EditorApplication.quitting-=OnViewQuitting;SaveViewState();LauAssetGridGUI.ClearCache(chipThumbs);CaptureWorkspace();ReleaseInstrumentKeys();pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();MidiShutdown();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}

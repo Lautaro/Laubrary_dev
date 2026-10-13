@@ -158,6 +158,7 @@ namespace Laubrary.ZTracker.Engine
         }
         double ModulatedStep(ref TrackerVoice v,in TrackerTone tone,float pitch)
         {
+            var runtimePitch=state.tracks[v.track];pitch+=runtimePitch.runtimeTranspose+runtimePitch.runtimeDetune/100f;
             double step=v.step;int ii=v.instrument;
             // Glide (and a sliding legato) covers its whole distance at a constant rate in semitones, so it arrives in
             // exactly the glide time (T-0627). It used to approach the note exponentially with the glide time as its
@@ -290,6 +291,8 @@ namespace Laubrary.ZTracker.Engine
             if(tone.pcmB<0)return;var clip=state.clips[tone.pcmB];var b=sample;b.loop=tone.loopB;b.loopStart=tone.loopStartB;b.loopEnd=tone.loopEndB;b.releaseExitsLoop=tone.releaseExitsLoopB;
             b.regionStart=0;b.regionEnd=clip.frames;
             double increment=SafeInitialStep(v.stepB,(v.commandPitch+v.commandArp+v.commandVibrato)/12d);
+            var runtimePitch=state.tracks[v.track];
+            if(runtimePitch.runtimeTranspose!=0||runtimePitch.runtimeDetune!=0)increment=SafeInitialStep(increment,runtimePitch.runtimeTranspose/12d+runtimePitch.runtimeDetune/1200d);
             // New global per-note pitch curves affect both members of a sample
             // pair. Keep historical scalar-only playback byte-compatible.
             if(HasParameterEnvelope(in v,TrackerParameter.FineTune))increment=SafeInitialStep(increment,(VoiceParameter(in v,TrackerParameter.FineTune)-tone.baseGlobalTune)/1200d);

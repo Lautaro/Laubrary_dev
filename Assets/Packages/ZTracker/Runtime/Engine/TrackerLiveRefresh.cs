@@ -120,9 +120,10 @@ namespace Laubrary.ZTracker.Engine
             for(int i=0;i<old.deviceParameterCount;i++){var p=next.deviceParameters[i];var before=old.deviceParameters[i];if(p.authored==before.authored&&p.authoredPresent==before.authoredPresent){p.latent=before.latent;p.emitted=before.emitted;p.written=before.written;}
                 // A command definition keeps where its target is and where it is heading, if it still points at the same place.
                 if(p.dynamic&&before.dynamic&&p.kind==before.kind&&p.parameter==before.parameter&&p.track==before.track&&p.instrument==before.instrument&&p.chain==before.chain&&p.node==before.node&&p.destinationAuthored==before.destinationAuthored){p.destination=before.destination;p.target=before.target;p.step=before.step;p.remaining=before.remaining;p.stepping=before.stepping;p.laneOwned=before.laneOwned;p.laneEnvelope=before.laneEnvelope;p.typedRow=before.typedRow;}
+                if(p.dynamic&&before.dynamic&&p.kind==before.kind){p.runtimePending=before.runtimePending;p.runtimeValue=before.runtimeValue;}
                 next.deviceParameters[i]=p;}
             for(int i=0;i<old.columnCount;i++){var col=next.columns[i];if(col.pendingCell>=0){var cell=old.cells[col.pendingCell];int dest=next.carryCells+i;for(int j=0;j<cell.opCount;j++)next.ops[next.carryOps+i*3+j]=old.ops[cell.ops+j];cell.ops=next.carryOps+i*3;next.cells[dest]=cell;col.pendingCell=dest;next.columns[i]=col;}}
-            for(int i=0;i<old.trackCount;i++){var before=old.tracks[i];var after=next.tracks[i];after.instrumentGain=before.instrumentGain;
+            for(int i=0;i<old.trackCount;i++){var before=old.tracks[i];var after=next.tracks[i];after.instrumentGain=before.instrumentGain;after.runtimeTranspose=before.runtimeTranspose;after.runtimeDetune=before.runtimeDetune;
                 if(after.authoredPreGain==before.authoredPreGain){after.preGain=before.preGain;after.preGainStep=before.preGainStep;}if(after.authoredPrePan==before.authoredPrePan){after.prePan=before.prePan;after.prePanStep=before.prePanStep;}if(after.authoredWidth==before.authoredWidth){after.width=before.width;after.widthStep=before.widthStep;}
                 if(after.authoredPostGain==before.authoredPostGain){after.postGain=before.postGain;after.livePostGain=before.livePostGain;after.gainRemaining=before.gainRemaining;after.gainStep=before.gainStep;}else {after.livePostGain=before.livePostGain;after.gainRemaining=64;after.gainStep=(after.postGain-before.livePostGain)/64;}
                 if(after.authoredPostPan==before.authoredPostPan){after.postPan=before.postPan;after.livePostPan=before.livePostPan;after.panRemaining=before.panRemaining;after.panStep=before.panStep;}else {after.livePostPan=before.livePostPan;after.panRemaining=64;after.panStep=(after.postPan-before.livePostPan)/64;}
@@ -134,6 +135,13 @@ namespace Laubrary.ZTracker.Engine
             next.samplePosition=old.samplePosition;next.transportOrigin=old.transportOrigin;next.cohort=old.cohort;next.sequenceIndex=old.sequenceIndex;next.row=old.row;next.tick=old.tick;next.breakRow=old.breakRow;
             next.rowStart=old.rowStart;next.rowEnd=old.rowEnd;next.rowDuration=old.rowDuration;next.clockCompensation=old.clockCompensation;next.tickDeadline=old.tickDeadline;next.tickRemaining=old.tickRemaining;
             next.liveTimingPending=old.liveTimingPending||next.authoredBpm!=old.authoredBpm||next.authoredLinesPerBeat!=old.authoredLinesPerBeat||next.authoredTicksPerLine!=old.authoredTicksPerLine;next.bpm=old.bpm;next.linesPerBeat=old.linesPerBeat;next.ticksPerLine=old.ticksPerLine;
+            next.runtimeTempo=old.runtimeTempo;next.runtimeTempoApplied=old.runtimeTempoApplied;next.underlyingBpm=old.underlyingBpm;
+            // A new preparation owns fresh history. Do not copy megabytes on the audio thread or alias native owners.
+            // Recording resumes at the next pattern start; an active tape operation is explicitly cancelled.
+            next.rewind.completed=old.rewind.completed;next.rewind.refused=old.rewind.refused;
+            next.rewind.result=old.rewind.phase!=TrackerRewindPhase.Idle?TrackerRewindResult.Cancelled:old.rewind.result;
+            next.rowReverse=old.rowReverse;
+            if(next.rowReverse.active){next.rowReverse.active=false;next.rowReverse.result=TrackerRowReverseResult.Cancelled;next.rowReverse.cancelled++;next.liveTimingPending=true;}
             next.playing=old.playing;next.paused=old.paused;next.held=old.held;next.holdRemaining=old.holdRemaining;next.rowPending=old.rowPending;next.loopSong=old.loopSong;next.normalization=old.normalization;next.rowOccurrence=old.rowOccurrence;next.rowSerial=old.rowSerial;next.dynamicLanding=old.dynamicLanding;next.automationTime=old.automationTime;next.automationDeadline=old.automationDeadline;
             SapRenderTicket.Enter(old.ticket);SapRenderTicket.Exit(old.ticket,0,true);state=next;EvaluateParameters();
             // Sustain and release slopes are cached by held voices rather than read anew

@@ -273,6 +273,9 @@ namespace Laubrary.ZTracker.Engine
             for (int p = 0; p < state.deviceParameterCount; p++)
             {
                 var parameter = state.deviceParameters[p];
+                // Timing was already resolved before this row's duration and clock event were fixed.
+                // Re-emitting it here would overwrite a queued game tempo after the clock used it.
+                if (parameter.dynamic && parameter.kind == 5) continue;
                 if (state.parameterDirty[p] != 0 || parameter.device >= 0 && state.deviceDirty[parameter.device] != 0)
                     EmitDeviceParameter(p);
             }

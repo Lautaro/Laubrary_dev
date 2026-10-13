@@ -19,6 +19,8 @@ namespace Laubrary.ZTracker
         public static ZTrackerPlayback Current => current;
         public bool IsPlaying => generator != null && !stopping;
         public bool IsSong { get; private set; }
+        /// <summary>The authored asset captured by this playback; observation never writes to it.</summary>
+        public ZTrackerSong SourceSong { get; private set; }
         public int AuditionNote { get; private set; }
         public int AuditionPreset { get; private set; }
         public TrackerSapGenerator Generator => generator;
@@ -38,6 +40,7 @@ namespace Laubrary.ZTracker
         long stoppedFrames, stoppedBlocks, lastSample;
         int lastOrder, lastRow, lastPattern = -1;
         bool haveRow;
+        float rewindHistorySeconds;
 
         sealed class EventCatalog
         {
@@ -52,12 +55,12 @@ namespace Laubrary.ZTracker
             }
         }
 
-        public static bool TryPlay(ZTrackerSong song, out ZTrackerPlayback playback, out string error, int order = 0, int row = 0)
-            => TryStart(song, null, 69, out playback, out error, order, row, -1);
+        public static bool TryPlay(ZTrackerSong song, out ZTrackerPlayback playback, out string error, int order = 0, int row = 0, float rewindHistorySeconds = 0)
+            => TryStart(song, null, 69, out playback, out error, order, row, -1, rewindHistorySeconds);
         public static bool TryAudition(ZTrackerInstrument instrument, int note, out ZTrackerPlayback playback, out string error, int preset = -1)
             => TryStart(null, instrument, note, out playback, out error, 0, 0, preset);
 
-        static bool TryStart(ZTrackerSong song, ZTrackerInstrument instrument, int note, out ZTrackerPlayback playback, out string error, int order, int row, int preset)
+        static bool TryStart(ZTrackerSong song, ZTrackerInstrument instrument, int note, out ZTrackerPlayback playback, out string error, int order, int row, int preset, float rewindHistorySeconds = 0)
         {
             playback = null; error = null;
             if (song == null && instrument == null) { error = "Choose a song or instrument first."; return false; }
@@ -70,14 +73,17 @@ namespace Laubrary.ZTracker
             {
                 data = PlaybackSnapshot.Create(song, instrument, preset);
                 prepared = TrackerPreparedSong.Prepare(data.Data, AudioSettings.outputSampleRate);
+                prepared.EnableRewindHistory(rewindHistorySeconds);
                 if (song != null && (order < 0 || order >= data.Data.sequence.Count || row < 0 || row >= data.Data.patterns.Find(p => p.id == data.Data.sequence[order].patternId).lineCount))
                     throw new ArgumentOutOfRangeException("Playback start position");
                 root = new GameObject("ZTracker Burst playback");
                 if (Application.isPlaying) DontDestroyOnLoad(root); else root.hideFlags = HideFlags.HideAndDontSave;
                 var host = root.AddComponent<ZTrackerPlayback>();
+                host.rewindHistorySeconds = rewindHistorySeconds;
                 host.snapshot = data; data = null;
                 host.catalog = new EventCatalog(host.snapshot.Data, prepared);
                 host.IsSong = song != null; host.AuditionNote = note; host.AuditionPreset = preset;
+                host.SourceSong = song;
                 host.generator = root.AddComponent<TrackerSapGenerator>();
                 host.generator.Configure(prepared, false); prepared = null;
                 if (song != null)
@@ -105,6 +111,7 @@ namespace Laubrary.ZTracker
         public bool TryGetPosition(out int order, out int row) { order = lastOrder; row = lastRow; return IsPlaying && haveRow; }
         /// <summary>The detached song data that is playing (never the asset itself). Read only.</summary>
         public SongData PlayingSong => snapshot?.Data;
+        public bool TryReadTrack(int track, out TrackerTrackReadout value) { value = default; return IsPlaying && generator.TryReadTrack(track, out value); }
         ZTrackerSongClock clock;
         /// <summary>Live song position: current row, time into it and until the next, tempo, and the row's cells.
         /// Reading it consumes nothing, so it can be used alongside the event stream.</summary>
@@ -120,6 +127,63 @@ namespace Laubrary.ZTracker
         }
         public bool SendCommand(TrackerCommand command) => IsPlaying && generator.SendCommand(command);
 
+        /// <summary>Overrides song tempo from the next row, without changing the current row duration. The last
+        /// queued value wins; authored tempo commands still advance underneath it. Clear to return to that authored
+        /// tempo. Accepts 32..999 BPM; Play, Stop and Seek clear the override.</summary>
+        public bool SetTempo(float bpm) => !float.IsNaN(bpm) && bpm >= 32 && bpm <= 999 && SendCommand(TrackerCommand.SetTempo(bpm));
+        public bool ClearTempoOverride() => SendCommand(TrackerCommand.ClearTempoOverride());
+
+        /// <summary>Coherent status of the bounded rendered-mix history and any tape operation.</summary>
+        public TrackerRewindStatus RewindStatus => generator != null && generator.TryGetRewindStatus(out var status) ? status : default;
+        public bool IsRewinding => RewindStatus.IsRewinding;
+        /// <summary>Reverse sequencing status, including monotonic completion/refusal/cancellation counters.</summary>
+        public TrackerRowReverseStatus RowReverseStatus => generator != null && generator.TryGetRowReverseStatus(out var status) ? status : default;
+        public bool IsReversingRows => RowReverseStatus.active;
+        /// <summary>Queues rows N..1 backwards within the current pattern, with each row's audio running forward.
+        /// Duration is normalized to 0.1..10 seconds (default 3); row zero is refused. Tempo/pitch offsets and gates
+        /// survive landing. Requests during tape or another reverse traversal are refused by the audio thread.</summary>
+        public bool RequestReverseRows(float seconds = 3f)
+        {
+            if (!IsPlaying) { LastError = "Playback unavailable"; return false; }
+            if (float.IsNaN(seconds) || seconds < .1f || seconds > 10) { LastError = "Reverse duration must be 0.1 through 10 seconds"; return false; }
+            if (IsRewinding || IsReversingRows) { LastError = "A reverse transport is already in progress"; return false; }
+            if (Clock.TryGetRendered(out var position) && position.Row == 0) { LastError = "Already at the pattern start"; return false; }
+            bool sent = SendCommand(TrackerCommand.RequestReverseRows(seconds));
+            LastError = sent ? null : "Reverse row request could not be queued";
+            return sent;
+        }
+        /// <summary>Queues a tape rewind (0.1..10 seconds, default 3). History must have been enabled before Play.
+        /// The audio thread revalidates at delivery; observe RewindStatus/result or engine events for completion or
+        /// refusal. Pausing freezes the effect. Completion seeks to the same order's row zero and clears game controls.</summary>
+        public bool RequestRewind(float seconds = 3f)
+        {
+            var status = RewindStatus;
+            if (!IsPlaying) { LastError = "Playback unavailable"; return false; }
+            if (float.IsNaN(seconds) || seconds < .1f || seconds > 10) { LastError = "Rewind duration must be 0.1 through 10 seconds"; return false; }
+            if (IsReversingRows) { LastError = "Reverse row sequencing is already in progress"; return false; }
+            if (!status.CanRewind) { LastError = status.IsRewinding ? "Rewind already in progress" : "No complete current-pattern history; wait for the next pattern start"; return false; }
+            int slow = Math.Min(status.sampleRate / 2, Mathf.RoundToInt(seconds * status.sampleRate) / 4);
+            if (status.historyFrames > status.capacityFrames - slow) { LastError = "Current pattern history exceeds the bounded rewind buffer"; return false; }
+            bool sent = SendCommand(TrackerCommand.RequestRewind(seconds));
+            LastError = sent ? null : "Rewind request could not be queued";
+            return sent;
+        }
+
+        /// <summary>Adds semitones (-120..120) to active and future voices on one track, after all authored pitch
+        /// sources. Does not change note selection, event note values, or drum maps. Independent of track detune.</summary>
+        public bool SetTrackTranspose(int track, int semitones) => ValidTrack(track) && semitones >= -120 && semitones <= 120 && SendCommand(TrackerCommand.SetTrackTranspose(track, semitones));
+        /// <summary>Adds cents (-1200..1200) after authored pitch, independently of transposition. Set zero to clear.
+        /// Play, Stop and Seek clear both track offsets; compatible Refresh preserves them.</summary>
+        public bool SetTrackDetune(int track, float cents) => ValidTrack(track) && !float.IsNaN(cents) && cents >= -1200 && cents <= 1200 && SendCommand(TrackerCommand.SetTrackDetune(track, cents));
+        bool ValidTrack(int track) => PlayingSong != null && track >= 0 && track < PlayingSong.tracks.Count;
+
+        /// <summary>Writes an authored command definition by its stable uid, normalized 0..1 in its declared range.
+        /// Instrument-effect definitions require a track index. Uses the same ramp and precedence as pattern commands:
+        /// later authored commands/automation can replace it. Tempo targets apply at the next row, after its authored
+        /// timing writes, beneath SetTempo's persistent override. Returns false for missing/invalid definitions.</summary>
+        public bool SetCommandParameter(string uid, float normalized, int track = -1)
+            => IsPlaying && generator.SetCommandParameter(uid, normalized, track);
+
         /// <summary>Gates a track: its own pattern notes stop sounding, while notes played with <see cref="PlayNote"/>
         /// still sound. Ungating restores the pattern notes. The track's output mute is kept as authored.</summary>
         public bool SetTrackGated(int track, bool gated)
@@ -133,6 +197,17 @@ namespace Laubrary.ZTracker
         /// into the song's instruments, note 0..119, velocity 0..1. It replaces the column's previous note.</summary>
         public bool PlayNote(int track, int instrument, int note, float velocity = 1f)
             => SendCommand(TrackerCommand.Audition(instrument, Mathf.Clamp(note, 0, 119), Mathf.Clamp01(velocity), track));
+
+        /// <summary>Starts one fresh note group on column zero, cutting all its previous voices and release tails.
+        /// Authored Continue/NoteOff/legato cannot accumulate groups. Layers/unison within this one group remain intact.
+        /// Applied at the next audio block, independent of row timing. Does not change authored instrument settings.</summary>
+        public bool RetriggerNote(int track, int instrument, int note, float velocity = 1f)
+        {
+            if (PlayingSong == null || track < 0 || track >= PlayingSong.tracks.Count || instrument < 0 || instrument >= PlayingSong.instruments.Count || note < 0 || note > 119 || float.IsNaN(velocity) || float.IsInfinity(velocity) || velocity <= 0 || velocity > 1) return false;
+            var command = TrackerCommand.Audition(instrument, note, velocity, track);
+            command.kind = TrackerCommandKind.RetriggerNote;
+            return SendCommand(command);
+        }
 
         /// <summary>Releases the note playing on a track's first note column (its envelope's release runs).</summary>
         public bool ReleaseNote(int track) => SendCommand(new TrackerCommand { kind = TrackerCommandKind.AuditionOff, a = track, b = 0 });
@@ -148,6 +223,7 @@ namespace Laubrary.ZTracker
             {
                 candidate = snapshot.CreateRefresh(instrument);
                 next = TrackerPreparedSong.Prepare(candidate.Data, AudioSettings.outputSampleRate);
+                next.EnableRewindHistory(rewindHistorySeconds);
                 var nextCatalog = new EventCatalog(candidate.Data, next);
                 if (!generator.RefreshPrepared(next, out reason)) return false;
                 var previous = snapshot; snapshot = candidate; candidate = null; previous.Dispose();
@@ -176,7 +252,7 @@ namespace Laubrary.ZTracker
                     if (catalogs.Count == 0) { LastError = "Event catalog boundary missing"; continue; }
                     catalog = catalogs.Dequeue(); continue;
                 }
-                var mapped = new ZTrackerEventData { samplePosition = (ulong)Math.Max(0, ev.samplePosition), sequenceIndex = ev.sequence, patternIndex = ev.pattern, rowIndex = ev.row, channelIndex = ev.track, noteColumn = ev.column, noteValue = ev.note, instrumentID = ev.instrument, intParam = ev.payload,
+                var mapped = new ZTrackerEventData { samplePosition = (ulong)Math.Max(0, ev.samplePosition), direction = ev.direction == TrackerPlaybackDirection.Reverse ? -1 : 1, sequenceIndex = ev.sequence, patternIndex = ev.pattern, rowIndex = ev.row, channelIndex = ev.track, noteColumn = ev.column, noteValue = ev.note, instrumentID = ev.instrument, intParam = ev.payload,
                     trackId = ev.track >= 0 && ev.track < catalog.tracks.Length ? catalog.tracks[ev.track] : null };
                 switch (ev.kind)
                 {

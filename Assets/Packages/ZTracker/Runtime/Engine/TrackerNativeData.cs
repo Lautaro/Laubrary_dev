@@ -9,13 +9,14 @@ using Unity.Mathematics;
 
 namespace Laubrary.ZTracker.Engine
 {
-    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic, Started, SongLooped, TempoChanged }
+    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic, Started, SongLooped, TempoChanged, RewindStarted, RewindCompleted, RewindRefused, RowReverseStarted, RowReverseCompleted, RowReverseRefused }
     public enum TrackerRuntimeDiagnostic { SeekUnreachable=1, PitchLimit=2, InvalidPitch=3, BreakClamped=4, EmptyMemory=5, DelayOutsideRow=6, CutOutsideRow=7, GlideNoTarget=8, ExclusiveNoWeight=9, SharedFxStop=10, InvalidClock=11, ClockLimit=12, SliceOutside=13, GlideWithoutVoice=14, GlideInstrumentChanged=15, InstrumentUnresolved=16, SeekVoiceStateDiscarded=17, SampleDomainUnsupported=18, RouteCycle=19, StopExpandsSendContributors=20 }
     public struct TrackerEvent
     {
         public TrackerEventKind kind;
         public long samplePosition;
         public double bpm;
+        public TrackerPlaybackDirection direction;
         public int sequence, pattern, row, tick, track, column, note, instrument, payload;
     }
     /// <summary>
@@ -30,6 +31,7 @@ namespace Laubrary.ZTracker.Engine
         public int sequence, pattern, row, linesPerBeat, ticksPerLine, holdRemaining;
         public long occurrence;
         public byte held;
+        public TrackerPlaybackDirection direction;
     }
     /// <summary>Where the renderer has got to: the transport position at the end of the last rendered block.</summary>
     public struct TrackerClockHead
@@ -37,6 +39,20 @@ namespace Laubrary.ZTracker.Engine
         public long position, blocks;
         public int sampleRate;
         public byte playing, paused;
+        public TrackerRewindStatus rewind;
+        public TrackerRowReverseStatus rowReverse;
+        public double bpm;
+        public float requestedTempo;
+        public int sequence, row, pendingParameters, trackCount;
+        public bool tempoPending;
+    }
+    /// <summary>Audio-published readout, never a reference into mutable renderer state.</summary>
+    public struct TrackerTrackReadout
+    {
+        public long block;
+        public int activeVoices, transpose;
+        public float detune;
+        public bool gated, muted;
     }
     /// <summary>One audio producer and one main-thread consumer. Storage outlives graph instances and prepared swaps.</summary>
     public unsafe struct TrackerEventRing : IDisposable
@@ -48,8 +64,10 @@ namespace Laubrary.ZTracker.Engine
         // competing with the event consumer. Each record is guarded by a version so a torn read is detected.
         [NativeDisableUnsafePtrRestriction] public TrackerClockRow* clockRows;
         [NativeDisableUnsafePtrRestriction] public TrackerClockHead* clockHead;
+        [NativeDisableUnsafePtrRestriction] public TrackerTrackReadout* trackReadouts;
+        public int readoutCapacity;
         public int capacity;
-        public static TrackerEventRing Create(int capacity)
+        public static TrackerEventRing Create(int capacity, int tracks = 0)
         {
             if (capacity < 2 || capacity > 1048576) throw new ArgumentOutOfRangeException(nameof(capacity));
             var r = new TrackerEventRing { capacity = capacity };
@@ -61,6 +79,11 @@ namespace Laubrary.ZTracker.Engine
             for (int i = 0; i < ClockRowCapacity; i++) r.clockRows[i].serial = -1;
             r.clockHead = (TrackerClockHead*)UnsafeUtility.Malloc(sizeof(TrackerClockHead), 16, Allocator.Persistent);
             UnsafeUtility.MemClear(r.clockHead, sizeof(TrackerClockHead));
+            r.readoutCapacity = tracks;
+            if (tracks > 0) {
+                r.trackReadouts = (TrackerTrackReadout*)UnsafeUtility.Malloc(tracks * (long)sizeof(TrackerTrackReadout), 16, Allocator.Persistent);
+                UnsafeUtility.MemClear(r.trackReadouts, tracks * (long)sizeof(TrackerTrackReadout));
+            }
             return r;
         }
         // ---- Song clock, written on the audio thread ----
@@ -74,14 +97,53 @@ namespace Laubrary.ZTracker.Engine
             Volatile.Write(ref slot.serial, serial);
             Volatile.Write(ref counters[3], serial + 1);
         }
-        public void PublishHead(long position, int sampleRate, bool playing, bool paused)
+        public void PublishHead(long position, int sampleRate, bool playing, bool paused, TrackerRewindStatus rewind = default, TrackerRowReverseStatus rowReverse = default)
         {
             if (clockHead == null) return;
             long version = counters[4];
             Volatile.Write(ref counters[4], version + 1); // odd: write in progress
             clockHead->position = position; clockHead->sampleRate = sampleRate; clockHead->blocks++;
             clockHead->playing = playing ? (byte)1 : (byte)0; clockHead->paused = paused ? (byte)1 : (byte)0;
+            clockHead->rewind = rewind;
+            clockHead->rowReverse = rowReverse;
             Volatile.Write(ref counters[4], version + 2);
+        }
+        public void PublishReadout(in TrackerState state, TrackerRewindStatus rewind, TrackerRowReverseStatus reverse)
+        {
+            if (clockHead == null) return;
+            long version = counters[4];
+            Volatile.Write(ref counters[4], version + 1);
+            clockHead->position = state.samplePosition; clockHead->sampleRate = state.sampleRate; clockHead->blocks++;
+            clockHead->playing = state.playing && (state.paused || state.rewind.phase == TrackerRewindPhase.Idle) ? (byte)1 : (byte)0; clockHead->paused = state.paused ? (byte)1 : (byte)0;
+            clockHead->rewind = rewind; clockHead->rowReverse = reverse;
+            clockHead->bpm = state.bpm; clockHead->requestedTempo = state.runtimeTempo;
+            clockHead->sequence = state.sequenceIndex; clockHead->row = state.row;
+            clockHead->tempoPending = state.runtimeTempo > 0 ? !state.runtimeTempoApplied || state.bpm != state.runtimeTempo : state.runtimeTempoApplied;
+            int pending = 0;
+            for (int i = 0; i < state.deviceParameters.Length; i++) if (state.deviceParameters[i].runtimePending) pending++;
+            clockHead->pendingParameters = pending;
+            int count = math.min(state.trackCount, readoutCapacity);
+            for (int t = 0; t < count; t++) {
+                var track = state.tracks[t];
+                trackReadouts[t] = new TrackerTrackReadout { block = clockHead->blocks, transpose = track.runtimeTranspose, detune = track.runtimeDetune, gated = track.triggerMute, muted = track.outputMute || !track.soloEnabled || state.sequenceMutes[state.sequence[state.sequenceIndex].muteOffset + t] != 0 };
+            }
+            for (int i = 0; i < state.voices.Length; i++) { var voice = state.voices[i]; if (voice.active && voice.track >= 0 && voice.track < count) trackReadouts[voice.track].activeVoices++; }
+            // Count is stored in the shared head: copies of the ring share its publication.
+            clockHead->trackCount = count;
+            Volatile.Write(ref counters[4], version + 2);
+        }
+        public bool TryReadTrack(int track, out TrackerTrackReadout value)
+        {
+            value = default;
+            if (clockHead == null || trackReadouts == null || track < 0 || track >= readoutCapacity) return false;
+            for (int attempt = 0; attempt < 8; attempt++) {
+                long version = Volatile.Read(ref counters[4]);
+                if (version == 0 || (version & 1) != 0) continue;
+                if (track >= clockHead->trackCount) return false;
+                value = trackReadouts[track];
+                if (Volatile.Read(ref counters[4]) == version) return true;
+            }
+            return false;
         }
         // ---- Song clock, read on the main thread (any number of readers, nothing consumed) ----
         public long ClockRowsWritten => counters == null ? 0 : Volatile.Read(ref counters[3]);
@@ -129,6 +191,7 @@ namespace Laubrary.ZTracker.Engine
             if (counters != null) UnsafeUtility.Free(counters, Allocator.Persistent);
             if (clockRows != null) UnsafeUtility.Free(clockRows, Allocator.Persistent);
             if (clockHead != null) UnsafeUtility.Free(clockHead, Allocator.Persistent);
+            if (trackReadouts != null) UnsafeUtility.Free(trackReadouts, Allocator.Persistent);
             this = default;
         }
     }
@@ -265,6 +328,9 @@ namespace Laubrary.ZTracker.Engine
         // (laneOwned false); typedRow is the row serial on which a typed command took the value for its row.
         public byte curve;
         public bool laneOwned, laneEnvelope;
+        // Main-thread dynamic tempo writes wait for row entry; other targets ramp immediately.
+        public bool runtimePending;
+        public float runtimeValue;
         public long typedRow;
     }
     // envelope: an envelope column's lane, which drives its target only between its first and last point.
@@ -282,6 +348,9 @@ namespace Laubrary.ZTracker.Engine
         public int columns, columnCount, output, chainStart, chainCount, sendStart, sendCount;
         public int authoredOutput, parent;
         public float instrumentGain;
+        // Game-controlled offsets compose after every authored pitch source, including envelopes and macros.
+        public int runtimeTranspose;
+        public float runtimeDetune;
         public float preGain, prePan, width, postGain, postPan;
         public float authoredPreGain, authoredPrePan, authoredWidth;
         public float authoredPostGain, authoredPostPan, livePostGain, livePostPan, gainStep, panStep;
@@ -313,6 +382,8 @@ namespace Laubrary.ZTracker.Engine
     public struct TrackerBus { public int track, instrument, fx, chain; }
     public unsafe struct TrackerState
     {
+        public TrackerRewindState rewind;
+        public TrackerRowReverseState rowReverse;
         public NativeArray<float> pcm, left, right, busLeft, busRight, outputLeft, outputRight, faderGain, faderPan;
         public NativeArray<TrackerPcm> clips;
         public NativeArray<TrackerSample> samples;
@@ -363,6 +434,9 @@ namespace Laubrary.ZTracker.Engine
         public int sampleRate, maxFrames, master, sequenceIndex, row, tick, breakRow, linesPerBeat, ticksPerLine, beatInterval;
         public double bpm, tickRemaining, rowStart, rowEnd, clockCompensation, tickDeadline;
         public double authoredBpm;
+        public float runtimeTempo;
+        public double underlyingBpm;
+        public bool runtimeTempoApplied;
         public int authoredLinesPerBeat, authoredTicksPerLine;
         public long transportOrigin;
         public long samplePosition, cohort;
@@ -380,7 +454,7 @@ namespace Laubrary.ZTracker.Engine
         public long rowSerial;
         public bool dynamicLanding;
     }
-    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap }
+    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap, TempoOverride, TrackTranspose, TrackDetune, DynamicParameterSet, Rewind, ReverseRows, RetriggerNote }
     public struct TrackerCommand
     {
         public TrackerCommandKind kind;
@@ -390,6 +464,17 @@ namespace Laubrary.ZTracker.Engine
         public TrackerState replacement;
         public static TrackerCommand Play(bool loop = true) => new TrackerCommand { kind = TrackerCommandKind.Play, a = loop ? 1 : 0 };
         public static TrackerCommand Stop() => new TrackerCommand { kind = TrackerCommandKind.Stop };
+        /// <summary>Persistent tempo override (32..999 BPM), effective at the next row; zero clears it.</summary>
+        public static TrackerCommand SetTempo(float bpm) => new TrackerCommand { kind = TrackerCommandKind.TempoOverride, value = bpm };
+        public static TrackerCommand ClearTempoOverride() => SetTempo(0);
+        /// <summary>Requests tape playback of this pattern pass's actual rendered mix, then resumes at row zero.</summary>
+        public static TrackerCommand RequestRewind(float seconds = 3f) => new TrackerCommand { kind = TrackerCommandKind.Rewind, value = seconds };
+        /// <summary>Retrigger rows N..1 in descending order with normal forward voice playback, then land on row zero.</summary>
+        public static TrackerCommand RequestReverseRows(float seconds = 3f) => new TrackerCommand { kind = TrackerCommandKind.ReverseRows, value = seconds };
+        /// <summary>Independent additive semitone offset (-120..120) for active and future track voices.</summary>
+        public static TrackerCommand SetTrackTranspose(int track, int semitones) => new TrackerCommand { kind = TrackerCommandKind.TrackTranspose, a = track, b = semitones };
+        /// <summary>Independent additive cents offset (-1200..1200); does not replace authored fine tune.</summary>
+        public static TrackerCommand SetTrackDetune(int track, float cents) => new TrackerCommand { kind = TrackerCommandKind.TrackDetune, a = track, value = cents };
         public static TrackerCommand Audition(int instrument, int note, int velocity = 127, int track = 0) => new TrackerCommand { kind = TrackerCommandKind.AuditionOn, a = instrument, b = note, c = velocity, d = track };
         /// <summary>Exact normalized audition gain. Integer-rounded velocity is used only for zone selection.</summary>
         public static TrackerCommand Audition(int instrument,int note,float velocity,int track=0)=>new TrackerCommand{kind=TrackerCommandKind.AuditionNormalized,a=instrument,b=note,c=(int)math.round(velocity*127),d=track,value=velocity};

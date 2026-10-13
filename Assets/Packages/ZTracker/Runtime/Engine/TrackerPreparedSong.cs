@@ -226,6 +226,7 @@ namespace Laubrary.ZTracker.Engine
         public void Dispose()
         {
             if(Disposed)return;if(Published)throw new InvalidOperationException("Stop host publication and confirm ticket quiet before freeing a published song");Disposed=true;
+            if(state.rewind.history.IsCreated)state.rewind.history.Dispose();
             for(int i=0;i<state.chainCount;i++){state.chains[i].processor.Dispose();state.chains[i].layout.Dispose();if(state.chains[i].authoredParameters.IsCreated)state.chains[i].authoredParameters.Dispose();}
             if(state.chains!=null)UnsafeUtility.Free(state.chains,Allocator.Persistent);
             Free(ref state.routeQueue);Free(ref state.routeMarks);Free(ref state.deviceDirty);Free(ref state.parameterDirty);Free(ref state.dynamicParameters);Free(ref state.parameterSets);Free(ref state.presetParameters);Free(ref state.ops);Free(ref state.descriptors);Free(ref state.commandMemory);Free(ref state.sliceMarkers);Free(ref state.occurrences);Free(ref state.devices);Free(ref state.deviceParameters);Free(ref state.automation);Free(ref state.automationPoints);

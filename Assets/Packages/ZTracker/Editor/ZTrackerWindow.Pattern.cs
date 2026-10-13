@@ -64,7 +64,7 @@ namespace Laubrary.ZTracker.Editor
                 var l = kv.Value; var p = (Vector3Int)l.userData; if (p.x >= Pattern.rowCount || p.y >= song.channelCount) continue;
                 var c = Pattern.GetCell(p.x, p.y, song.channelCount); int n = Notes(p.y);
                 string text;
-                if (p.z < n) { int note = c.GetNote(p.z); text = NoteName(note); if (note >= 0 && note < 127 && c.instrument >= 0 && c.instrument < song.instruments.Count && song.instruments[c.instrument] != null && song.instruments[c.instrument].type == InstrumentType.Kit) text = song.instruments[c.instrument].GetNoteDisplayName(note); }
+                if (p.z < n) { int note = c.GetNote(p.z); var source = c.instrument >= 0 && c.instrument < song.instruments.Count ? song.instruments[c.instrument] : null; text = ZTrackerNoteDisplay.Legacy(note, source); }
                 else if (p.z == n) text = c.instrument >= 0 ? c.instrument.ToString("X2") : "..";
                 else if (p.z == n + 1) text = c.volume == 255 ? ".." : c.volume.ToString("X2");
                 else { int fx = p.z - n - 2; int cmd = c.GetEffectCmd(fx); text = cmd == 0 ? "..." : "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Mathf.Clamp(cmd, 0, 35)] + c.GetEffectParam(fx).ToString("X2"); }
@@ -74,7 +74,7 @@ namespace Laubrary.ZTracker.Editor
                 l.EnableInClassList("tracker-selected", anchorRow >= 0 && p.x >= Mathf.Min(row, anchorRow) && p.x <= Mathf.Max(row, anchorRow) && p.y >= Mathf.Min(track, anchorTrack) && p.y <= Mathf.Max(track, anchorTrack));
             }
         }
-        public static string NoteName(int n) => n < 0 ? "..." : n == 127 ? "OFF" : new[] { "C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-" }[Mathf.Clamp(n, 0, 126) % 12] + (n / 12);
+        public static string NoteName(int n) => n < 0 ? "..." : n == 127 ? "OFF" : ZTrackerNoteDisplay.Pitch(n, 126);
         void BuildCellEditor()
         {
             if (cellEditor == null || Pattern == null) return; cellEditor.Clear(); var c = Pattern.GetCell(row, track, song.channelCount); int n = Notes(track);

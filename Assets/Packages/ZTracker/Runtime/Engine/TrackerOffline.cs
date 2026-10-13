@@ -37,16 +37,24 @@ namespace Laubrary.ZTracker.Engine
             if(eventCapacity<2||eventCapacity>1048576)throw new ArgumentOutOfRangeException(nameof(eventCapacity));
             prepared=song;prepared.Published=true;witness=new NativeArray<int>(1,Allocator.Persistent);
             realtime=(TrackerRealtime*)UnsafeUtility.Malloc(sizeof(TrackerRealtime),16,Allocator.Persistent);
-            *realtime=new TrackerRealtime{state=song.state,events=TrackerEventRing.Create(eventCapacity),live=TrackerLiveRing.Create(1024)};liveTarget=new TrackerLiveTarget(realtime->live);
+            *realtime=new TrackerRealtime{state=song.state,events=TrackerEventRing.Create(eventCapacity,song.state.trackCount),live=TrackerLiveRing.Create(1024)};liveTarget=new TrackerLiveTarget(realtime->live);
         }
         void RequireAlive(){if(realtime==null)throw new ObjectDisposedException(nameof(TrackerOffline));}
         public bool Compiled{get{RequireAlive();return witness[0]==1;}}
         public long EventOverflow{get{RequireAlive();return realtime->events.OverflowCount;}}
         public TrackerState Snapshot{get{RequireAlive();return realtime->state;}}
+        public TrackerRewindStatus RewindStatus{get{RequireAlive();return realtime->RewindStatus();}}
+        public TrackerRowReverseStatus RowReverseStatus{get{RequireAlive();return realtime->RowReverseStatus();}}
+        public long ClockRowsWritten{get{RequireAlive();return realtime->events.ClockRowsWritten;}}
+        public bool TryReadClockRow(long serial,out TrackerClockRow value){RequireAlive();return realtime->events.TryReadClockRow(serial,out value);}
+        public bool TryReadClockHead(out TrackerClockHead value){RequireAlive();return realtime->events.TryReadClockHead(out value);}
+        public bool TryReadTrack(int track,out TrackerTrackReadout value){RequireAlive();return realtime->events.TryReadTrack(track,out value);}
         public void SetMacro(int instrument,int macro,float value)=>SendCommand(TrackerCommand.SetMacro(instrument,macro,value));
         public void TargetMacro(int instrument,int macro,float value,float step)=>SendCommand(TrackerCommand.TargetMacro(instrument,macro,value,step));
         public float ObserveMacro(int instrument,int macro){RequireAlive();if(instrument<0||instrument>=realtime->state.instrumentCount||macro<0||macro>=8)throw new ArgumentOutOfRangeException();return realtime->state.macros[instrument*8+macro].value;}
         public bool SetExternal(string track,string device,int slot,float normalized){RequireAlive();if(!prepared.TryExternalCommand(track,device,slot,normalized,out var command))return false;SendCommand(command);return true;}
+        /// <summary>Main-thread stable-id command lookup, identical to the playback facade.</summary>
+        public bool SetCommandParameter(string uid,float normalized,int track=-1){RequireAlive();if(!prepared.TryCommandParameter(uid,normalized,track,out var command))return false;SendCommand(command);return true;}
         public void SendCommand(TrackerCommand command){RequireAlive();if(command.kind==TrackerCommandKind.Swap||command.kind==TrackerCommandKind.PreserveSwap)throw new ArgumentException("Use the owned refresh API for live updates");realtime->Apply(in command);}
         public bool RefreshPrepared(TrackerPreparedSong next,out string reason)
         {

@@ -66,14 +66,14 @@ namespace ZuiRuntime
         }
 
         /// <summary>A button sized from its label text — the label cannot be truncated.</summary>
-        public bool Button(string label, float pts = 15f)
+        public bool Button(string label, float pts = 15f, string tooltip = null)
         {
             var style = Zui.ButtonStyle(pts);
             var size = style.CalcSize(new GUIContent(label));
             float w = Mathf.Min(size.x + UIScale.S(16f), _area.width);
             var r = Next(size.y + UIScale.S(6f));
             var rect = new Rect(r.x, r.y, w, r.height);
-            bool clicked = GUI.Button(rect, label, style);
+            bool clicked = GUI.Button(rect, new GUIContent(label, tooltip), style);
             return clicked;
         }
 
@@ -97,6 +97,14 @@ namespace ZuiRuntime
         /// <summary>A choice between a few options on ONE row, every option visible and the chosen one lit. Returns the
         /// selection, changed when an option is clicked.</summary>
         public int Segmented(int selected, float pts, params string[] labels)
+        {
+            var contents = new GUIContent[labels.Length];
+            for (int i = 0; i < labels.Length; i++) contents[i] = new GUIContent(labels[i]);
+            return SegmentedContents(selected, pts, contents);
+        }
+
+        /// <summary>Segmented options with per-option effect tooltips.</summary>
+        public int SegmentedContents(int selected, float pts, params GUIContent[] labels)
         {
             var style = Zui.ButtonStyle(pts);
             float h = style.CalcSize(new GUIContent("Ay")).y + UIScale.S(6f);
@@ -124,24 +132,30 @@ namespace ZuiRuntime
         /// <summary>Unfilled part of a slider's track.</summary>
         public static Color SliderTrack = new Color(1f, 1f, 1f, 0.2f);
 
-        public bool Toggle(string label, bool value, float pts = 15f)
+        public bool Toggle(string label, bool value, float pts = 15f, string tooltip = null)
         {
-            var style = Zui.ToggleStyle(pts);
+            var style = Zui.ButtonStyle(pts);
             float h = Mathf.Max(style.CalcSize(new GUIContent(label)).y, UIScale.Font(pts) * 1.2f);
             var rect = Next(h);
-            bool result = GUI.Toggle(rect, value, label, style);
+            if (value) Zui.FillRect(rect, SegmentedSelected);
+            var before = GUI.backgroundColor;
+            if (value) GUI.backgroundColor = SegmentedSelected;
+            bool result = GUI.Toggle(rect, value, new GUIContent(label, tooltip), style);
+            GUI.backgroundColor = before;
             return result;
         }
 
         /// <summary>Label left, live value right, slider filling the row beneath one shared baseline.</summary>
-        public float Slider(string label, float value, float min, float max, float pts = 14f, string format = "0.##")
+        public float Slider(string label, float value, float min, float max, float pts = 14f, string format = "0.##", float? defaultValue = null, string tooltip = null)
         {
             var style = Zui.TextStyle(pts, Color.white, TextAnchor.MiddleLeft, false, wrap: false);
             float lh = Zui.LineHeight(pts);
             var row = Next(lh);
             float labelW = style.CalcSize(new GUIContent(label)).x + UIScale.S(8f);
             float valueW = style.CalcSize(new GUIContent(max.ToString(format))).x + UIScale.S(10f);
-            GUI.Label(new Rect(row.x, row.y, labelW, lh), label, style);
+            string hint = tooltip ?? "";
+            if (defaultValue.HasValue) hint += " Double-click to reset to " + defaultValue.Value.ToString(format) + ".";
+            GUI.Label(new Rect(row.x, row.y, labelW, lh), new GUIContent(label, hint), style);
             GUI.Label(new Rect(row.xMax - valueW, row.y, valueW, lh), value.ToString(format),
                 Zui.TextStyle(pts, Color.white, TextAnchor.MiddleRight, false, wrap: false));
             float sliderX = row.x + labelW;
@@ -151,6 +165,17 @@ namespace ZuiRuntime
             float t = max > min ? Mathf.Clamp01((value - min) / (max - min)) : 0f;
             Zui.FillRect(new Rect(sliderX, trackY, sliderW, trackH), SliderTrack);
             Zui.FillRect(new Rect(sliderX, trackY, sliderW * t, trackH), SegmentedSelected);
+            if (defaultValue.HasValue)
+            {
+                float x = sliderX + sliderW * Mathf.InverseLerp(min, max, defaultValue.Value);
+                Zui.FillRect(new Rect(x - 1, trackY - 3, 2, trackH + 6), Color.white);
+                if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && Event.current.clickCount == 2 && row.Contains(Event.current.mousePosition))
+                {
+                    Event.current.Use(); GUI.changed = true;
+                    value = Mathf.Clamp(defaultValue.Value, min, max);
+                }
+            }
+            GUI.Label(row, new GUIContent("", hint));
             return GUI.HorizontalSlider(new Rect(sliderX, row.y + lh * 0.28f, sliderW, lh * 0.5f), value, min, max);
         }
 

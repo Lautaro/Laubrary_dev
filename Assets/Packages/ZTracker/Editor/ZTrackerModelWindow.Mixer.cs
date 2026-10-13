@@ -28,7 +28,7 @@ namespace Laubrary.ZTracker.Editor
             BuildTrackSelector(controls);
             var scroll=AuthoringScroll(root,"mixer."+mixerTab);var t=SelectedTrack;if(t==null)return;
             scroll.Add(Flow(Named(Z.TextInput(t.name,"Track name.",v=>SongEdit("track name",()=>t.name=v),175),"track-name"),Z.Color(t.color,"Track colour.",v=>SongEdit("track colour",()=>t.color=v),90),Z.Text(t.kind.ToString(),tooltip:"Track role. The Master is the final output; other roles own their pattern records and devices.")));
-            if(t.kind==TrackKind.Sequencer)scroll.Add(Named(Z.Segmented(t.drumTrack?1:0,new[]{"Notes","Drums"},"Show note pitches or percussion icons from the note's drum-kit mapping. Switching keeps every note intact.",v=>SongEdit("track display",()=>t.drumTrack=v==1,true)),"track-note-display"));
+            if(t.kind==TrackKind.Sequencer)scroll.Add(Named(Z.Segmented(t.drumTrack?1:0,new[]{"Notes","Drums"},"Show pitches alone or add percussion icons from the note's drum-kit mapping. Pitch and octave stay visible in either mode.",v=>SongEdit("track display",()=>t.drumTrack=v==1,true)),"track-note-display"));
             scroll.Add(Z.Segmented(mixerTab,new[]{"Levels","Devices","Sources"},"Choose this track's controls.",v=>{mixerTab=v;BuildPane();}));
             if(mixerTab==1)
             {
