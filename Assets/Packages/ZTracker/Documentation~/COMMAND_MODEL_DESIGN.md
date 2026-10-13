@@ -11,7 +11,7 @@ A dynamic parameter is a setting the user has given a two-character command id a
 - the **friendly name** (1 to 24 characters, entered together with the id),
 - the **scope** (Instrument, Track, Effect or Song) and the **target** inside that scope,
 - the **value range** (what `00` and `FF` mean, in the target's own units),
-- an optional **colour** (transparent means "use the scope's default colour"; T-0600 decides the drawing).
+- a **colour** (view only; see section 9). A new definition is given an automatic colour that no other command of the song uses yet, stored with it so it never changes with a rename; a definition saved without one (transparent) is drawn with a colour derived from its stable identity.
 
 The id is what a person types in a pattern cell. Everything else that points at the parameter (a column, an automation lane) points at the stable identity, so renaming an id never breaks a column.
 
@@ -87,6 +87,24 @@ At preparation each valid definition compiles to one fixed-size, reference-free 
 | T-0597 FX columns | ids are plain two-character commands; stacking needs nothing new |
 | T-0598 bound columns | a column stores the definition's stable identity (a built-in, whose id never changes, is stored as its id); the bar is `u`; binding never moves a stored command, because the engine keeps per-column command memory |
 | T-0599 suggestions | `ZTrackerCommandRegistry.InContext` plus the built-in catalogue |
-| T-0600 colours | `scope` and `color` (transparent = scope default) |
+| T-0600 colours | `color` (transparent = derived from the stable identity); built-ins by kind (section 9) |
 | T-0601 envelope columns | an automation lane with target kind Dynamic and the stable identity |
 | T-0602 copy/paste | cells keep the typed id; columns keep the stable identity |
+
+## 9. Suggestions and colours (T-0599 / T-0600)
+
+**Suggestions.** The first character typed in a command field opens a list under the cell (above it when there is no room below), never over it. In a track FX column it lists, in this order, the song commands that belong on the row (`ZTrackerCommandRegistry.InContext`, given the sequence slot so a note column keeps the instrument it selected in an earlier slot, as the engine's per-column instrument memory does), the track's imported device commands, then the built-in commands of that column type; local sample-effect and volume/pan columns list their built-ins. Each row shows the id as a colour chip, the friendly name and the scope (Instrument, Track, Effect, Song, Device or Built-in). Typing ranks ids that start with the text first, then names with a word that starts with it, then (from three characters) names with a word containing it. Two characters that name any command (offered or not) are entered at once, as are two characters that match nothing; otherwise the list stays open and its first row enters exactly what was typed. Up/Down/PageUp/PageDown choose, Enter or Tab enters, Esc cancels (Edit mode is untouched), Backspace removes a character, a click enters a row; the grid keeps keyboard focus throughout. The list is built once when it opens and typing only re-ranks an index array and rebinds a fixed pool of eight rows (measured: 427 commands open in about 2 ms, a narrowing keystroke 0.1 ms, 0 bytes allocated per re-ranking). A song command typed on a row it does not belong to still plays; the help line says so.
+
+**Colours** are view only: nothing that saves, renders or copies reads them.
+
+| Kind | Built-in ids | Text colour | Contrast on grid / beat row / selection |
+| --- | --- | --- | --- |
+| Pitch | 0A 0U 0D 0G 0V, U D G | #86C0FF | 8.0 / 7.2 / 5.1 |
+| Volume | 0I 0O 0T 0C 0M 0L, I O | #8BE07A | 9.4 / 8.6 / 6.0 |
+| Pan | 0N 0P, J K | #C8AEFF | 7.9 / 7.2 / 5.0 |
+| Sample | 0S 0B 0E 0Y, B Y | #F2C66D | 9.5 / 8.6 / 6.0 |
+| Timing | 0Q 0R 0X, C Q R | #FF9E7A | 7.6 / 6.8 / 4.8 |
+| Track and devices | 0J, imported device ids | #5FD7D7 | 8.8 / 8.0 / 5.6 |
+| Song | ZT ZL ZK ZG ZB ZD | #FFA6D8 | 8.5 / 7.7 / 5.4 |
+
+Built-ins are this coloured text on the dark grid (#1A2732, measured on the ZTracker skin). Song commands are dark text (#141414) on their own colour; the ten automatic colours (#8FD3FF #A6E39A #F5D76E #F7A8C8 #C5B3FF #FFB97A #7FE0D0 #D9E37A #E0B8F0 #B8C9E8) give 9.9 to 13.4:1, and 7.5 to 9.1:1 when the cell is selected (the colour is blended toward the selection blue). A colour chosen in Song › Commands that is too dark for dark text gets white text. An id that names nothing is white on red (#C62828, 5.6:1); no automatic colour is red. The cursor cell keeps the cursor's own colours. The same colours are used in FX columns (including local sample-effect and volume/pan commands), bound columns (the title, a dimmed id, and the bars), the suggestion list and Song › Commands. Another command inside a bound column keeps its own colours and is marked by an amber rule above and below.
