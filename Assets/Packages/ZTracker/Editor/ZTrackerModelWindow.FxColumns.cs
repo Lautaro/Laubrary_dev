@@ -147,6 +147,10 @@ namespace Laubrary.ZTracker.Editor
 
         Label FxTitleLabel(int trackIndex,int column)=>gridCanvas?.Q<Label>("pattern-fx-title-"+trackIndex+"-"+column);
 
+        // The bind menus (FX and envelope columns) draw each command's id in the colours it has in the pattern.
+        static Action<Label> SongChip(DynamicParameterData p)=>chip=>CommandColors.Paint(chip,new CommandLook(true,true,true,CommandKind.None,ZTrackerCommandRegistry.ColorOf(p),p));
+        static Action<Label> BuiltinChip(CommandKind kind)=>chip=>CommandColors.Paint(chip,new CommandLook(true,true,false,kind,CommandColors.KindColor(kind),null));
+
         internal void ShowBindMenu(int trackIndex,int column,VisualElement anchor=null,bool retried=false)
         {
             CloseFxSuggestions();bindMenu?.Close();if(Data==null||trackIndex<0||trackIndex>=Data.tracks.Count)return;
@@ -164,9 +168,9 @@ namespace Laubrary.ZTracker.Editor
             menu.Section("Song commands","Settings this song has given a command id. Right-click a slider (or Song › Commands › Add…) to give one an id.");
             var defined=(Data.dynamicParameters??new List<DynamicParameterData>()).Where(p=>p!=null&&ZTrackerCommandRegistry.ValidateId(null,p.id,null,out _)==null).OrderBy(p=>ZTrackerCommandRegistry.Normalize(p.id),StringComparer.Ordinal).ToList();
             if(defined.Count==0)menu.Item("None defined yet","Right-click any slider (or Song › Commands › Add…) to give a setting a command id; it can then be bound here.",null,enabled:false);
-            foreach(var p in defined){var uid=p.uid;menu.Item(ZTrackerCommandRegistry.Normalize(p.id)+"  "+p.name,"Bind FX"+(column+1)+" to "+ZTrackerCommandRegistry.Normalize(p.id)+": 00 sets "+p.min.ToString("0.##")+", FF sets "+p.max.ToString("0.##")+".",()=>Bind(trackIndex,column,uid),@checked:key==uid);}
+            foreach(var p in defined){var uid=p.uid;menu.ChipItem(ZTrackerCommandRegistry.Normalize(p.id),SongChip(p),p.name,"Bind FX"+(column+1)+" to "+ZTrackerCommandRegistry.Normalize(p.id)+": 00 sets "+p.min.ToString("0.##")+", FF sets "+p.max.ToString("0.##")+".",()=>Bind(trackIndex,column,uid),@checked:key==uid);}
             menu.Section("Built-in","The track commands ZTracker understands.");
-            foreach(var entry in FxCommandCatalog.For(FieldKind.EffectId,t)){var id=entry.id;menu.Item(id+"  "+entry.description,"Bind FX"+(column+1)+" to "+entry.Display+".",()=>Bind(trackIndex,column,id),@checked:key==id);}
+            foreach(var entry in FxCommandCatalog.For(FieldKind.EffectId,t)){var id=entry.id;menu.ChipItem(id,BuiltinChip(entry.kind),entry.description,"Bind FX"+(column+1)+" to "+entry.Display+". "+CommandColors.KindName(entry.kind)+" command.",()=>Bind(trackIndex,column,id),@checked:key==id);}
             menu.OnClosed(()=>{bindMenu=null;grid?.Focus();});bindMenu=menu.Show();
         }
 

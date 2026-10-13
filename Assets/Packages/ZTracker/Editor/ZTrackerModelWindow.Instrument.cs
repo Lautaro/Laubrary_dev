@@ -296,7 +296,7 @@ namespace Laubrary.ZTracker.Editor
                 var f = owner.GetType().GetField(name); if (f == null) continue;
                 bool integer = f.FieldType == typeof(int); float value = Convert.ToSingle(f.GetValue(owner)); Action<float> apply = v => { f.SetValue(owner, integer ? (object)(int)v : v); if (name == "unisonVoices" || name == "vibratoDepth") RefreshSynthConditionalControls(rootVisualElement); };
                 if (owner is InstrumentParameters q && CanEnvelope(name)) row.Add(ParameterValue(name, value, apply, prefix + "-" + name, q, name));
-                else if (owner is ZTrackerInstrument.InstrumentPreset preset && CanEnvelope(name)) row.Add(ParameterValue(name, value, apply, prefix + "-" + name, () => PresetEnvelope(preset, name), env => SetPresetEnvelope(preset, name, env), defaultValue: DeclaredDefault(preset, name)));
+                else if (owner is ZTrackerInstrument.InstrumentPreset preset && CanEnvelope(name)) row.Add(PresetCommandMenu(ParameterValue(name, value, apply, prefix + "-" + name, () => PresetEnvelope(preset, name), env => SetPresetEnvelope(preset, name, env), defaultValue: DeclaredDefault(preset, name)), name));
                 else row.Add(NumberForField(name, value, apply, prefix + "-" + name, DeclaredDefault(owner, name)));
             }
             root.Add(row);
@@ -352,9 +352,30 @@ namespace Laubrary.ZTracker.Editor
             if (chains.Count == 0) return; instrumentChain = Mathf.Clamp(instrumentChain, 0, chains.Count - 1);
             var picks = Flow(); var chainOrder = new ZuiReorderList(ZuiReorderLayout.Wrap, (a, b) => InstrumentEdit("reorder instrument chains", () => { var previous = chains.ToArray(); var selected = chains[instrumentChain]; Move(chains, a, b); foreach (var s in Instrument.sampler.samples) if (s.fxChain >= 0 && s.fxChain < previous.Length) s.fxChain = chains.IndexOf(previous[s.fxChain]); instrumentChain = chains.IndexOf(selected); }, true)); for (int i = 0; i < chains.Count; i++) { int at = i; var pick = Button("Chain " + (i + 1), "Select this chain; drag to reorder with sampler assignments preserved.", () => { instrumentChain = at; BuildPane(); }, "instrument-chain-" + i); chainOrder.Add(pick); picks.Add(pick); } root.Add(picks);
             int chainIndex = instrumentChain;
-            root.Add(Named(new ChainEditorTK(new AudioDataChainEditorHost(
+            var chainHost = new AudioDataChainEditorHost(
                 () => Instrument.fxChains[chainIndex], (label, action) => InstrumentEdit(label, action),
-                BeginInstrumentGesture, () => ChainGestureChanged(instrument), EndInstrumentGesture)), "instrument-chain-editor"));
+                BeginInstrumentGesture, () => ChainGestureChanged(instrument), EndInstrumentGesture);
+            ChainEditorTK chainEditor = null;
+            // Right-click an effect setting: give it a command id. Each track plays its own copy of this chain, so the
+            // command changes the copy of the track it is typed on. Only an instrument of the open song can have one.
+            var asset = instrument;
+            if (asset != null && Data != null && Data.instruments.Contains(asset) && asset.schemaVersion == 1)
+                chainHost.ParamMenu = (uid, index, pd, item) =>
+                {
+                    var chain = asset.model.fxChains[chainIndex];
+                    int at = chainHost.Chain.nodes.FindIndex(n => n.uid == uid);
+                    if (at < 0 || at >= chain.nodes.Count || chain.nodes[at] == null) return;
+                    var source = chain.nodes[at];
+                    var anchor = (VisualElement)chainEditor?.Q("chain-param-" + at + "-" + index) ?? chainEditor;
+                    // A node saved without an identity gets the one the editor shows before a command can point at it.
+                    var probe = new AudioEffectNodeData { type = source.type, uid = uid };
+                    var target = InstrumentEffectTarget(asset, chainIndex, string.IsNullOrEmpty(source.uid) ? probe : source, index);
+                    if (target == null) return;
+                    if (string.IsNullOrEmpty(source.uid)) target.label = InstrumentTitle(asset) + " / " + Laubrary.Zounds.Dsp.ZoundEffectDescriptors.Get(source.type)?.displayName + " " + (at + 1) + " / " + pd.name;
+                    AddChainCommandItems(item, anchor, target, () => { if (string.IsNullOrEmpty(source.uid)) InstrumentEdit("give effect an identity", () => source.uid = uid); });
+                };
+            chainEditor = new ChainEditorTK(chainHost);
+            root.Add(Named(chainEditor, "instrument-chain-editor"));
         }
         sealed class InstrumentDestination { public string label; public ParameterTarget target; }
         List<InstrumentDestination> InstrumentDestinations(bool external)

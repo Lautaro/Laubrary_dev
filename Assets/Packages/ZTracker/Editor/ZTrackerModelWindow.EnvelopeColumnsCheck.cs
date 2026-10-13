@@ -78,7 +78,7 @@ namespace Laubrary.ZTracker.Editor
                     var p = ZTrackerCommandRegistry.Define(song.model, DynamicScope.Track, new ParameterTarget { kind = ParameterKind.Mixer, trackId = song.model.tracks[0].id, parameter = "postVolume" }, "vl", "Lead level", 0, 2, out var error); Need(p != null, error);
                     window.Select(0, Env(1), false); Key(KeyCode.B, '\0', EventModifiers.Alt);
                     var search = Search(); Need(window.bindMenu?.IsOpen == true && search != null, "Alt+B did not open the envelope menu");
-                    Need(window.rootVisualElement.panel.visualTree.Query<Label>(className: "zui-menu__label").ToList().Any(x => x.text.StartsWith("VL  Lead level")), "song command not listed");
+                    Need(window.rootVisualElement.panel.visualTree.Query<VisualElement>(className:"zui-menu__item").ToList().Any(x=>x.Q<Label>(className:"zui-menu__chip")?.text=="VL"&&x.Q<Label>(className:"zui-menu__label")?.text=="Lead level"), "song command not listed");
                     Enter(search, "vl"); Need(song.model.tracks[0].envelopeColumns[1].command == p.uid, "binding did not store the permanent key");
                     Need(Cell("pattern-env-title-0-1").text == "VL", "title does not show VL");
                     Need(ZTrackerCommandRegistry.Rename(song.model, p, "lv", "Lead level") == null, "rename refused"); Rebuild(); Need(Cell("pattern-env-title-0-1").text == "LV", "binding did not follow the rename");

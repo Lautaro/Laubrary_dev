@@ -159,7 +159,7 @@ namespace Laubrary.ZTracker.Editor
             if (!IsFx(f.kind) || Pattern == null) return "";
             var p = ZTrackerCommandRegistry.Find(Data, id);
             if (p == null || ZTrackerCommandRegistry.InContext(Data, Pattern.id, Data.tracks[f.track].id, row, order).Contains(p)) return "";
-            string why = p.scope == DynamicScope.Instrument ? "its instrument is not playing on this row" : "it belongs to " + (Data.tracks.Find(t => t != null && t.id == p.target.trackId)?.name ?? "another track");
+            string why = p.scope == DynamicScope.Instrument || p.scope == DynamicScope.InstrumentEffect ? "its instrument is not playing on this row" : "it belongs to " + (Data.tracks.Find(t => t != null && t.id == p.target.trackId)?.name ?? "another track");
             return " — not in context here (" + why + "); it still plays";
         }
 

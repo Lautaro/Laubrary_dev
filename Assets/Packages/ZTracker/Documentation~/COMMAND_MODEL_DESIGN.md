@@ -9,7 +9,7 @@ A dynamic parameter is a setting the user has given a two-character command id a
 - a **stable identity** (a generated key that never changes, used by anything that must survive a rename: envelope columns, bound columns, the engine's compiled record),
 - the **command id** (two characters, renamable),
 - the **friendly name** (1 to 24 characters, entered together with the id),
-- the **scope** (Instrument, Track, Effect or Song) and the **target** inside that scope,
+- the **scope** (Instrument, Track, Effect, Song or Instrument effect) and the **target** inside that scope,
 - the **value range** (what `00` and `FF` mean, in the target's own units),
 - a **colour** (view only; see section 9). A new definition is given an automatic colour that no other command of the song uses yet, stored with it so it never changes with a rename; a definition saved without one (transparent) is drawn with a colour derived from its stable identity.
 
@@ -37,8 +37,11 @@ The target uses the song's existing parameter-address record (the same one autom
 | Track | the track's identity | one of the mixer values | `preVolume`, `prePan`, `width`, `postVolume`, `postPan` |
 | Effect | the track's identity and the effect's identity in that track's chain | the setting's index in that effect | a filter's cutoff, a delay's mix |
 | Song | none | a song value | `bpm` |
+| Instrument effect | the instrument's identity and the effect's identity in one of that instrument's chains | the setting's index in that effect | a Gain or Low pass inside the Lead instrument's own chain |
 
-Identities, never names or positions, select the owner, so reordering effects, renaming tracks or moving instruments in the instrument list does not retarget a command. Instrument effect chains are not addressable in this version (one instrument chain is copied per track that plays it); that can be added as a fifth scope later without changing anything above.
+Identities, never names or positions, select the owner, so reordering effects, renaming tracks or moving instruments in the instrument list does not retarget a command.
+
+**Instrument effects (T-0606).** Every track plays its own copy of each of an instrument's chains (the engine keeps one effect history per track, instrument and chain). So an Instrument effect definition is one id for the song, but it compiles to one record per track's copy, and a command changes the copy of the track whose FX column it is typed in, never another track's (owner: "Each track has its own instance of an instrument right? So only that instance is changed by that track."). An envelope lane works the same way: it drives the copy of the track it belongs to. Typed on a track that has no copy (a group, send or master track) the command is reported as `DYNAMIC_TARGET_NOT_ON_TRACK` and does nothing. Measured by rendering two tracks that play the same instrument, one panned hard left and one hard right: a command on either moves only its own channel (×4.000), and the other channel changes by no more than the float rounding of the master's mid/side stage (3·10⁻⁸; the same amount a per-track mixer change causes).
 
 ## 4. How a row's command finds its target, and what "in context" means
 
@@ -47,7 +50,7 @@ A command in a track's FX column is looked up by its id in the song's definition
 - **Song** ids belong everywhere.
 - **Track** ids belong on their own track.
 - **Effect** ids belong on the track whose chain holds the effect.
-- **Instrument** ids belong on a row where that instrument is playing in that track: the instrument last selected in any of the track's note columns at or above that row in the pattern. When no note column of the track has selected an instrument yet in that pattern, every instrument the track uses anywhere in the song counts.
+- **Instrument** and **Instrument effect** ids belong on a row where that instrument is playing in that track: the instrument last selected in any of the track's note columns at or above that row in the pattern. When no note column of the track has selected an instrument yet in that pattern, every instrument the track uses anywhere in the song counts.
 
 The registry exposes this as one call (`ZTrackerCommandRegistry.InContext(song, pattern, track, row)`), so every later ticket asks the same question the same way. A command written outside its context still plays; the later suggestion and colour tickets decide how to flag it.
 
@@ -60,6 +63,8 @@ A command's byte `xx` (00 … FF) becomes a fraction `u = xx / 255`, and the tar
 - a bound column's bar view draws `u` from left (0) to right (1) (T-0598),
 - an envelope column's points are `u` values 0 … 1 (T-0601),
 - an automation lane aimed at a dynamic parameter carries `u` values.
+
+A sampler's Volume and Pan are its instrument Volume and Pan; a preset's override value offers the same id as the Base parameter, because a command sets the parameter for every note of the instrument, in Base and in every preset (once a command has written it, it replaces the preset's value). There is one id per parameter, not one per preset.
 
 Ranges default to the useful part of each target (for example 0 … 2 for a gain, −1 … 1 for a pan, the effect setting's own minimum and maximum) and can be changed in the commands list; the hard limits of the target clamp them.
 
@@ -107,7 +112,7 @@ At preparation each valid definition compiles to one fixed-size, reference-free 
 | Track and devices | 0J, imported device ids | #5FD7D7 | 8.8 / 8.0 / 5.6 |
 | Song | ZT ZL ZK ZG ZB ZD | #FFA6D8 | 8.5 / 7.7 / 5.4 |
 
-Built-ins are this coloured text on the dark grid (#1A2732, measured on the ZTracker skin). Song commands are dark text (#141414) on their own colour; the ten automatic colours (#8FD3FF #A6E39A #F5D76E #F7A8C8 #C5B3FF #FFB97A #7FE0D0 #D9E37A #E0B8F0 #B8C9E8) give 9.9 to 13.4:1, and 7.5 to 9.1:1 when the cell is selected (the colour is blended toward the selection blue). A colour chosen in Song › Commands that is too dark for dark text gets white text. An id that names nothing is white on red (#C62828, 5.6:1); no automatic colour is red. The cursor cell keeps the cursor's own colours. The same colours are used in FX columns (including local sample-effect and volume/pan commands), bound columns (the title, a dimmed id, and the bars), the suggestion list and Song › Commands. Another command inside a bound column keeps its own colours and is marked by an amber rule above and below.
+Built-ins are this coloured text on the dark grid (#1A2732, measured on the ZTracker skin). Song commands are dark text (#141414) on their own colour; the ten automatic colours (#8FD3FF #A6E39A #F5D76E #F7A8C8 #C5B3FF #FFB97A #7FE0D0 #D9E37A #E0B8F0 #B8C9E8) give 9.9 to 13.4:1, and 7.5 to 9.1:1 when the cell is selected (the colour is blended toward the selection blue). A colour chosen in Song › Commands that is too dark for dark text gets white text. An id that names nothing is white on red (#C62828, 5.6:1); no automatic colour is red. The cursor cell keeps the cursor's own colours. The same colours are used in the Alt+B bind menus of FX and envelope columns (each command's id is a coloured chip before its name; the shared ZUI menu gained a chip item for this), in FX columns (including local sample-effect and volume/pan commands), bound columns (the title, a dimmed id, and the bars), the suggestion list and Song › Commands. Another command inside a bound column keeps its own colours and is marked by an amber rule above and below.
 
 ## 10. Envelope columns (T-0601)
 

@@ -12,7 +12,9 @@ namespace Laubrary.ZTracker.Model
     public enum AutomationInterpolation { Step, Linear }
     // Dynamic: a song's own command definition, addressed by its stable uid in ParameterTarget.parameter.
     public enum ParameterKind { Mixer, Device, InstrumentMacro, Sample, Modulation, Synth, Timing, Dynamic }
-    public enum DynamicScope { Instrument, Track, Effect, Song }
+    // InstrumentEffect: a setting of an effect inside an instrument's own chain. Every track keeps its own copy of that
+    // chain, so the command changes the copy of the track it is typed on. Appended last so stored scopes keep their values.
+    public enum DynamicScope { Instrument, Track, Effect, Song, InstrumentEffect }
     public enum SourceDeviceKind { InstrumentAutomation, InstrumentMacros, AudioChain, Unsupported }
 
     [Serializable] public sealed class ParameterTarget

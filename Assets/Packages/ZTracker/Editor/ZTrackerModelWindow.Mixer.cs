@@ -48,10 +48,8 @@ namespace Laubrary.ZTracker.Editor
                 {
                     var owner = Owner(); var node = owner?.devices.nodes.FirstOrDefault(n => n.uid == uid); var target = node != null ? EffectTarget(owner, node, index) : null;
                     if (target == null) return;
-                    var existing = ZTrackerCommandRegistry.FindByTarget(Data, target.scope, target.target);
                     var anchor = (VisualElement)chainEditor?.Q("chain-param-" + owner.devices.nodes.IndexOf(node) + "-" + index) ?? chainEditor;
-                    if (existing == null) item("Command id…", "Give this setting a two-character command id and a name, so a row in a track's FX column can set it.", () => ShowCommandEditor(anchor, target, null));
-                    else { item("Command " + existing.id + "…", "Rename command " + existing.id + " (" + existing.name + "); every pattern cell using it follows.", () => ShowCommandEditor(anchor, target, existing)); item("Remove command " + existing.id, "Stop this setting from having a command id. Cells that use " + existing.id + " stay in the pattern and are flagged.", () => RemoveCommand(existing)); }
+                    AddChainCommandItems(item, anchor, target);
                 };
                 chainEditor = new ChainEditorTK(chainHost);
                 scroll.Add(chainEditor);

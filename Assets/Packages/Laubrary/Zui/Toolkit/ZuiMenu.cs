@@ -122,6 +122,35 @@ namespace Laubrary.Zui
             return this;
         }
 
+        /// An item that leads with a short coloured chip (an id, a code, a tag) before its label, for menus whose
+        /// entries are told apart by colour as well as by name. <paramref name="paintChip"/> styles the chip label
+        /// (text and background colour); left null the chip uses the menu's text colour. The search filter matches
+        /// the chip and the label together ("vl  Lead level"), so typing the chip and Enter still picks the row.
+        public ZuiMenu ChipItem(string chip, Action<Label> paintChip, string label, string tooltip, Action onClick,
+            bool @checked = false, bool enabled = true)
+        {
+            _rows.Add((menu, close) =>
+            {
+                var section = _currentSection;
+                var row = BuildItem(label, tooltip, onClick, @checked, enabled, null, null, close);
+                var tag = new Label(chip) { pickingMode = PickingMode.Ignore };
+                tag.AddToClassList("zui-menu__chip");
+                tag.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
+                tag.style.unityTextAlign = UnityEngine.TextAnchor.MiddleCenter;
+                tag.style.minWidth = 26; tag.style.marginRight = 6;
+                tag.style.paddingLeft = tag.style.paddingRight = 3;
+                tag.style.borderTopLeftRadius = tag.style.borderTopRightRadius = tag.style.borderBottomLeftRadius = tag.style.borderBottomRightRadius = 3;
+                paintChip?.Invoke(tag);
+                // After the check gutter, before the label.
+                row.Insert(1, tag);
+                menu.Add(row);
+                string text = ((chip ?? "") + "  " + (label ?? "")).ToLowerInvariant();
+                if (_searchEnabled) _searchableItems.Add((row, text, section));
+                if (_searchEnabled && enabled) _activate[row] = () => { onClick?.Invoke(); close?.Invoke(); };
+            });
+            return this;
+        }
+
         /// An item that leads with an icon (shorthand for Item(..., icon: icon)).
         public ZuiMenu IconItem(string icon, string label, string tooltip, Action onClick, bool enabled = true)
             => Item(label, tooltip, onClick, false, enabled, icon, null);

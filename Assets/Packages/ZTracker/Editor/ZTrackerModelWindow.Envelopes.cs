@@ -371,9 +371,9 @@ namespace Laubrary.ZTracker.Editor
             menu.Section("Song commands", "Settings this song has given a command id. Right-click a slider (or Song › Commands › Add…) to give one an id.");
             var defined = (Data.dynamicParameters ?? new List<DynamicParameterData>()).Where(p => p != null && ZTrackerCommandRegistry.ValidateId(null, p.id, null, out _) == null).OrderBy(p => ZTrackerCommandRegistry.Normalize(p.id), StringComparer.Ordinal).ToList();
             if (defined.Count == 0) menu.Item("None defined yet", "Right-click any slider (or Song › Commands › Add…) to give a setting a command id; an envelope column can then drive it.", null, enabled: false);
-            foreach (var p in defined) { var uid = p.uid; menu.Item(ZTrackerCommandRegistry.Normalize(p.id) + "  " + p.name, "Draw " + ZTrackerCommandRegistry.Normalize(p.id) + " with this column: left edge " + p.min.ToString("0.##") + ", right edge " + p.max.ToString("0.##") + ".", () => BindEnvelope(trackIndex, column, uid), @checked: key == uid); }
+            foreach (var p in defined) { var uid = p.uid; menu.ChipItem(ZTrackerCommandRegistry.Normalize(p.id), SongChip(p), p.name, "Draw " + ZTrackerCommandRegistry.Normalize(p.id) + " with this column: left edge " + p.min.ToString("0.##") + ", right edge " + p.max.ToString("0.##") + ".", () => BindEnvelope(trackIndex, column, uid), @checked: key == uid); }
             menu.Section("Built-in", "Built-in commands that set a continuous value.");
-            foreach (var builtin in ZTrackerEnvelopes.Builtins) { var entry = FxCommandCatalog.Builtin(builtin, FieldKind.EffectId); string b = builtin; menu.Item(b + "  " + entry?.description, "Draw " + entry?.Display + " with this column.", () => BindEnvelope(trackIndex, column, b), @checked: key == b); }
+            foreach (var builtin in ZTrackerEnvelopes.Builtins) { var entry = FxCommandCatalog.Builtin(builtin, FieldKind.EffectId); string b = builtin; menu.ChipItem(b, BuiltinChip(entry?.kind ?? CommandColors.KindOf(b)), entry?.description, "Draw " + entry?.Display + " with this column.", () => BindEnvelope(trackIndex, column, b), @checked: key == b); }
             menu.OnClosed(() => { bindMenu = null; grid?.Focus(); }); bindMenu = menu.Show();
         }
 

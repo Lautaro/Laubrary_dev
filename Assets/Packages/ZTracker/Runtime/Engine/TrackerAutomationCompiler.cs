@@ -253,7 +253,7 @@ namespace Laubrary.ZTracker.Engine
                             // An envelope column (or any lane) aimed at a song command definition, by its stable uid,
                             // or at a built-in the track's envelope column drives (0L, 0P).
                             if (dynamicUids.TryGetValue(t.parameter ?? "", out int dynamicTarget))
-                                target = dynamicTarget;
+                                target = DynamicRecord(dynamicTarget, ti);
                             else if (ZTrackerEnvelopes.IsBuiltin(t.parameter))
                                 target = BuiltinEnvelope(ti, t.parameter[1]);
                         }

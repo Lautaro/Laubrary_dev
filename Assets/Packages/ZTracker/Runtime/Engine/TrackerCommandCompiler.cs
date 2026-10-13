@@ -178,6 +178,13 @@ namespace Laubrary.ZTracker.Engine
                         device = d;
                 // A song command definition. An imported device at the same address keeps its meaning.
                 bool dynamic = dynamicIds.TryGetValue(ZTrackerCommandRegistry.Normalize(id), out int dynamicTarget);
+                // An instrument effect command drives the copy of the chain that belongs to the track it is typed on.
+                if (dynamic && device < 0) dynamicTarget = DynamicRecord(dynamicTarget, track);
+                if (dynamic && device < 0 && dynamicTarget < 0)
+                {
+                    CommandDiagnostic("DYNAMIC_TARGET_NOT_ON_TRACK", c, address);
+                    return false;
+                }
                 if (dynamic && device < 0)
                 {
                     op.kind = 300;

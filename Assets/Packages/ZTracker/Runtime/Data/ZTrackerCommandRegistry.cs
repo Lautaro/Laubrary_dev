@@ -106,9 +106,34 @@ namespace Laubrary.ZTracker.Model
                     return node != null && t.index >= 0;
                 case DynamicScope.Instrument:
                     return song.instruments.Any(i => i != null && i.model != null && i.model.id == t.instrumentId);
+                case DynamicScope.InstrumentEffect:
+                    return t.index >= 0 && FindInstrumentEffect(song, t.instrumentId, t.deviceId, out _, out _) != null;
             }
             return false;
         }
+
+        /// <summary>
+        /// The effect node <paramref name="nodeUid"/> inside one of instrument <paramref name="instrumentId"/>'s chains, with
+        /// the chain's position in the instrument's chain list and the node's position in that chain; null when gone.
+        /// </summary>
+        public static Laubrary.Audio.AudioEffectNodeData FindInstrumentEffect(SongData song, string instrumentId, string nodeUid, out int chain, out int node)
+        {
+            chain = node = -1;
+            if (song?.instruments == null || string.IsNullOrEmpty(nodeUid)) return null;
+            var model = song.instruments.FirstOrDefault(i => i != null && i.model != null && i.model.id == instrumentId)?.model;
+            if (model?.fxChains == null) return null;
+            for (int c = 0; c < model.fxChains.Count; c++)
+            {
+                var nodes = model.fxChains[c]?.nodes;
+                if (nodes == null) continue;
+                for (int n = 0; n < nodes.Count; n++)
+                    if (nodes[n] != null && nodes[n].uid == nodeUid) { chain = c; node = n; return nodes[n]; }
+            }
+            return null;
+        }
+
+        /// <summary>How a scope is named to a person: "Instrument", "Track", "Effect", "Song", "Instrument effect".</summary>
+        public static string ScopeName(DynamicScope scope) => scope == DynamicScope.InstrumentEffect ? "Instrument effect" : scope.ToString();
 
         /// <summary>
         /// Light background colours a definition is given automatically, picked by its stable identity so the choice
@@ -155,7 +180,7 @@ namespace Laubrary.ZTracker.Model
         /// <summary>
         /// Definitions that belong on <paramref name="line"/> of <paramref name="trackId"/> in <paramref name="patternId"/>:
         /// song ids everywhere; track ids on their own track; effect ids on the track whose chain holds the effect;
-        /// instrument ids where that instrument is playing (selected in one of the track's note columns at or above the
+        /// instrument ids and instrument-effect ids where that instrument is playing (selected in one of the track's note columns at or above the
         /// row in this pattern; before any selection in the pattern, every instrument the track uses in the song).
         /// With <paramref name="sequenceSlot"/> (the slot of the sequence the pattern is played in), a note column that
         /// has not selected an instrument yet in this pattern keeps the one it selected last in the slots before it, as
@@ -175,6 +200,7 @@ namespace Laubrary.ZTracker.Model
                     case DynamicScope.Track:
                     case DynamicScope.Effect: if (p.target.trackId == trackId) result.Add(p); break;
                     case DynamicScope.Instrument:
+                    case DynamicScope.InstrumentEffect:
                         if (playing == null) playing = InstrumentsPlaying(song, patternId, trackId, line, sequenceSlot);
                         if (playing.Contains(p.target.instrumentId)) result.Add(p);
                         break;

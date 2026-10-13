@@ -50,7 +50,7 @@
 .tracker-suggest__row--hl { background-color: rgba(83, 163, 210, 0.45); }
 .tracker-suggest__chip { width: 24px; min-width: 24px; height: 15px; margin: 0 5px 0 0; padding: 0; font-size: 11px; -unity-font-style: bold; -unity-text-align: middle-center; background-color: rgb(40, 40, 40); border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; }
 .tracker-suggest__name { flex-grow: 1; flex-shrink: 1; margin: 0; padding: 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -unity-text-align: middle-left; }
-.tracker-suggest__scope { flex-shrink: 0; width: 62px; margin: 0 0 0 4px; padding: 0; font-size: 10px; color: rgba(210, 210, 210, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -unity-text-align: middle-right; }
+.tracker-suggest__scope { flex-shrink: 0; width: 86px; margin: 0 0 0 4px; padding: 0; font-size: 10px; color: rgba(210, 210, 210, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -unity-text-align: middle-right; }
 .tracker-suggest__more { height: 14px; margin: 0; padding: 0 3px; font-size: 10px; color: rgba(210, 210, 210, 0.6); }
 /* Song › Commands colour swatch. */
 .tracker-command-color { width: 34px; min-width: 34px; height: 18px; margin: 0 4px 0 2px; }

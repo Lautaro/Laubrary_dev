@@ -135,7 +135,7 @@ namespace Laubrary.ZTracker.Editor
                     var p=ZTrackerCommandRegistry.Define(song.model,DynamicScope.Track,new ParameterTarget{kind=ParameterKind.Mixer,trackId=song.model.tracks[0].id,parameter="postVolume"},"vl","Lead level",0,2,out var error);Need(p!=null,"Fixture command: "+error);
                     window.SetFxColumns(0,2);Records(0).lines.Clear();Rebuild();window.Select(0,Field(0,1,FieldKind.EffectId),false);
                     Key(KeyCode.B,'\0',EventModifiers.Alt);var search=Search();Need(window.bindMenu?.IsOpen==true&&search!=null,"Alt+B did not open the bind menu");
-                    Need(window.rootVisualElement.panel.visualTree.Query<Label>(className:"zui-menu__label").ToList().Any(x=>x.text.StartsWith("VL  Lead level")),"Song command not listed");
+                    Need(window.rootVisualElement.panel.visualTree.Query<VisualElement>(className:"zui-menu__item").ToList().Any(x=>x.Q<Label>(className:"zui-menu__chip")?.text=="VL"&&x.Q<Label>(className:"zui-menu__label")?.text=="Lead level"),"Song command not listed");
                     Enter(search,"vl");Need(ColumnView(song.model.tracks[0],1)?.command==p.uid,"Binding did not store the command's permanent key");Need(Cell("pattern-fx-title-0-1").text=="VL","Title does not show VL");
                     Need(ZTrackerCommandRegistry.Rename(song.model,p,"lv","Lead level")==null,"Rename refused");Rebuild();Need(Cell("pattern-fx-title-0-1").text=="LV","Binding did not follow the rename");
                     window.Select(1,Field(0,1,FieldKind.EffectId),false);Type("80");Need(Fx(0,1,1)?.command.identifier=="LV"&&Fx(0,1,1).command.value==0x80,"Typing in the renamed binding did not write LV80");

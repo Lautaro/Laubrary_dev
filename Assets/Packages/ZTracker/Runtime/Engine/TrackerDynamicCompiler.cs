@@ -15,8 +15,19 @@ namespace Laubrary.ZTracker.Engine
         // Upper-case two-character id → record index, and stable uid → record index.
         readonly Dictionary<string, int> dynamicIds = new Dictionary<string, int>();
         readonly Dictionary<string, int> dynamicUids = new Dictionary<string, int>();
+        // A definition whose record depends on the track (an instrument effect: one copy per track) is mapped to -2 - slot;
+        // its slot here lists the record of each track (-1 where the track has no copy).
+        readonly List<int[]> dynamicPerTrack = new List<int[]>();
         // The song has used the command model, so an unknown id in a track FX column is worth naming.
         bool commandModelPresent;
+
+        /// <summary>The record a definition (as mapped in dynamicIds/dynamicUids) drives on <paramref name="track"/>, or -1.</summary>
+        internal int DynamicRecord(int mapped, int track)
+        {
+            if (mapped >= 0) return mapped;
+            var perTrack = dynamicPerTrack[-2 - mapped];
+            return track >= 0 && track < perTrack.Length ? perTrack[track] : -1;
+        }
 
         void BuildDynamicParameters(SongData song, List<TrackerChain> chains, List<TrackerDeviceParameter> parameters, Dictionary<string, int> instrumentIds)
         {
@@ -78,6 +89,44 @@ namespace Laubrary.ZTracker.Engine
                                     valid = true;
                                 }
                                 break;
+                            }
+                        case DynamicScope.InstrumentEffect:
+                            {
+                                // Every sequencer track renders its own copy of each instrument chain (one bus per track,
+                                // instrument slot and chain), so the definition compiles to one record per copy and a
+                                // command reaches the record of the track it is typed on.
+                                var effect = ZTrackerCommandRegistry.FindInstrumentEffect(song, t.instrumentId, t.deviceId, out int fx, out int local);
+                                if (effect == null || t.index < 0) break;
+                                var perTrack = new int[song.tracks.Count];
+                                for (int k = 0; k < perTrack.Length; k++) perTrack[k] = -1;
+                                bool sizing = false, outOfRange = false;
+                                for (int b = 0; b < state.busCount; b++)
+                                {
+                                    var route = state.buses[b];
+                                    if (route.fx != fx || song.instruments[route.instrument]?.model?.id != t.instrumentId) continue;
+                                    var layout = chains[route.chain].layout;
+                                    if (local >= layout.nodeCount || t.index >= layout.paramCountOf[local]) { outOfRange = true; break; }
+                                    if (layout.nodeType[local] == Laubrary.Zounds.ZoundEffectType.Delay && t.index == 3) { sizing = true; break; }
+                                    int flat = layout.paramOffset[local] + t.index;
+                                    var q = p;
+                                    q.kind = 3; q.chain = route.chain; q.node = local; q.parameter = t.index; q.track = route.track;
+                                    q.destinationAuthored = layout.pBase[flat];
+                                    if (layout.bindCount > 0) for (int r = 0; r < layout.rampedCount; r++) if (layout.ramped[r] == flat) q.ramped = true;
+                                    q.authored = q.max != q.min ? math.saturate((float)(((double)q.destinationAuthored - q.min) / ((double)q.max - q.min))) : 0;
+                                    q.latent = q.emitted = q.authored;
+                                    q.destination = q.target = q.destinationAuthored;
+                                    // A track plays one slot's copy; when the same instrument sits in two slots, the first slot's copy answers.
+                                    if (perTrack[route.track] < 0) perTrack[route.track] = parameters.Count;
+                                    records.Add(parameters.Count);
+                                    parameters.Add(q);
+                                }
+                                if (sizing) { diagnostics.Add("MEMORY_SIZING_TARGET" + where); continue; }
+                                if (outOfRange || System.Array.TrueForAll(perTrack, x => x < 0)) break;
+                                int slot = -2 - dynamicPerTrack.Count;
+                                dynamicPerTrack.Add(perTrack);
+                                dynamicIds.Add(id, slot);
+                                dynamicUids.Add(definition.uid, slot);
+                                continue;
                             }
                         case DynamicScope.Instrument:
                             {

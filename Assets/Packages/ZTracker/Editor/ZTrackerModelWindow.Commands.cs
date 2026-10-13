@@ -51,6 +51,21 @@ namespace Laubrary.ZTracker.Editor
             return new CommandTarget { label = t.name + " / " + desc.displayName + " " + position + " / " + pd.name, units = pd.unit, scope = DynamicScope.Effect, target = new ParameterTarget { kind = ParameterKind.Device, trackId = t.id, deviceId = node.uid, index = index, parameter = (index + 1).ToString() }, min = pd.min, max = pd.max, lo = pd.min, hi = pd.max, decimals = pd.max - pd.min > 100 ? 0 : 2 };
         }
 
+        /// <summary>
+        /// A setting of an effect inside an instrument's own chain. The instrument's chain is copied for every track that
+        /// plays it, so the command changes the copy of the track whose FX column it is typed in, never another track's.
+        /// </summary>
+        static CommandTarget InstrumentEffectTarget(ZTrackerInstrument asset, int chain, AudioEffectNodeData node, int index)
+        {
+            var desc = node == null ? null : ZoundEffectDescriptors.Get(node.type);
+            if (asset?.model == null || desc == null || string.IsNullOrEmpty(node.uid) || index < 0 || index >= desc.parameters.Length) return null;
+            var pd = desc.parameters[index];
+            if (!pd.automatable || pd.IsChoice || pd.curve == ParamCurve.Toggle || pd.curve == ParamCurve.Integer || node.type == ZoundEffectType.Delay && index == 3) return null;
+            int position = asset.model.fxChains[chain].nodes.IndexOf(node) + 1;
+            string where = asset.model.fxChains.Count > 1 ? " chain " + (chain + 1) : "";
+            return new CommandTarget { label = InstrumentTitle(asset) + where + " / " + desc.displayName + " " + position + " / " + pd.name, units = pd.unit, scope = DynamicScope.InstrumentEffect, target = new ParameterTarget { kind = ParameterKind.Device, instrumentId = asset.model.id, deviceId = node.uid, index = index, parameter = (index + 1).ToString() }, min = pd.min, max = pd.max, lo = pd.min, hi = pd.max, decimals = pd.max - pd.min > 100 ? 0 : 2 };
+        }
+
         static CommandTarget InstrumentTarget(ZTrackerInstrument asset, TrackerParameter p)
         {
             var d = asset.model; bool sampler = d.family == InstrumentFamily.Sampler, fm = !sampler && d.synthMode == SynthMode.FM;
@@ -109,6 +124,12 @@ namespace Laubrary.ZTracker.Editor
             {
                 foreach (TrackerParameter p in Enum.GetValues(typeof(TrackerParameter))) { if (p == TrackerParameter.Count) continue; var target = InstrumentTarget(asset, p); if (target != null) list.Add(target); }
                 for (int m = 0; m < Math.Min(8, asset.model.macros?.Length ?? 0); m++) if (asset.model.macros[m] != null) list.Add(MacroTarget(asset, m));
+                for (int c = 0; c < (asset.model.fxChains?.Count ?? 0); c++)
+                    foreach (var node in Records(asset.model.fxChains[c]?.nodes))
+                    {
+                        var desc = ZoundEffectDescriptors.Get(node.type); if (desc == null || string.IsNullOrEmpty(node.uid)) continue;
+                        for (int p = 0; p < desc.parameters.Length; p++) { var target = InstrumentEffectTarget(asset, c, node, p); if (target != null) list.Add(target); }
+                    }
             }
             return list;
         }
@@ -129,16 +150,43 @@ namespace Laubrary.ZTracker.Editor
             return control;
         }
 
+        /// <summary>
+        /// A preset's override value offers the instrument parameter's command: a command sets the parameter for every
+        /// note of the instrument, Base or preset (once written it replaces the preset's value), so there is one id per
+        /// parameter, not one per preset.
+        /// </summary>
+        VisualElement PresetCommandMenu(VisualElement control, string key)
+        {
+            var asset = instrument;
+            if (asset == null || Data == null || !Data.instruments.Contains(asset) || asset.schemaVersion != 1 || !TrackerParameters.Resolve(key, out var parameter)) return control;
+            return CommandMenu(control, () => InstrumentTarget(asset, parameter));
+        }
+
         void AddCommandItems(ZuiMenu menu, VisualElement anchor, CommandTarget t)
         {
             if (Data == null) return;
             var existing = ZTrackerCommandRegistry.FindByTarget(Data, t.scope, t.target);
+            string whole = t.scope == DynamicScope.Instrument ? " The command sets it for every note of this instrument, in Base and in every preset." : "";
             if (existing == null)
-                menu.Item("Command id…", "Give this setting a two-character command id and a name, so a row in a track's FX column can set it.", () => ShowCommandEditor(anchor, t, null));
+                menu.Item("Command id…", "Give this setting a two-character command id and a name, so a row in a track's FX column can set it." + whole, () => ShowCommandEditor(anchor, t, null));
             else
             {
                 menu.Item("Command " + existing.id + "…", "Rename command " + existing.id + " (" + existing.name + "); every pattern cell using it follows.", () => ShowCommandEditor(anchor, t, existing));
                 menu.Item("Remove command " + existing.id, "Stop this setting from having a command id. Cells that use " + existing.id + " stay in the pattern and are flagged until the id is given again.", () => RemoveCommand(existing));
+            }
+        }
+
+        /// <summary>The same items for a setting in a shared effect chain editor (track devices, instrument chains).</summary>
+        void AddChainCommandItems(Action<string, string, Action> item, VisualElement anchor, CommandTarget t, Action beforeDefine = null)
+        {
+            if (Data == null || t == null) return;
+            var existing = ZTrackerCommandRegistry.FindByTarget(Data, t.scope, t.target);
+            string perTrack = t.scope == DynamicScope.InstrumentEffect ? " Each track plays its own copy of this chain, so the command changes only the copy of the track it is typed on." : "";
+            if (existing == null) item("Command id…", "Give this setting a two-character command id and a name, so a row in a track's FX column can set it." + perTrack, () => { beforeDefine?.Invoke(); ShowCommandEditor(anchor, t, null); });
+            else
+            {
+                item("Command " + existing.id + "…", "Rename command " + existing.id + " (" + existing.name + "); every pattern cell using it follows.", () => ShowCommandEditor(anchor, t, existing));
+                item("Remove command " + existing.id, "Stop this setting from having a command id. Cells that use " + existing.id + " stay in the pattern and are flagged.", () => RemoveCommand(existing));
             }
         }
 
@@ -203,6 +251,7 @@ namespace Laubrary.ZTracker.Editor
             {
                 // A track effect made in this session may not have written its identity yet; give it the one the editor shows.
                 if (t.scope == DynamicScope.Effect) { var track = Data.tracks.Find(x => x.id == t.target.trackId); var node = Records(track?.devices?.nodes).FirstOrDefault(n => n.uid == t.target.deviceId); if (node == null) throw new InvalidOperationException("The effect is gone"); }
+                if (t.scope == DynamicScope.InstrumentEffect && ZTrackerCommandRegistry.FindInstrumentEffect(Data, t.target.instrumentId, t.target.deviceId, out _, out _) == null) throw new InvalidOperationException("The instrument effect is gone");
                 if (ZTrackerCommandRegistry.Define(Data, t.scope, t.target, id, name, t.min, t.max, out error) == null) throw new InvalidOperationException(error);
             }, true);
         }

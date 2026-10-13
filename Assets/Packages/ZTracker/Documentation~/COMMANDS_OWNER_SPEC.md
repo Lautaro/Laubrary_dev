@@ -45,3 +45,13 @@ Use AgentHQ, group "ZTracker overhaul". Previously created tickets are done firs
 ## FM feedback (added later the same day)
 
 "Also for modulators, allow feedback." Every modulator (A, B, D) can feed back on itself: a per-operator feedback amount, usable in every one of the ten setups. Defaults to off so existing sounds do not change.
+
+## Round 2 (2026-10-13, after the first batch was reviewed)
+
+On commands for effects inside an instrument's chain: "Each track has its own instance of an instrument right? So only that instance is changed by that track." (So a command id on a track changes that track's own copy of the instrument and its effects only.)
+
+"Also something that needs to be added. Make songs, instruments etc... all the ZTracker assets should be 'LauAssets' and should be browseable in that same way. I know LauAssets is not actually a thing, there is no base class. But it is a concept for Laubrary tools and editors."
+
+"Also make sure that when opening ZTracker it shows the same view of the same assets, song or instrument editor as when it was shut down."
+
+Also still to build from the first batch: sampler Volume/Pan right-click command ids, and colours in the Alt+B bind menu.

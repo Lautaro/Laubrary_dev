@@ -83,7 +83,7 @@ namespace Laubrary.ZTracker.Editor
             if(id==null||id.Length!=2||owner?.sourceDevices==null)return false;int first="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(id[0]);if(first<1||first>34)return false;
             foreach(var s in owner.sourceDevices)if(s!=null&&s.ordinal==first)return true;return false;
         }
-        internal static Entry SongCommand(DynamicParameterData p)=>new Entry(ZTrackerCommandRegistry.Normalize(p.id),ZTrackerCommandRegistry.Normalize(p.id)+"xx",p.name+" ("+p.scope.ToString().ToLowerInvariant()+" command)","00 = "+p.min.ToString("0.##")+", FF = "+p.max.ToString("0.##"),track:true);
+        internal static Entry SongCommand(DynamicParameterData p)=>new Entry(ZTrackerCommandRegistry.Normalize(p.id),ZTrackerCommandRegistry.Normalize(p.id)+"xx",p.name+" ("+ZTrackerCommandRegistry.ScopeName(p.scope).ToLowerInvariant()+" command)","00 = "+p.min.ToString("0.##")+", FF = "+p.max.ToString("0.##"),track:true);
         internal static IEnumerable<Entry> Devices(TrackData owner)
         {
             if(owner?.sourceDevices==null)yield break;
@@ -155,7 +155,7 @@ namespace Laubrary.ZTracker.Editor
             {
                 RefreshLookDefinitions();
                 var inContext=ZTrackerCommandRegistry.InContext(Data,Pattern?.id,t.id,line,order).Where(p=>ZTrackerCommandRegistry.ValidateId(null,p.id,null,out _)==null).OrderBy(p=>ZTrackerCommandRegistry.Normalize(p.id),StringComparer.Ordinal);
-                foreach(var p in inContext){string id=ZTrackerCommandRegistry.Normalize(p.id);list.Add(Make(id,p.name,p.scope.ToString(),id+" — "+p.name+": "+CommandOwner(p)+" (00 = "+p.min.ToString("0.##")+", FF = "+p.max.ToString("0.##")+").",new CommandLook(true,true,true,CommandKind.None,ZTrackerCommandRegistry.ColorOf(p),p)));}
+                foreach(var p in inContext){string id=ZTrackerCommandRegistry.Normalize(p.id);list.Add(Make(id,p.name,ZTrackerCommandRegistry.ScopeName(p.scope),id+" — "+p.name+": "+CommandOwner(p)+" (00 = "+p.min.ToString("0.##")+", FF = "+p.max.ToString("0.##")+").",new CommandLook(true,true,true,CommandKind.None,ZTrackerCommandRegistry.ColorOf(p),p)));}
                 foreach(var e in FxCommandCatalog.Devices(t))list.Add(Make(e.id,e.description,"Device",e.Display+".",new CommandLook(true,true,false,CommandKind.Device,CommandColors.KindColor(CommandKind.Device),null)));
             }
             foreach(var e in FxCommandCatalog.Builtins(slot.kind))list.Add(Make(e.id,e.description,"Built-in",e.Display+". "+CommandColors.KindName(e.kind)+" command.",new CommandLook(true,true,false,e.kind,CommandColors.KindColor(e.kind),null)));
@@ -171,6 +171,8 @@ namespace Laubrary.ZTracker.Editor
                 case DynamicScope.Track:{var t=Data.tracks.Find(x=>x!=null&&x.id==target.trackId);int at=Array.IndexOf(ZTrackerCommandRegistry.TrackParameters,target.parameter);return "sets "+(t?.name??"a removed track")+" / "+(at>=0?TrackParameterLabels[at]:target.parameter);}
                 case DynamicScope.Effect:{var t=Data.tracks.Find(x=>x!=null&&x.id==target.trackId);var node=Records(t?.devices?.nodes).FirstOrDefault(n=>n.uid==target.deviceId);var desc=node==null?null:ZoundEffectDescriptors.Get(node.type);
                     return "sets "+(t?.name??"a removed track")+" / "+(desc==null?"a removed effect":desc.displayName+(target.index>=0&&target.index<desc.parameters.Length?" "+desc.parameters[target.index].name:""));}
+                case DynamicScope.InstrumentEffect:{var asset=Data.instruments.FirstOrDefault(i=>i?.model!=null&&i.model.id==target.instrumentId);var node=ZTrackerCommandRegistry.FindInstrumentEffect(Data,target.instrumentId,target.deviceId,out _,out _);var desc=node==null?null:ZoundEffectDescriptors.Get(node.type);
+                    return "sets "+(asset==null?"a removed instrument":InstrumentTitle(asset))+" / "+(desc==null?"a removed effect":desc.displayName+(target.index>=0&&target.index<desc.parameters.Length?" "+desc.parameters[target.index].name:""))+" on this track's copy of the instrument";}
                 default:{var asset=Data.instruments.FirstOrDefault(i=>i?.model!=null&&i.model.id==target.instrumentId);return "sets "+(asset==null?"a removed instrument":InstrumentTitle(asset))+" / "+(target.kind==ParameterKind.InstrumentMacro?"Macro "+(target.index+1):FieldLabel(target.parameter??""));}
             }
         }
@@ -209,7 +211,7 @@ namespace Laubrary.ZTracker.Editor
             {
                 CloseFxSuggestions();suggestions.Clear();suggestions.AddRange(SuggestionsFor(slot,row));if(suggestions.Count==0)return;
                 suggestionSlot=slot;suggestionRow=row;suggestionSub=sub;
-                float width=Mathf.Clamp((rootVisualElement.layout.width>0?rootVisualElement.layout.width:400)-16,180,300);
+                float width=Mathf.Clamp((rootVisualElement.layout.width>0?rootVisualElement.layout.width:400)-16,180,320);
                 fxSuggestions=Z.Popover(anchor,panel=>{
                     panel.name="fx-suggestions";panel.AddToClassList("tracker-suggest");panel.style.width=width;
                     var head=new VisualElement();head.AddToClassList("tracker-suggest__head");panel.Add(head);
