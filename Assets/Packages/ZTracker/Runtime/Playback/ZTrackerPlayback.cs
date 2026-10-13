@@ -38,6 +38,7 @@ namespace Laubrary.ZTracker
         long stoppedFrames, stoppedBlocks, lastSample;
         int lastOrder, lastRow, lastPattern = -1;
         bool haveRow;
+        float rewindHistorySeconds;
 
         sealed class EventCatalog
         {
@@ -52,12 +53,12 @@ namespace Laubrary.ZTracker
             }
         }
 
-        public static bool TryPlay(ZTrackerSong song, out ZTrackerPlayback playback, out string error, int order = 0, int row = 0)
-            => TryStart(song, null, 69, out playback, out error, order, row, -1);
+        public static bool TryPlay(ZTrackerSong song, out ZTrackerPlayback playback, out string error, int order = 0, int row = 0, float rewindHistorySeconds = 0)
+            => TryStart(song, null, 69, out playback, out error, order, row, -1, rewindHistorySeconds);
         public static bool TryAudition(ZTrackerInstrument instrument, int note, out ZTrackerPlayback playback, out string error, int preset = -1)
             => TryStart(null, instrument, note, out playback, out error, 0, 0, preset);
 
-        static bool TryStart(ZTrackerSong song, ZTrackerInstrument instrument, int note, out ZTrackerPlayback playback, out string error, int order, int row, int preset)
+        static bool TryStart(ZTrackerSong song, ZTrackerInstrument instrument, int note, out ZTrackerPlayback playback, out string error, int order, int row, int preset, float rewindHistorySeconds = 0)
         {
             playback = null; error = null;
             if (song == null && instrument == null) { error = "Choose a song or instrument first."; return false; }
@@ -70,11 +71,13 @@ namespace Laubrary.ZTracker
             {
                 data = PlaybackSnapshot.Create(song, instrument, preset);
                 prepared = TrackerPreparedSong.Prepare(data.Data, AudioSettings.outputSampleRate);
+                prepared.EnableRewindHistory(rewindHistorySeconds);
                 if (song != null && (order < 0 || order >= data.Data.sequence.Count || row < 0 || row >= data.Data.patterns.Find(p => p.id == data.Data.sequence[order].patternId).lineCount))
                     throw new ArgumentOutOfRangeException("Playback start position");
                 root = new GameObject("ZTracker Burst playback");
                 if (Application.isPlaying) DontDestroyOnLoad(root); else root.hideFlags = HideFlags.HideAndDontSave;
                 var host = root.AddComponent<ZTrackerPlayback>();
+                host.rewindHistorySeconds = rewindHistorySeconds;
                 host.snapshot = data; data = null;
                 host.catalog = new EventCatalog(host.snapshot.Data, prepared);
                 host.IsSong = song != null; host.AuditionNote = note; host.AuditionPreset = preset;
@@ -126,6 +129,25 @@ namespace Laubrary.ZTracker
         public bool SetTempo(float bpm) => !float.IsNaN(bpm) && bpm >= 32 && bpm <= 999 && SendCommand(TrackerCommand.SetTempo(bpm));
         public bool ClearTempoOverride() => SendCommand(TrackerCommand.ClearTempoOverride());
 
+        /// <summary>Coherent status of the bounded rendered-mix history and any tape operation.</summary>
+        public TrackerRewindStatus RewindStatus => generator != null && generator.TryGetRewindStatus(out var status) ? status : default;
+        public bool IsRewinding => RewindStatus.IsRewinding;
+        /// <summary>Queues a tape rewind (0.1..10 seconds, default 3). History must have been enabled before Play.
+        /// The audio thread revalidates at delivery; observe RewindStatus/result or engine events for completion or
+        /// refusal. Pausing freezes the effect. Completion seeks to the same order's row zero and clears game controls.</summary>
+        public bool RequestRewind(float seconds = 3f)
+        {
+            var status = RewindStatus;
+            if (!IsPlaying) { LastError = "Playback unavailable"; return false; }
+            if (float.IsNaN(seconds) || seconds < .1f || seconds > 10) { LastError = "Rewind duration must be 0.1 through 10 seconds"; return false; }
+            if (!status.CanRewind) { LastError = status.IsRewinding ? "Rewind already in progress" : "No complete current-pattern history; wait for the next pattern start"; return false; }
+            int slow = Math.Min(status.sampleRate / 2, Mathf.RoundToInt(seconds * status.sampleRate) / 4);
+            if (status.historyFrames > status.capacityFrames - slow) { LastError = "Current pattern history exceeds the bounded rewind buffer"; return false; }
+            bool sent = SendCommand(TrackerCommand.RequestRewind(seconds));
+            LastError = sent ? null : "Rewind request could not be queued";
+            return sent;
+        }
+
         /// <summary>Adds semitones (-120..120) to active and future voices on one track, after all authored pitch
         /// sources. Does not change note selection, event note values, or drum maps. Independent of track detune.</summary>
         public bool SetTrackTranspose(int track, int semitones) => ValidTrack(track) && semitones >= -120 && semitones <= 120 && SendCommand(TrackerCommand.SetTrackTranspose(track, semitones));
@@ -169,6 +191,7 @@ namespace Laubrary.ZTracker
             {
                 candidate = snapshot.CreateRefresh(instrument);
                 next = TrackerPreparedSong.Prepare(candidate.Data, AudioSettings.outputSampleRate);
+                next.EnableRewindHistory(rewindHistorySeconds);
                 var nextCatalog = new EventCatalog(candidate.Data, next);
                 if (!generator.RefreshPrepared(next, out reason)) return false;
                 var previous = snapshot; snapshot = candidate; candidate = null; previous.Dispose();

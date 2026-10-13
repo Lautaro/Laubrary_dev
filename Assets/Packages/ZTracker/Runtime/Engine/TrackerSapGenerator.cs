@@ -75,6 +75,8 @@ namespace Laubrary.ZTracker.Engine
         public bool SetExternal(string track,string device,int slot,float normalized)=>current!=null&&current.TryExternalCommand(track,device,slot,normalized,out var command)&&SendCommand(command);
         /// <summary>Resolves a stable authored command identity on the main thread and queues its normalized value.</summary>
         public bool SetCommandParameter(string uid,float normalized,int track=-1)=>current!=null&&current.TryCommandParameter(uid,normalized,track,out var command)&&SendCommand(command);
+        /// <summary>Coherent audio-published tape status; does not read mutable prepared-song scalar state.</summary>
+        public bool TryGetRewindStatus(out TrackerRewindStatus status){status=default;if(!hasRing||!ring.TryReadClockHead(out var head))return false;status=head.rewind;return true;}
         // A single atomic float observation; not a simultaneous snapshot of all eight values.
         public float ObserveMacro(int instrument,int macro){if(current==null||current.Disposed||instrument<0||instrument>=current.state.instrumentCount||macro<0||macro>=8)throw new ArgumentOutOfRangeException();var ptr=(TrackerMacroValue*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(current.state.macros);return Volatile.Read(ref ptr[instrument*8+macro].value);}
         public bool SwapPrepared(TrackerPreparedSong next,bool playSong=true)

@@ -9,7 +9,7 @@ using Unity.Mathematics;
 
 namespace Laubrary.ZTracker.Engine
 {
-    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic, Started, SongLooped, TempoChanged }
+    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic, Started, SongLooped, TempoChanged, RewindStarted, RewindCompleted, RewindRefused }
     public enum TrackerRuntimeDiagnostic { SeekUnreachable=1, PitchLimit=2, InvalidPitch=3, BreakClamped=4, EmptyMemory=5, DelayOutsideRow=6, CutOutsideRow=7, GlideNoTarget=8, ExclusiveNoWeight=9, SharedFxStop=10, InvalidClock=11, ClockLimit=12, SliceOutside=13, GlideWithoutVoice=14, GlideInstrumentChanged=15, InstrumentUnresolved=16, SeekVoiceStateDiscarded=17, SampleDomainUnsupported=18, RouteCycle=19, StopExpandsSendContributors=20 }
     public struct TrackerEvent
     {
@@ -37,6 +37,7 @@ namespace Laubrary.ZTracker.Engine
         public long position, blocks;
         public int sampleRate;
         public byte playing, paused;
+        public TrackerRewindStatus rewind;
     }
     /// <summary>One audio producer and one main-thread consumer. Storage outlives graph instances and prepared swaps.</summary>
     public unsafe struct TrackerEventRing : IDisposable
@@ -74,13 +75,14 @@ namespace Laubrary.ZTracker.Engine
             Volatile.Write(ref slot.serial, serial);
             Volatile.Write(ref counters[3], serial + 1);
         }
-        public void PublishHead(long position, int sampleRate, bool playing, bool paused)
+        public void PublishHead(long position, int sampleRate, bool playing, bool paused, TrackerRewindStatus rewind = default)
         {
             if (clockHead == null) return;
             long version = counters[4];
             Volatile.Write(ref counters[4], version + 1); // odd: write in progress
             clockHead->position = position; clockHead->sampleRate = sampleRate; clockHead->blocks++;
             clockHead->playing = playing ? (byte)1 : (byte)0; clockHead->paused = paused ? (byte)1 : (byte)0;
+            clockHead->rewind = rewind;
             Volatile.Write(ref counters[4], version + 2);
         }
         // ---- Song clock, read on the main thread (any number of readers, nothing consumed) ----
@@ -293,6 +295,7 @@ namespace Laubrary.ZTracker.Engine
     public struct TrackerBus { public int track, instrument, fx, chain; }
     public unsafe struct TrackerState
     {
+        public TrackerRewindState rewind;
         public NativeArray<float> pcm, left, right, busLeft, busRight, outputLeft, outputRight, faderGain, faderPan;
         public NativeArray<TrackerPcm> clips;
         public NativeArray<TrackerSample> samples;
@@ -362,7 +365,7 @@ namespace Laubrary.ZTracker.Engine
         public long rowSerial;
         public bool dynamicLanding;
     }
-    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap, TempoOverride, TrackTranspose, TrackDetune, DynamicParameterSet }
+    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap, TempoOverride, TrackTranspose, TrackDetune, DynamicParameterSet, Rewind }
     public struct TrackerCommand
     {
         public TrackerCommandKind kind;
@@ -375,6 +378,8 @@ namespace Laubrary.ZTracker.Engine
         /// <summary>Persistent tempo override (32..999 BPM), effective at the next row; zero clears it.</summary>
         public static TrackerCommand SetTempo(float bpm) => new TrackerCommand { kind = TrackerCommandKind.TempoOverride, value = bpm };
         public static TrackerCommand ClearTempoOverride() => SetTempo(0);
+        /// <summary>Requests tape playback of this pattern pass's actual rendered mix, then resumes at row zero.</summary>
+        public static TrackerCommand RequestRewind(float seconds = 3f) => new TrackerCommand { kind = TrackerCommandKind.Rewind, value = seconds };
         /// <summary>Independent additive semitone offset (-120..120) for active and future track voices.</summary>
         public static TrackerCommand SetTrackTranspose(int track, int semitones) => new TrackerCommand { kind = TrackerCommandKind.TrackTranspose, a = track, b = semitones };
         /// <summary>Independent additive cents offset (-1200..1200); does not replace authored fine tune.</summary>

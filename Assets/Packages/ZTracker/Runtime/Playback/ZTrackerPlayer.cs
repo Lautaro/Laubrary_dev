@@ -8,6 +8,8 @@ namespace Laubrary.ZTracker
     {
         [Tooltip("The song played only when game code calls Play.")]
         public ZTrackerSong song;
+        [Tooltip("Seconds of actual stereo mix retained for tape rewind. Zero disables; configure before Play. 30 seconds at 48 kHz uses 11.52 MB.")]
+        [Range(0, 120)] public float rewindHistorySeconds;
         public event Action<ZTrackerEventData> EventReceived;
         public event Action<Engine.TrackerEvent> EngineEventReceived;
         ZTrackerPlayback playback;
@@ -23,7 +25,7 @@ namespace Laubrary.ZTracker
         {
             if (stopping) return false;
             Stop();
-            bool success = ZTrackerPlayback.TryPlay(song, out playback, out string error);
+            bool success = ZTrackerPlayback.TryPlay(song, out playback, out string error, rewindHistorySeconds: rewindHistorySeconds);
             lastError = error;
             if (success) playback.EngineEventReceived += ForwardEngineEvent;
             return success;

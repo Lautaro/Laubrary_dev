@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Optional bounded stereo history enables tape-style game resets: slow the actual rendered master mix while lowering it to half volume, reverse that captured pass to its pattern start, then resume the same order normally within the requested duration (three seconds by default). No history, a missing start or insufficient buffer space explicitly refuses the request. Pause freezes the effect; repeated requests refuse; Stop/Seek/Refresh cancel. Native history is allocated only before publication and freed with its prepared-song owner. Public playback status and engine events report progress and completion; musical callbacks and row-clock queries pause during tape playback. Check `TrackerRewindCheck.Execute()` uses rendered stereo samples and deterministic partitions without hardware or forced collection.
+
 - Row scalar writes no longer emit a tempo command a second time after the row clock is fixed, preserving next-row game tempo precedence and the same BPM in events, readouts and rendered duration.
 
 - Games can set a persistent tempo override at the next row boundary, clear it back to the evolving authored tempo, drive a song command/effect by stable definition identity, and add independent semitone and cents offsets per track. Pitch offsets affect active and future voices after authored tuning, macros and envelopes without changing sample selection or note events. Compatible refresh preserves controls; Play, Stop and Seek clear them. Command targets reuse the existing ramps and automation precedence. Offline verification: `TrackerGameControlCheck.Execute()`.
