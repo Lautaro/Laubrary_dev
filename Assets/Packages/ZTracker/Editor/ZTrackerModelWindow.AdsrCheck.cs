@@ -59,6 +59,43 @@ namespace Laubrary.ZTracker.Editor
             void Release(VisualElement target, Vector2 world)
                 => Send(target, PointerUpEvent.GetPooled(new Event { type = EventType.MouseUp, button = 0, mousePosition = world }));
             float[] Stages() { var q = inst.model.parameters; return new[] { q.attack, q.decay, q.sustain, q.release }; }
+            // Every stage letter and readout lies whole inside its own slider, and the letter and readout keep a
+            // clear gap: nothing overlaps or is clipped. Returns the narrowest gap found, for the report.
+            float Legible(ZuiAdsr adsr, string where)
+            {
+                float narrowest = float.MaxValue;
+                var title = adsr.Q<Label>();
+                if (title != null && title.parent == adsr) Need(title.worldBound.xMax <= adsr.worldBound.xMax + .5f && title.worldBound.width > 1, where + ": title clipped");
+                foreach (var s in adsr.Query<ZuiMicroSlider>().ToList())
+                {
+                    var caption = s.Q<Label>(className: "zui-microslider__caption"); var value = s.Q<Label>(className: "zui-microslider__value");
+                    Need(caption != null && value != null, where + ": " + s.name + " lacks its texts");
+                    Need(Math.Abs(caption.resolvedStyle.fontSize - ZuiAdsr.SliderFontSize) < .01f && Math.Abs(value.resolvedStyle.fontSize - ZuiAdsr.SliderFontSize) < .01f, where + ": " + s.name + " font " + caption.resolvedStyle.fontSize);
+                    Rect box = s.worldBound, c = caption.worldBound, v = value.worldBound;
+                    // The text's own measured width, so a label box wider than its text cannot hide a collision.
+                    float cw = caption.MeasureTextSize(caption.text, 0, VisualElement.MeasureMode.Undefined, 0, VisualElement.MeasureMode.Undefined).x;
+                    float vw = value.MeasureTextSize(value.text, 0, VisualElement.MeasureMode.Undefined, 0, VisualElement.MeasureMode.Undefined).x;
+                    float captionRight = c.xMin + cw, valueLeft = v.xMax - vw;
+                    Need(c.xMin >= box.xMin - .5f && v.xMax <= box.xMax + .5f && valueLeft >= box.xMin && captionRight <= box.xMax, where + ": " + s.name + " text clipped (" + caption.text + " / " + value.text + " in " + box.width + ")");
+                    Need(c.yMin >= box.yMin - .5f && c.yMax <= box.yMax + .5f && v.yMin >= box.yMin - .5f && v.yMax <= box.yMax + .5f, where + ": " + s.name + " text clipped vertically");
+                    float gap = valueLeft - captionRight;
+                    Need(gap >= 2f, where + ": " + s.name + " readout '" + value.text + "' runs into '" + caption.text + "' (gap " + gap.ToString("0.0") + ")");
+                    narrowest = Math.Min(narrowest, gap);
+                }
+                return narrowest;
+            }
+            // The widest readouts each stage can show: 990 ms (the last millisecond step), a long time in
+            // seconds near the stage's top, and 100%.
+            void Widest(float attack, float decay, float sustain, float release) { var q = inst.model.parameters; q.attack = attack; q.decay = decay; q.sustain = sustain; q.release = release; window.BuildPane(); ZuiAudit.ExpandAll(window); Layout(); }
+            void LegibleAtWidth(float width)
+            {
+                Fresh(width); float gap = Legible(Find("amplitude-adsr"), width + " px defaults");
+                Widest(.99f, .99f, 1f, .99f); gap = Math.Min(gap, Legible(Find("amplitude-adsr"), width + " px 990 ms"));
+                Widest(4.95f, 9.95f, 1f, 9.95f); gap = Math.Min(gap, Legible(Find("amplitude-adsr"), width + " px long times"));
+                Widest(.444f, .888f, .88f, .888f); gap = Math.Min(gap, Legible(Find("amplitude-adsr"), width + " px 440/890 ms"));
+                var adsr = Find("amplitude-adsr");
+                report.AppendLine("  " + width + " px: envelope " + adsr.worldBound.width + "x" + adsr.worldBound.height + ", narrowest letter-to-readout gap " + gap.ToString("0.0") + " px");
+            }
             try
             {
                 Check("steps and units: whole ms below 100 ms, 10 ms to 1 s, 0.05 s above; whole percent sustain", () =>
@@ -69,12 +106,12 @@ namespace Laubrary.ZTracker.Editor
                     Need(ZuiAdsr.FormatTime(.0057f) == "6 ms" && ZuiAdsr.FormatTime(.25f) == "250 ms" && ZuiAdsr.FormatTime(1.5f) == "1.5 s" && ZuiAdsr.FormatTime(2f) == "2 s" && ZuiAdsr.FormatTime(.9999f) == "1 s",
                         "Readouts: " + ZuiAdsr.FormatTime(.0057f) + ", " + ZuiAdsr.FormatTime(.25f) + ", " + ZuiAdsr.FormatTime(1.5f) + ", " + ZuiAdsr.FormatTime(.9999f));
                 });
-                Check("compact: about 30% of the old area, titled ADSR, sliders in one row under their lanes", () =>
+                Check("compact: at most 30% of the old area, titled ADSR, sliders in one row under their lanes", () =>
                 {
                     var adsr = Find("amplitude-adsr"); var canvas = adsr.Q("adsr-canvas");
                     float area = adsr.worldBound.width * adsr.worldBound.height;
                     report.AppendLine("  size " + adsr.worldBound.width + "x" + adsr.worldBound.height + " = " + (area / AdsrAreaBeforeT0609 * 100f).ToString("0") + "% of before");
-                    Need(area <= AdsrAreaBeforeT0609 * .36f && area >= AdsrAreaBeforeT0609 * .2f, "Area is " + (area / AdsrAreaBeforeT0609 * 100f).ToString("0") + "% of the old control");
+                    Need(area <= AdsrAreaBeforeT0609 * .30f && area >= AdsrAreaBeforeT0609 * .2f, "Area is " + (area / AdsrAreaBeforeT0609 * 100f).ToString("0") + "% of the old control");
                     Need(adsr.Q<Label>()?.text == "ADSR", "Title is " + adsr.Q<Label>()?.text);
                     Need(!window.rootVisualElement.Query<Label>().ToList().Any(l => l.text == "Amplitude"), "An Amplitude title remains");
                     var row = adsr.Q("adsr-sliders"); Need(row.worldBound.yMax <= adsr.worldBound.yMax + .5f && row.worldBound.height < 26, "Sliders wrapped or overflow: " + row.worldBound);
@@ -86,6 +123,11 @@ namespace Laubrary.ZTracker.Editor
                     }
                     Need(Readout(sliders[0]) == "10 ms" && Readout(sliders[1]) == "200 ms" && Readout(sliders[2]) == "70%" && Readout(sliders[3]) == "500 ms",
                         "Default readouts " + string.Join(", ", sliders.Select(Readout)));
+                    Legible(adsr, "defaults");
+                });
+                Check("no letter or readout overlaps or is clipped, at 1120 px and at the 760 px minimum window, widest values", () =>
+                {
+                    LegibleAtWidth(1120); LegibleAtWidth(760);
                 });
                 Check("a value stored before the steps is shown rounded and left untouched until edited", () =>
                 {
@@ -136,7 +178,7 @@ namespace Laubrary.ZTracker.Editor
                     var q = inst.model.parameters;
                     q.blendEnvelope = true; window.BuildPane(); Layout(); Need(Find("blend-adsr").Q<Label>().text == "ADSR", "Blend envelope title");
                     inst.model.synthMode = SynthMode.FM; EnsureFmOperators(q); window.BuildPane(); Layout();
-                    for (int op = 0; op < 4; op++) { var a = Find("fm-adsr-" + op); Need(a.Q<Label>().text == "ADSR" && Readout(Slider(a, "attack")).EndsWith("ms"), "FM operator " + op); }
+                    for (int op = 0; op < 4; op++) { var a = Find("fm-adsr-" + op); Legible(a, a.name); Need(a.Q<Label>().text == "ADSR" && Readout(Slider(a, "attack")).EndsWith("ms"), "FM operator " + op); }
                     inst.model.synthMode = SynthMode.Subtractive;
                     inst.model.family = InstrumentFamily.Sampler;
                     inst.model.sampler.samples.Add(new SampleData { id = "sample", pcm = clip, regionEndFrame = clip.samples, loopEndFrame = clip.samples });
@@ -149,7 +191,7 @@ namespace Laubrary.ZTracker.Editor
                         window.instrumentTab = tab; window.BuildPane(); ZuiAudit.ExpandAll(window); Layout();
                         foreach (var a in window.rootVisualElement.Query<ZuiAdsr>().ToList())
                         {
-                            found.Add(a.name); if (a.name == "mod-adsr") { mod = a; break; }
+                            found.Add(a.name); Legible(a, a.name); if (a.name == "mod-adsr") { mod = a; break; }
                             Need(a.Q<Label>().text == "ADSR", a.name + " is titled " + a.Q<Label>().text);
                         }
                         if (mod != null) break;
@@ -159,17 +201,18 @@ namespace Laubrary.ZTracker.Editor
                     inst.model.parameters.presets.Add(new ZTrackerInstrument.InstrumentPreset { name = "Check preset", ovrAdsr = true, attack = .02f, decay = .3f, sustain = .5f, release = .4f });
                     window.presetIndex = 0; ZuiAdsr preset = null;
                     for (int tab = 0; tab < 6 && preset == null; tab++) { window.instrumentTab = tab; window.BuildPane(); ZuiAudit.ExpandAll(window); Layout(); preset = window.rootVisualElement.Q<ZuiAdsr>("preset-adsr"); }
+                    if (preset != null) Legible(preset, "preset-adsr");
                     Need(preset != null && Readout(Slider(preset, "attack")) == "20 ms" && !preset.Query<Label>().ToList().Any(l => l.text == "ADSR" || l.text == "Amplitude"), "Preset envelope missing or titled twice");
                     var labels = window.rootVisualElement.Query<Label>().ToList(); Need(labels.Any(l => l.text == "ADSR") && !labels.Any(l => l.text == "Amplitude"), "Preset section is not titled ADSR");
                     window.presetIndex = -1;
                     Need(mod != null && mod.Q<ZuiMicroSlider>("adsr-input-hold") != null, "AHDSR modulator has no Hold slider");
-                    Need(mod.worldBound.width <= 5 * 68 + 1, "AHDSR wider than five lanes: " + mod.worldBound.width);
+                    Need(mod.worldBound.width <= 5 * new ZuiAdsr.Options().laneWidth + 1, "AHDSR wider than five lanes: " + mod.worldBound.width);
                     Need(!mod.Query<Label>().ToList().Any(l => l.text == "Amplitude" || l.text == "ADSR"), "AHDSR modulator repeats a title under its box");
                 });
                 Check("narrow window: the envelope fits its column, sliders stay one row inside it", () =>
                 {
                     Fresh(560);
-                    var adsr = Find("amplitude-adsr"); var row = adsr.Q("adsr-sliders");
+                    var adsr = Find("amplitude-adsr"); var row = adsr.Q("adsr-sliders"); Legible(adsr, "560 px");
                     Need(adsr.worldBound.width > 150, "Collapsed to " + adsr.worldBound.width);
                     Need(row.worldBound.height < 26, "Slider row wrapped at narrow width: " + row.worldBound.height);
                     foreach (var s in adsr.Query<ZuiMicroSlider>().ToList()) Need(s.worldBound.xMin >= adsr.worldBound.xMin - .5f && s.worldBound.xMax <= adsr.worldBound.xMax + .5f, s.name + " overflows");
