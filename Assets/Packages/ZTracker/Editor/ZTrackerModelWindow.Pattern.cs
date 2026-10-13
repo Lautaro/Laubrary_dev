@@ -12,9 +12,9 @@ namespace Laubrary.ZTracker.Editor
     public sealed partial class ZTrackerModelWindow
     {
         internal const int DefaultPatternOctave=5,DefaultPatternStep=1;
-        internal enum FieldKind{Note,Instrument,Volume,Pan,Delay,LocalId,LocalValue,EffectId,EffectValue,Event}
+        internal enum FieldKind{Note,Instrument,Volume,Pan,Delay,LocalId,LocalValue,EffectId,EffectValue,Event,Envelope}
         struct FieldSlot{public int track,column;public FieldKind kind;public string title;public FieldSlot(int t,int c,FieldKind k,string label=""){track=t;column=c;kind=k;title=label;}}
-        sealed class CopiedField{public int r,c;public FieldKind kind;public NoteCell note;public EffectCell effect;public EventCell evt;}
+        sealed class CopiedField{public int r,c;public FieldKind kind;public NoteCell note;public EffectCell effect;public EventCell evt;public List<AutomationPoint> points;}
         readonly List<FieldSlot> fields=new List<FieldSlot>();
         readonly List<float> fieldX=new List<float>();
         VisualElement gridCanvas;
@@ -44,14 +44,15 @@ namespace Laubrary.ZTracker.Editor
             grid.RegisterCallback<KeyDownEvent>(KeyDown);grid.RegisterCallback<KeyUpEvent>(e=>{if(PianoOffset(e.keyCode)>=0)AuditionOff();});grid.RegisterCallback<PointerDownEvent>(e=>grid.Focus());pane.Add(grid);
             // Mouse block selection: a press on a cell anchors, dragging extends to the cell under the pointer.
             // In a bound column's bar view (Edit mode) the press draws values instead.
-            grid.RegisterCallback<PointerMoveEvent>(e=>{if(!grid.HasPointerCapture(e.pointerId)||(e.pressedButtons&1)==0)return;if(drawing){DrawTo(e.position);e.StopPropagation();return;}var at=CellAt(e.position);if(at.x>=0&&(at.x!=row||at.y!=sub))Select(at.x,at.y,true);e.StopPropagation();});
-            grid.RegisterCallback<PointerUpEvent>(e=>{EndDraw();if(grid.HasPointerCapture(e.pointerId))grid.ReleasePointer(e.pointerId);});
+            grid.RegisterCallback<PointerMoveEvent>(e=>{if(!grid.HasPointerCapture(e.pointerId)||(e.pressedButtons&1)==0)return;if(drawing){DrawTo(e.position);e.StopPropagation();return;}if(envelopeGesture){EnvelopeDragTo(e.position,e.altKey);e.StopPropagation();return;}var at=CellAt(e.position);if(at.x>=0&&(at.x!=row||at.y!=sub))Select(at.x,at.y,true);e.StopPropagation();});
+            grid.RegisterCallback<PointerUpEvent>(e=>{EndDraw();EndEnvelopeGesture();if(grid.HasPointerCapture(e.pointerId))grid.ReleasePointer(e.pointerId);});
             var header=GridRow();header.Add(RowLabel("Row"));
             for(int ti=0;ti<Data.tracks.Count;ti++){
                 var t=Data.tracks[ti];if(t.kind==TrackKind.Event){AddField(header,ti,0,FieldKind.Event,"Event");}
                 if(t.kind==TrackKind.Sequencer)for(int c=0;c<t.visibleNoteColumns;c++){
                     var v=c<t.columns.Count?t.columns[c]:new ColumnVisibility();AddField(header,ti,c,FieldKind.Note,t.visibleNoteColumns>1?(c+1).ToString():"N");AddField(header,ti,c,FieldKind.Instrument,"I");if(v.volume)AddField(header,ti,c,FieldKind.Volume,"V");if(v.pan)AddField(header,ti,c,FieldKind.Pan,"P");if(v.delay)AddField(header,ti,c,FieldKind.Delay,"D");if(v.sampleFx){AddField(header,ti,c,FieldKind.LocalId,"FX");AddField(header,ti,c,FieldKind.LocalValue,"");}}
                 for(int c=0;c<t.visibleEffectColumns;c++){AddField(header,ti,c,FieldKind.EffectId,"FX"+(c+1));AddField(header,ti,c,FieldKind.EffectValue,"");}
+                if(t.kind!=TrackKind.Event&&t.envelopeColumns!=null)for(int c=0;c<t.envelopeColumns.Count;c++)AddField(header,ti,c,FieldKind.Envelope,"ENV"+(c+1));
             }
             sub=Mathf.Clamp(sub,0,Math.Max(0,fields.Count-1));row=Mathf.Clamp(row,0,Pattern.lineCount-1);
             // A track with commands beyond its shown FX columns gets a gutter after its last field for the +N row markers.
@@ -79,9 +80,9 @@ namespace Laubrary.ZTracker.Editor
             var offset=grid.scrollOffset;float width=Math.Max(200,grid.contentViewport.layout.width),height=Math.Max(150,grid.contentViewport.layout.height);
             int start=Mathf.Clamp((int)(offset.y/20)-2,0,Pattern.lineCount-1),end=Mathf.Min(Pattern.lineCount-1,start+(int)(height/20)+5);
             var visible=new List<int>();for(int c=0;c<fields.Count;c++)if(fieldX[c]+Width(fields[c].kind)>=offset.x-80&&fieldX[c]<=offset.x+width+80)visible.Add(c);
-            for(int r=start;r<=end;r++){var number=RowLabel(r.ToString());Place(number,0,(r+2)*20,28);gridCanvas.Add(number);foreach(int c in visible){int rr=r,cc=c;var f=fields[c];var label=Z.Text("",tooltip:FieldTooltip(f));label.name=$"cell-{r}-{c}";label.AddToClassList("tracker-cell");label.EnableInClassList("tracker-beat",r%Math.Max(1,Data.linesPerBeat)==0);Place(label,fieldX[c],(r+2)*20,Width(f.kind));label.userData=new Vector2Int(r,c);label.RegisterCallback<PointerDownEvent>(e=>{if(e.button!=0)return;if(editMode&&!e.shiftKey&&IsBarCell(fields[cc]))BeginDraw(rr,cc,e.position);else Select(rr,cc,e.shiftKey);grid.Focus();grid.CapturePointer(e.pointerId);e.StopPropagation();});labels.Add(new Vector2Int(r,c),label);gridCanvas.Add(label);Column(f.track).Add(label);}AddOverflowBadges(r,null);}
+            for(int r=start;r<=end;r++){var number=RowLabel(r.ToString());Place(number,0,(r+2)*20,28);gridCanvas.Add(number);foreach(int c in visible){int rr=r,cc=c;var f=fields[c];var label=Z.Text("",tooltip:FieldTooltip(f));label.name=$"cell-{r}-{c}";label.AddToClassList("tracker-cell");label.EnableInClassList("tracker-beat",r%Math.Max(1,Data.linesPerBeat)==0);Place(label,fieldX[c],(r+2)*20,Width(f.kind));label.userData=new Vector2Int(r,c);if(f.kind==FieldKind.Envelope)AttachEnvelopePainter(label,rr,cc);label.RegisterCallback<PointerDownEvent>(e=>{if(e.button==1&&fields[cc].kind==FieldKind.Envelope){EnvelopeContext(rr,cc,label);e.StopPropagation();return;}if(e.button!=0)return;if(editMode&&!e.shiftKey&&IsBarCell(fields[cc]))BeginDraw(rr,cc,e.position);else if(editMode&&!e.shiftKey&&fields[cc].kind==FieldKind.Envelope){if(!BeginEnvelopeGesture(rr,cc,e.position,e.altKey)){grid.Focus();e.StopPropagation();return;}}else Select(rr,cc,e.shiftKey);grid.Focus();grid.CapturePointer(e.pointerId);e.StopPropagation();});labels.Add(new Vector2Int(r,c),label);gridCanvas.Add(label);Column(f.track).Add(label);}AddOverflowBadges(r,null);}
             var headerBacking=new VisualElement{pickingMode=PickingMode.Ignore};Place(headerBacking,0,offset.y,gridCanvas.style.width.value.value);headerBacking.style.height=40;headerBacking.style.backgroundColor=new Color(.1f,.13f,.17f,1);gridCanvas.Add(headerBacking);
-            foreach(int c in visible){var f=fields[c];if(f.kind==FieldKind.EffectValue||f.kind==FieldKind.LocalValue)continue;bool fxTitle=f.kind==FieldKind.EffectId;var l=Z.Text(fxTitle?FxTitle(f):f.title,tooltip:fxTitle?FxTitleTooltip(f):FieldTooltip(f));l.AddToClassList("tracker-cell");
+            foreach(int c in visible){var f=fields[c];if(f.kind==FieldKind.EffectValue||f.kind==FieldKind.LocalValue)continue;bool fxTitle=f.kind==FieldKind.EffectId;if(f.kind==FieldKind.Envelope){AddEnvelopeTitle(f,offset.y+20);continue;}var l=Z.Text(fxTitle?FxTitle(f):f.title,tooltip:fxTitle?FxTitleTooltip(f):FieldTooltip(f));l.AddToClassList("tracker-cell");
                 if(fxTitle){int bt=f.track,bc=f.column;l.name="pattern-fx-title-"+bt+"-"+bc;l.EnableInClassList("tracker-fx-title-bound",BoundId(bt,bc)!=null||BoundBroken(bt,bc));l.RegisterCallback<PointerDownEvent>(e=>{if(e.button!=1)return;ShowBindMenu(bt,bc,l);e.StopPropagation();});}float w=Width(f.kind)+(f.kind==FieldKind.EffectId||f.kind==FieldKind.LocalId?Width(FieldKind.EffectValue):0);Place(l,fieldX[c],offset.y+20,w);l.style.textOverflow=TextOverflow.Ellipsis;l.style.backgroundColor=new Color(.14f,.14f,.14f,1);if(fxTitle)PaintFxTitle(l,f.track,f.column);gridCanvas.Add(l);Column(f.track).Add(l);}
             for(int i=0;i<fields.Count;i++){if(i>0&&fields[i].track==fields[i-1].track)continue;int endField=i;while(endField+1<fields.Count&&fields[endField+1].track==fields[i].track)endField++;float x=fieldX[i],w=fieldX[endField]+Width(fields[endField].kind)-x;int at=fields[i].track,first=i;var t=Data.tracks[at];var title=Z.Text(t.name,tooltip:"Select this track; drag it sideways to reorder the tracks.");title.name="pattern-track-header-"+at;title.AddToClassList("tracker-track-header");Place(title,x,offset.y,w);title.style.backgroundColor=new Color(t.color.r*.65f+.035f,t.color.g*.65f+.0455f,t.color.b*.65f+.0595f,1);title.RegisterCallback<PointerDownEvent>(e=>{if(e.button==0){track=at;sub=first;anchorRow=-1;grid.Focus();RefreshPatternTrackSettings();RefreshCells();RefreshCellDetails();}});var separator=new VisualElement{pickingMode=PickingMode.Ignore};Place(separator,x-3,offset.y+20,1);separator.style.height=height;separator.style.backgroundColor=t.color;gridCanvas.Add(separator);gridCanvas.Add(title);var column=Column(at);column.Add(separator);AddFxHeaderControls(at,x,w,offset.y,title,column);headerTracks.Add(at);headerOrder.Add(title,followers:()=>column);}
             foreach(var label in gridCanvas.Query<Label>().ToList())label.style.unityFontDefinition=FontDefinition.FromFont(patternFont);
@@ -96,18 +97,18 @@ namespace Laubrary.ZTracker.Editor
             return new Vector2Int(r,c);
         }
         static void Place(VisualElement element,float x,float y,float width){element.style.position=Position.Absolute;element.style.left=x;element.style.top=y;element.style.width=width;element.style.minWidth=width;element.style.height=20;}
-        static float Width(FieldKind k)=>k==FieldKind.Event?120:k==FieldKind.Note?23:16;
+        static float Width(FieldKind k)=>k==FieldKind.Event?120:k==FieldKind.Note?23:k==FieldKind.Envelope?EnvelopeWidth:16;
         static VisualElement ToolRow(params VisualElement[] children){var r=new VisualElement();r.style.flexDirection=FlexDirection.Row;r.style.flexShrink=0;r.style.marginTop=2;foreach(var c in children){c.style.marginRight=2;r.Add(c);}return r;}
         static VisualElement GridRow(){var row=Z.Row();row.AddToClassList("tracker-grid-row");return row;}
         static Label RowLabel(string text){var l=Z.Text(text,tooltip:"Pattern line number.");l.AddToClassList("tracker-row-number");return l;}
-        string FieldTooltip(FieldSlot f)=>$"{Data.tracks[f.track].name}, column {f.column+1}, {FieldName(f.kind)}. "+(IsFx(f.kind)&&BoundId(f)!=null?$"Shows only {BoundId(f)}: type its value in hex; Delete clears the command. "+(IsBarCell(f)?"In Edit mode, drag across the bars to draw values. ":"")+"Alt+B changes the binding or unbinds; Alt+V toggles bar view.":f.kind==FieldKind.Note?"QWERTY piano; Backspace writes OFF; Delete clears the note and its instrument and steps down; Shift+arrows, Shift+click or dragging across cells selects a block.":f.kind==FieldKind.EffectId||f.kind==FieldKind.LocalId?"Type a command id, or part of its name: the list shows the commands that belong on this row ("+(f.kind==FieldKind.EffectId?"the playing instrument's, this track's effects and mixer, the song's, ":"")+"built-ins). Up/Down choose, Enter or Tab enters, Esc cancels; two characters that name a command enter at once, and any id can be typed (an undefined one is shown in red). The hex argument is in the next field; imported unsupported commands remain stored."+(f.kind==FieldKind.EffectId?" Alt+B binds this column to one command.":""):f.kind==FieldKind.Volume||f.kind==FieldKind.Pan?"Hex 00–80 or a two-character column command; Delete restores empty.":f.kind==FieldKind.Event?"Choose this cell and edit its payload in the Cell controls.":"Hex entry; Delete restores empty. Empty differs from zero.");
+        string FieldTooltip(FieldSlot f)=>f.kind==FieldKind.Envelope?EnvelopeTooltip(f):$"{Data.tracks[f.track].name}, column {f.column+1}, {FieldName(f.kind)}. "+(IsFx(f.kind)&&BoundId(f)!=null?$"Shows only {BoundId(f)}: type its value in hex; Delete clears the command. "+(IsBarCell(f)?"In Edit mode, drag across the bars to draw values. ":"")+"Alt+B changes the binding or unbinds; Alt+V toggles bar view.":f.kind==FieldKind.Note?"QWERTY piano; Backspace writes OFF; Delete clears the note and its instrument and steps down; Shift+arrows, Shift+click or dragging across cells selects a block.":f.kind==FieldKind.EffectId||f.kind==FieldKind.LocalId?"Type a command id, or part of its name: the list shows the commands that belong on this row ("+(f.kind==FieldKind.EffectId?"the playing instrument's, this track's effects and mixer, the song's, ":"")+"built-ins). Up/Down choose, Enter or Tab enters, Esc cancels; two characters that name a command enter at once, and any id can be typed (an undefined one is shown in red). The hex argument is in the next field; imported unsupported commands remain stored."+(f.kind==FieldKind.EffectId?" Alt+B binds this column to one command.":""):f.kind==FieldKind.Volume||f.kind==FieldKind.Pan?"Hex 00–80 or a two-character column command; Delete restores empty.":f.kind==FieldKind.Event?"Choose this cell and edit its payload in the Cell controls.":"Hex entry; Delete restores empty. Empty differs from zero.");
         static string FieldName(FieldKind kind){switch(kind){case FieldKind.LocalId:return "Sample effect";case FieldKind.LocalValue:return "Sample effect value";case FieldKind.EffectId:return "Track effect";case FieldKind.EffectValue:return "Track effect value";default:return kind.ToString();}}
         PatternTrack PatternTrack(int ti,bool create=false){var t=Pattern.tracks.Find(x=>x.trackId==Data.tracks[ti].id);if(t==null&&create){t=new PatternTrack{trackId=Data.tracks[ti].id};Pattern.tracks.Add(t);}return t;}
         PatternLine Read(int r,FieldSlot f)=>PatternTrack(f.track)?.ReadLine(r)??new PatternLine{line=r};
         NoteCell Note(int r,FieldSlot f)=>Read(r,f).notes.Find(n=>n.column==f.column)??new NoteCell{column=f.column};
         EffectCell Effect(int r,FieldSlot f)=>Read(r,f).effects.Find(n=>n.column==f.column)??new EffectCell{column=f.column};
         EventCell Event(int r,FieldSlot f)=>Read(r,f).events.Find(n=>n.column==f.column)??new EventCell{column=f.column};
-        string Text(int r,FieldSlot f){var n=Note(r,f);switch(f.kind){case FieldKind.Note:return n.note==NoteKind.Note?noteNames[Mathf.Clamp(n.pitch,0,119)%12]+(n.pitch/12):n.note==NoteKind.Off?"OFF":n.note==NoteKind.Legacy?"RAW":"---";case FieldKind.Instrument:return n.instrumentPresent?n.instrument.ToString("X2"):"..";case FieldKind.Volume:return ValueText(n.volume);case FieldKind.Pan:return ValueText(n.pan);case FieldKind.Delay:return n.delayPresent?n.delay.ToString("X2"):"..";case FieldKind.LocalId:return n.sampleFx.present?n.sampleFx.identifier:"..";case FieldKind.LocalValue:return n.sampleFx.valuePresent?n.sampleFx.value.ToString("X2"):"..";case FieldKind.EffectId:return Effect(r,f).command.present?Effect(r,f).command.identifier:"..";case FieldKind.EffectValue:return Effect(r,f).command.valuePresent?Effect(r,f).command.value.ToString("X2"):"..";default:var e=Event(r,f);return e.present?e.payload:"·";}}
+        string Text(int r,FieldSlot f){var n=Note(r,f);switch(f.kind){case FieldKind.Note:return n.note==NoteKind.Note?noteNames[Mathf.Clamp(n.pitch,0,119)%12]+(n.pitch/12):n.note==NoteKind.Off?"OFF":n.note==NoteKind.Legacy?"RAW":"---";case FieldKind.Instrument:return n.instrumentPresent?n.instrument.ToString("X2"):"..";case FieldKind.Volume:return ValueText(n.volume);case FieldKind.Pan:return ValueText(n.pan);case FieldKind.Delay:return n.delayPresent?n.delay.ToString("X2"):"..";case FieldKind.LocalId:return n.sampleFx.present?n.sampleFx.identifier:"..";case FieldKind.LocalValue:return n.sampleFx.valuePresent?n.sampleFx.value.ToString("X2"):"..";case FieldKind.EffectId:return Effect(r,f).command.present?Effect(r,f).command.identifier:"..";case FieldKind.EffectValue:return Effect(r,f).command.valuePresent?Effect(r,f).command.value.ToString("X2"):"..";case FieldKind.Envelope:return "";default:var e=Event(r,f);return e.present?e.payload:"·";}}
         static string ValueText(ColumnValue v)=>v.kind==ValueKind.Value?v.value.ToString("X2"):v.kind==ValueKind.Command?v.command.identifier:v.kind==ValueKind.Legacy?"RAW":"..";
         void RefreshCells(){if(Pattern==null)return;RefreshLookDefinitions();foreach(var pair in labels){var p=pair.Key;if(p.y>=fields.Count||p.x>=Pattern.lineCount)continue;RefreshNoteDisplay(pair.Value,p.x,fields[p.y]);bool picked=p.x==row&&p.y==sub,selected=anchorRow>=0&&p.x>=Math.Min(row,anchorRow)&&p.x<=Math.Max(row,anchorRow)&&p.y>=Math.Min(sub,anchorSub)&&p.y<=Math.Max(sub,anchorSub);pair.Value.EnableInClassList("tracker-picked",picked);pair.Value.EnableInClassList("tracker-playing",p.x==playingRow);pair.Value.EnableInClassList("tracker-selected",selected);ColourCell(pair.Value,p.x,fields[p.y],picked,selected);}ShowPendingInCell();RefreshHelp();}
         internal DrumMapping ResolveDrumMapping(int line,int trackIndex,int column,int pitch)
@@ -140,6 +141,7 @@ namespace Laubrary.ZTracker.Editor
         {
             label.text=Text(line,field);label.tooltip=FieldTooltip(field);
             if(IsFx(field.kind))DecorateFxCell(label,line,field);
+            if(field.kind==FieldKind.Envelope){label.Q("env-line")?.MarkDirtyRepaint();label.tooltip=EnvelopeCellTooltip(line,field);return;}
             var previous=label.Q<VisualElement>("drum-icon");
             var note=Note(line,field);
             bool drum=field.kind==FieldKind.Note&&Data.tracks[field.track].drumTrack&&note.note==NoteKind.Note;
@@ -173,13 +175,13 @@ namespace Laubrary.ZTracker.Editor
             if(!command&&HandlePatternShortcut(e)){e.StopPropagation();e.PreventDefault();return;}
             // Alt rather than Ctrl: Ctrl+B and Ctrl+Shift+B are Unity's Build and Run / Build Settings.
             if(e.altKey&&!command&&(e.keyCode==KeyCode.B||e.keyCode==KeyCode.V)){if(e.keyCode==KeyCode.B)ShowBindMenuAtCursor();else ToggleBarAtCursor();e.StopPropagation();e.PreventDefault();return;}
-            if(command){switch(e.keyCode){case KeyCode.C:CopyBlock();break;case KeyCode.V:if(e.shiftKey)PasteInsertBlock();else PasteBlock();break;case KeyCode.X:CopyBlock();ClearBlock();break;case KeyCode.A:anchorRow=0;anchorSub=0;row=Pattern.lineCount-1;sub=fields.Count-1;RefreshCells();break;case KeyCode.Z:if(e.shiftKey)Undo.PerformRedo();else Undo.PerformUndo();break;case KeyCode.Y:Undo.PerformRedo();break;default:handled=false;break;}}
+            if(command){switch(e.keyCode){case KeyCode.C:CopyBlock();break;case KeyCode.V:if(e.shiftKey)PasteInsertBlock();else PasteBlock();break;case KeyCode.X:CopyBlock();ClearBlock();break;case KeyCode.A:anchorRow=0;anchorSub=0;row=Pattern.lineCount-1;sub=fields.Count-1;RefreshCells();break;case KeyCode.Z:if(e.shiftKey)Undo.PerformRedo();else Undo.PerformUndo();break;case KeyCode.Y:Undo.PerformRedo();break;case KeyCode.LeftArrow:Select(row,sub-1,e.shiftKey);break;case KeyCode.RightArrow:Select(row,sub+1,e.shiftKey);break;default:handled=false;break;}}
             else switch(e.keyCode){
                 case KeyCode.Return:Play(true);break;
-                case KeyCode.LeftArrow:Select(row,sub-1,e.shiftKey);break;case KeyCode.RightArrow:Select(row,sub+1,e.shiftKey);break;case KeyCode.UpArrow:Select(row-1,sub,e.shiftKey);break;case KeyCode.DownArrow:Select(row+1,sub,e.shiftKey);break;
+                case KeyCode.LeftArrow:if(editMode&&!e.shiftKey&&fields[sub].kind==FieldKind.Envelope)NudgeEnvelope(e.altKey?-1:-8);else Select(row,sub-1,e.shiftKey);break;case KeyCode.RightArrow:if(editMode&&!e.shiftKey&&fields[sub].kind==FieldKind.Envelope)NudgeEnvelope(e.altKey?1:8);else Select(row,sub+1,e.shiftKey);break;case KeyCode.UpArrow:Select(row-1,sub,e.shiftKey);break;case KeyCode.DownArrow:Select(row+1,sub,e.shiftKey);break;
                 case KeyCode.Home:Select(0,sub,e.shiftKey);break;case KeyCode.End:Select(Pattern.lineCount-1,sub,e.shiftKey);break;case KeyCode.PageUp:Select(row-16,sub,e.shiftKey);break;case KeyCode.PageDown:Select(row+16,sub,e.shiftKey);break;
                 case KeyCode.Insert:if(editMode)SongEdit("insert line",()=>ZTrackerPatternOperations.InsertLine(Pattern,row),true);break;
-                case KeyCode.Delete:if(editMode){if(e.shiftKey)SongEdit("delete line",()=>ZTrackerPatternOperations.DeleteLine(Pattern,row),true);else if(anchorRow<0){var f=fields[sub];var clears=IsFx(f.kind)&&BoundId(f)!=null?FieldKind.EffectId:f.kind;SongEdit("clear cell",()=>EditField(row,f,(n,x,v)=>{CopyField(clears,n,x,v,new NoteCell(),new EffectCell(),new EventCell());if(f.kind==FieldKind.Note)CopyField(FieldKind.Instrument,n,x,v,new NoteCell(),new EffectCell(),new EventCell());}));Advance();}else ClearBlock();}break;
+                case KeyCode.Delete:if(editMode){if(e.shiftKey)SongEdit("delete line",()=>ZTrackerPatternOperations.DeleteLine(Pattern,row),true);else if(anchorRow<0&&fields[sub].kind==FieldKind.Envelope){ClearEnvelopeRows(fields[sub],row,row,"clear envelope point");Advance();}else if(anchorRow<0){var f=fields[sub];var clears=IsFx(f.kind)&&BoundId(f)!=null?FieldKind.EffectId:f.kind;SongEdit("clear cell",()=>EditField(row,f,(n,x,v)=>{CopyField(clears,n,x,v,new NoteCell(),new EffectCell(),new EventCell());if(f.kind==FieldKind.Note)CopyField(FieldKind.Instrument,n,x,v,new NoteCell(),new EffectCell(),new EventCell());}));Advance();}else ClearBlock();}break;
                 case KeyCode.Backspace:if(editMode&&fields[sub].kind==FieldKind.Note){var f=fields[sub];SongEdit("note off",()=>EditField(row,f,(n,x,v)=>n.note=NoteKind.Off));Advance();}break;
                 default:
                     var slot=fields[sub];int piano=PianoOffset(e.keyCode);
@@ -194,7 +196,7 @@ namespace Laubrary.ZTracker.Editor
         }
         bool EnterCharacter(char ch)
         {
-            var f=fields[sub];if(f.kind==FieldKind.Event||f.kind==FieldKind.Note)return false;
+            var f=fields[sub];if(f.kind==FieldKind.Event||f.kind==FieldKind.Note)return false;if(f.kind==FieldKind.Envelope)return EnterEnvelopeCharacter(f,ch);
             int nibble=ch>='0'&&ch<='9'?ch-'0':ch>='A'&&ch<='F'?ch-'A'+10:-1;
             string bound=BoundId(f);if(bound!=null)return EnterBoundCharacter(f,bound,nibble);
             bool id=f.kind==FieldKind.LocalId||f.kind==FieldKind.EffectId;
@@ -208,8 +210,8 @@ namespace Laubrary.ZTracker.Editor
             SongEdit("enter hex value",()=>EditField(row,f,(n,x,v)=>{switch(f.kind){case FieldKind.Instrument:n.instrumentPresent=true;n.instrument=value;break;case FieldKind.Volume:n.volume.kind=ValueKind.Value;n.volume.value=value;break;case FieldKind.Pan:n.pan.kind=ValueKind.Value;n.pan.value=value;break;case FieldKind.Delay:n.delayPresent=true;n.delay=value;break;case FieldKind.LocalValue:n.sampleFx.valuePresent=true;n.sampleFx.value=value;break;case FieldKind.EffectValue:x.command.valuePresent=true;x.command.value=value;break;}}));hexDigit++;if(hexDigit>=2)Advance();return true;
         }
         void ForBlock(Action<int,int> edit){int r0=anchorRow<0?row:Math.Min(row,anchorRow),r1=anchorRow<0?row:Math.Max(row,anchorRow),c0=anchorRow<0?sub:Math.Min(sub,anchorSub),c1=anchorRow<0?sub:Math.Max(sub,anchorSub);for(int r=r0;r<=r1;r++)for(int c=c0;c<=c1;c++)edit(r,c);}
-        void CopyBlock(){clipboard.Clear();int r0=anchorRow<0?row:Math.Min(row,anchorRow),c0=anchorRow<0?sub:Math.Min(sub,anchorSub);ForBlock((r,c)=>{var f=fields[c];clipboard.Add(new CopiedField{r=r-r0,c=c-c0,kind=f.kind,note=Clone(Note(r,f)),effect=Clone(Effect(r,f)),evt=Clone(Event(r,f))});});}
-        void PasteBlock(){if(clipboard.Count==0||fields.Count==0)return;SongEdit("paste block",()=>{foreach(var p in clipboard){int rr=row+p.r,cc=sub+p.c;if(rr>=Pattern.lineCount||cc>=fields.Count||fields[cc].kind!=p.kind)continue;var f=fields[cc];EditField(rr,f,(n,x,v)=>CopyField(p.kind,n,x,v,p.note,p.effect,p.evt));}});}
+        void CopyBlock(){clipboard.Clear();int r0=anchorRow<0?row:Math.Min(row,anchorRow),c0=anchorRow<0?sub:Math.Min(sub,anchorSub);ForBlock((r,c)=>{var f=fields[c];clipboard.Add(new CopiedField{r=r-r0,c=c-c0,kind=f.kind,note=Clone(Note(r,f)),effect=Clone(Effect(r,f)),evt=Clone(Event(r,f)),points=f.kind==FieldKind.Envelope?EnvelopeRowPoints(f,r):null});});}
+        void PasteBlock(){if(clipboard.Count==0||fields.Count==0)return;var refused=new PasteRefusals();SongEdit("paste block",()=>{foreach(var p in clipboard){int rr=row+p.r,cc=sub+p.c;if(rr>=Pattern.lineCount||cc>=fields.Count)continue;PasteCell(rr,fields[cc],p,refused);}});patternNotice=refused.Notice("Paste");RefreshHelp();}
         string patternNotice="";
         /// Paste Insert: in the columns the clipboard lands on, rows from the cursor down move down by the
         /// clipboard's height (rows pushed past the end are dropped and counted), then the clipboard is pasted
@@ -218,7 +220,9 @@ namespace Laubrary.ZTracker.Editor
         {
             if(clipboard.Count==0||fields.Count==0||Pattern==null)return;
             int height=clipboard.Max(p=>p.r)+1,width=clipboard.Max(p=>p.c)+1,c0=sub,c1=Math.Min(fields.Count-1,sub+width-1),lines=Pattern.lineCount,start=row;
-            var droppedRows=new HashSet<int>();int droppedPoints=0;
+            var droppedRows=new HashSet<int>();int droppedPoints=0;var refused=new PasteRefusals();
+            // Only columns that receive at least one pasted cell are pushed down; a refused column is left as it is.
+            var receiving=new HashSet<int>(clipboard.Where(p=>c0+p.c<=c1&&PasteFits(p.kind,fields[c0+p.c].kind)).Select(p=>c0+p.c));
             SongEdit("paste insert",()=>
             {
                 // Read every moved value from a copy taken before any write: a command's identifier and its
@@ -227,8 +231,9 @@ namespace Laubrary.ZTracker.Editor
                 for(int c=c0;c<=c1;c++){int ti=fields[c].track;if(!original.ContainsKey(ti))original[ti]=Clone(PatternTrack(ti,true));}
                 for(int c=c0;c<=c1;c++)
                 {
-                    var f=fields[c];var old=original[f.track];
+                    if(!receiving.Contains(c))continue;var f=fields[c];var old=original[f.track];
                     for(int r=Math.Max(start,lines-height);r<lines;r++)if(HasPayload(r,f))droppedRows.Add(r);
+                    if(f.kind==FieldKind.Envelope){ShiftEnvelope(f,start,height);continue;}
                     for(int r=lines-1;r>=start;r--){int from=r-height;var line=from>=start?old.ReadLine(from):new PatternLine();
                         var n=line.notes.Find(q=>q.column==f.column)??new NoteCell();var x=line.effects.Find(q=>q.column==f.column)??new EffectCell();var v=line.events.Find(q=>q.column==f.column)??new EventCell();
                         EditField(r,f,(nn,xx,vv)=>CopyField(f.kind,nn,xx,vv,n,x,v));}
@@ -237,16 +242,17 @@ namespace Laubrary.ZTracker.Editor
                 {
                     int ti=t;if(fields.Any(f=>f.track==ti&&(fields.IndexOf(f)<c0||fields.IndexOf(f)>c1)))continue;
                     var pt=PatternTrack(ti);if(pt?.automation==null)continue;
-                    foreach(var lane in pt.automation){if(lane?.points==null)continue;foreach(var point in lane.points)if(point!=null&&point.line>=start)point.line+=height;droppedPoints+=lane.points.RemoveAll(q=>q!=null&&q.line>lines);}
+                    foreach(var lane in pt.automation){if(lane?.points==null||ZTrackerEnvelopes.IsEnvelopeLane(lane))continue;foreach(var point in lane.points)if(point!=null&&point.line>=start)point.line+=height;droppedPoints+=lane.points.RemoveAll(q=>q!=null&&q.line>lines);}
                 }
-                foreach(var p in clipboard){int rr=start+p.r,cc=c0+p.c;if(rr>=lines||cc>=fields.Count||fields[cc].kind!=p.kind)continue;var f=fields[cc];EditField(rr,f,(n,x,v)=>CopyField(p.kind,n,x,v,p.note,p.effect,p.evt));}
+                foreach(var p in clipboard){int rr=start+p.r,cc=c0+p.c;if(rr>=lines||cc>=fields.Count)continue;PasteCell(rr,fields[cc],p,refused);}
             });
             int pastedOff=Math.Max(0,start+height-lines);
             patternNotice=droppedRows.Count==0&&droppedPoints==0&&pastedOff==0?"":"⚠ Paste Insert dropped "+Plural(droppedRows.Count,"row")+(droppedPoints>0?" and "+Plural(droppedPoints,"automation point"):"")+" pushed past the pattern end"+(pastedOff>0?"; "+Plural(pastedOff,"copied row")+" did not fit":"")+".";
+            if(refused.count>0)patternNotice=(patternNotice==""?"":patternNotice+" ")+refused.Notice("Paste Insert");
             RefreshHelp();
         }
         static string Plural(int n,string noun)=>n+" "+noun+(n==1?"":"s");
-        bool HasPayload(int r,FieldSlot f){var n=Note(r,f);switch(f.kind){case FieldKind.Note:return n.note!=NoteKind.Empty;case FieldKind.Instrument:return n.instrumentPresent;case FieldKind.Volume:return n.volume.kind!=ValueKind.Empty;case FieldKind.Pan:return n.pan.kind!=ValueKind.Empty;case FieldKind.Delay:return n.delayPresent;case FieldKind.LocalId:return n.sampleFx.present;case FieldKind.LocalValue:return n.sampleFx.valuePresent;case FieldKind.EffectId:return Effect(r,f).command.present;case FieldKind.EffectValue:return Effect(r,f).command.valuePresent;default:return Event(r,f).present;}}
+        bool HasPayload(int r,FieldSlot f){var n=Note(r,f);switch(f.kind){case FieldKind.Envelope:return EnvelopeRowPoints(f,r).Count>0;case FieldKind.Note:return n.note!=NoteKind.Empty;case FieldKind.Instrument:return n.instrumentPresent;case FieldKind.Volume:return n.volume.kind!=ValueKind.Empty;case FieldKind.Pan:return n.pan.kind!=ValueKind.Empty;case FieldKind.Delay:return n.delayPresent;case FieldKind.LocalId:return n.sampleFx.present;case FieldKind.LocalValue:return n.sampleFx.valuePresent;case FieldKind.EffectId:return Effect(r,f).command.present;case FieldKind.EffectValue:return Effect(r,f).command.valuePresent;default:return Event(r,f).present;}}
         static void CopyField(FieldKind kind,NoteCell n,EffectCell e,EventCell v,NoteCell source,EffectCell effect,EventCell evt)
         {
             switch(kind){case FieldKind.Note:n.note=source.note;n.pitch=source.pitch;n.legacyNote=source.legacyNote;n.parameterSetId=source.parameterSetId;n.legacyExtras=source.legacyExtras;break;
@@ -256,14 +262,15 @@ namespace Laubrary.ZTracker.Editor
                 case FieldKind.EffectId:e.command=Clone(effect.command);break;case FieldKind.EffectValue:e.command.valuePresent=effect.command.valuePresent;e.command.value=effect.command.value;e.command.rawValue=effect.command.rawValue;break;
                 case FieldKind.Event:v.present=evt.present;v.payload=evt.payload;v.profile=evt.profile;v.provenance=evt.provenance;break;}
         }
-        void ClearBlock(){if(fields.Count==0)return;SongEdit("clear block",()=>ForBlock((r,c)=>EditField(r,fields[c],(n,x,v)=>CopyField(fields[c].kind,n,x,v,new NoteCell(),new EffectCell(),new EventCell()))));}
+        void ClearBlock(){if(fields.Count==0)return;SongEdit("clear block",()=>ForBlock((r,c)=>{if(fields[c].kind==FieldKind.Envelope)RemoveEnvelopeRow(fields[c],r);else EditField(r,fields[c],(n,x,v)=>CopyField(fields[c].kind,n,x,v,new NoteCell(),new EffectCell(),new EventCell()));}));}
         void Transpose(int amount){if(fields.Count==0)return;SongEdit("transpose block",()=>ForBlock((r,c)=>{if(fields[c].kind==FieldKind.Note)EditField(r,fields[c],(n,x,v)=>{if(n.note==NoteKind.Note)n.pitch=Mathf.Clamp(n.pitch+amount,0,119);});}));}
         string EventUnderCursor()=>fields.Count>0&&fields[sub].kind==FieldKind.Event?Event(row,fields[sub]).payload:"";
         void SetEvent(string payload){if(fields.Count==0||fields[sub].kind!=FieldKind.Event)return;var f=fields[sub];SongEdit("event payload",()=>EditField(row,f,(n,e,v)=>{v.present=!string.IsNullOrEmpty(payload);v.payload=payload;}));}
         void RefreshCellDetails()
         {
             if(cellDetails==null||fields.Count==0)return;Vector2 offset=controlScroll.scrollOffset;cellDetails.Clear();var f=fields[sub];
-            if(f.kind==FieldKind.Event)cellDetails.Add(Z.Field("Event","Event payload at this row.",Named(Z.TextInput(EventUnderCursor(),"Enter this row's event payload; empty removes it.",SetEvent,210),"event-payload")));
+            if(f.kind==FieldKind.Envelope)AddEnvelopeCellDetails(f);
+            else if(f.kind==FieldKind.Event)cellDetails.Add(Z.Field("Event","Event payload at this row.",Named(Z.TextInput(EventUnderCursor(),"Enter this row's event payload; empty removes it.",SetEvent,210),"event-payload")));
             else if(f.kind==FieldKind.Note||f.kind==FieldKind.Instrument){var n=Note(row,f);int ii=n.instrumentPresent?n.instrument:entryInstrument;var asset=ii>=0&&ii<Data.instruments.Count?Data.instruments[ii]:null;
                 var view=ReadInstrument(asset);
                 if(view!=null){var sets=ZTrackerMigration.ResolveParameterSets(view);var names=new List<string>{"Base"};names.AddRange(view.parameters.presets.Select(p=>p.name));int selected=sets.FindIndex(s=>s.id==n.parameterSetId);cellDetails.Add(Z.MiniRadio(Math.Max(0,selected),names.ToArray(),"Choose the instrument variation used by this note column.",v=>SongEdit("note variation",()=>EditField(row,f,(note,e,ev)=>note.parameterSetId=v==0?"":sets[v].id)),wrap:true));}}
@@ -278,7 +285,7 @@ namespace Laubrary.ZTracker.Editor
         {
             if(help==null||fields.Count==0)return;
             if(patternNotice!=""){help.text=patternNotice;help.tooltip=patternNotice;return;}
-            var f=fields[sub];string id=f.kind==FieldKind.EffectId||f.kind==FieldKind.EffectValue?Effect(row,f).command.identifier:f.kind==FieldKind.LocalId||f.kind==FieldKind.LocalValue?Note(row,f).sampleFx.identifier:f.kind==FieldKind.Volume&&Note(row,f).volume.kind==ValueKind.Command?Note(row,f).volume.command.identifier:f.kind==FieldKind.Pan&&Note(row,f).pan.kind==ValueKind.Command?Note(row,f).pan.command.identifier:"";
+            var f=fields[sub];if(f.kind==FieldKind.Envelope){help.text=EnvelopeHelp(f);help.tooltip=help.text;return;}string id=f.kind==FieldKind.EffectId||f.kind==FieldKind.EffectValue?Effect(row,f).command.identifier:f.kind==FieldKind.LocalId||f.kind==FieldKind.LocalValue?Note(row,f).sampleFx.identifier:f.kind==FieldKind.Volume&&Note(row,f).volume.kind==ValueKind.Command?Note(row,f).volume.command.identifier:f.kind==FieldKind.Pan&&Note(row,f).pan.kind==ValueKind.Command?Note(row,f).pan.command.identifier:"";
             if(string.IsNullOrEmpty(id)&&IsFx(f.kind))id=BoundId(f)??"";
             var command=FxCommandCatalog.Find(id,f.kind,Data.tracks[f.track],Data);var authored=CommandAt(row,f);help.text=string.IsNullOrEmpty(id)?"":command==null?(IsFx(f.kind)&&id.Length==2&&ZTrackerCommandRegistry.ValidateId(null,id,null,out _)==null?"⚠ "+id+" — not defined in this song: kept, does nothing until a setting is given this id (Song › Commands)":"⚠ "+id+" — unsupported or unavailable here; retained"):authored.valuePresent&&!FxCommandCatalog.SupportsValue(id,authored.value)?command.Display+" — argument outside supported range":command.Display+OutOfContext(f,id);help.tooltip=help.text;
         }

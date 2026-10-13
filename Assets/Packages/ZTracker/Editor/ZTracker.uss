@@ -38,6 +38,9 @@
 .tracker-cell.tracker-bound-other { border-top-width: 1px; border-bottom-width: 1px; border-top-color: rgb(236, 176, 72); border-bottom-color: rgb(236, 176, 72); }
 .tracker-fx-bar { background-color: rgba(120, 190, 235, 0.85); }
 .tracker-cell.tracker-header-glyph-half { height: 10px; min-height: 10px; font-size: 10px; padding: 0; -unity-text-align: middle-center; }
+/* Envelope columns (T-0601): their header +/− in the envelope accent, so they read apart from the FX ones beside them. */
+.tracker-cell.tracker-header-glyph-env { color: rgb(120, 222, 200); }
+.tracker-cell.tracker-env-title { -unity-text-align: middle-center; }
 /* Command suggestions (T-0599): a compact list under (or over) the cell being typed; colours come from the command look (T-0600). */
 .tracker-suggest { padding: 2px; }
 .tracker-suggest__head { flex-direction: row; height: 16px; min-height: 16px; flex-shrink: 0; padding: 0 3px; }

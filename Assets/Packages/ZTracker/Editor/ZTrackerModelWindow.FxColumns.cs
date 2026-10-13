@@ -106,6 +106,8 @@ namespace Laubrary.ZTracker.Editor
             plus.style.visibility=t.visibleEffectColumns<MaxEffectColumns?UnityEngine.UIElements.Visibility.Visible:UnityEngine.UIElements.Visibility.Hidden;
             minus.style.visibility=t.visibleEffectColumns>0?UnityEngine.UIElements.Visibility.Visible:UnityEngine.UIElements.Visibility.Hidden;
             gridCanvas.Add(minus);gridCanvas.Add(plus);column.Add(minus);column.Add(plus);float reserved=10;
+            // A narrow header (one FX column, no notes) keeps its name readable; its envelope count is in the track settings.
+            if(width>=60){reserved+=AddEnvelopeHeaderControls(ti,right,y,column);right-=10;}
             if(overflowColumns.TryGetValue(ti,out int need)&&need>t.visibleEffectColumns)
             {
                 int rows=overflowRows[ti].Count;
@@ -168,7 +170,7 @@ namespace Laubrary.ZTracker.Editor
             menu.OnClosed(()=>{bindMenu=null;grid?.Focus();});bindMenu=menu.Show();
         }
 
-        void ShowBindMenuAtCursor(){if(fields.Count==0)return;var f=fields[sub];if(!IsFx(f.kind)){patternNotice="Put the cursor in a track FX column to bind it to a command (Alt+B).";RefreshHelp();return;}ShowBindMenu(f.track,f.column);}
+        void ShowBindMenuAtCursor(){if(fields.Count==0)return;var f=fields[sub];if(f.kind==FieldKind.Envelope){ShowEnvelopeMenu(f.track,f.column);return;}if(!IsFx(f.kind)){patternNotice="Put the cursor in a track FX or envelope column to bind it to a command (Alt+B).";RefreshHelp();return;}ShowBindMenu(f.track,f.column);}
         void ToggleBarAtCursor(){if(fields.Count==0)return;var f=fields[sub];if(!IsFx(f.kind)||BoundId(f.track,f.column)==null){patternNotice="Bar view needs a bound column: Alt+B binds the FX column under the cursor.";RefreshHelp();return;}SetBarView(f.track,f.column,!ColumnView(Data.tracks[f.track],f.column).bar);}
 
         static void SetBoundValue(EffectCell x,string id,int value)

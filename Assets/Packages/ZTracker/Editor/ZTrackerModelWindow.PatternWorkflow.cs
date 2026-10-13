@@ -27,6 +27,8 @@ namespace Laubrary.ZTracker.Editor
             if(t.kind==TrackKind.Sequencer)
                 patternTrackSettings.Add(Named(Z.ScrubNumber("Notes",t.visibleNoteColumns,1,12,"Number of visible note columns; hidden note data stays stored.",v=>SongEdit("note columns",()=>t.visibleNoteColumns=v,true),width:115,defaultValue:PatternTrackDefaults.visibleNoteColumns),"pattern-note-columns"));
             patternTrackSettings.Add(Named(Z.ScrubNumber("FX",t.visibleEffectColumns,0,8,"Number of visible track effect columns; hidden commands stay stored.",v=>SongEdit("effect columns",()=>t.visibleEffectColumns=v,true),width:115,defaultValue:PatternTrackDefaults.visibleEffectColumns),"pattern-fx-columns"));
+            if(t.kind!=TrackKind.Event)
+                patternTrackSettings.Add(Named(Z.ScrubNumber("Env",t.envelopeColumns?.Count??0,0,ZTrackerEnvelopes.MaxColumns,"Number of envelope columns: lines drawn down the pattern that drive one command each. Removing one removes its points (Undo restores them).",v=>SetEnvelopeColumns(track,v),width:115,defaultValue:PatternTrackDefaults.envelopeColumns.Count),"pattern-env-columns"));
         }
 
         void ReorderTracks(int from,int to)

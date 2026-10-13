@@ -29,7 +29,7 @@ namespace Laubrary.ZTracker.Editor
             try
             {
                 instrument.schemaVersion=1;instrument.model=NewInstrumentData();song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSong(instrument);
-                window.song=song;window.instrument=instrument;window.pane=0;window.Show();window.CreateGUI();
+                window.song=song;window.instrument=instrument;window.pane=0;window.Show();window.position=new Rect(60,60,1300,820);window.CreateGUI();
                 Check("pattern counts and selected track settings exist",()=>{Need(window.rootVisualElement.Q("pattern-length")!=null,"Missing pattern length");Need(window.rootVisualElement.Q("pattern-track-name")!=null,"Missing track name");Need(window.rootVisualElement.Q("pattern-note-columns")!=null,"Missing note count");Need(window.rootVisualElement.Q("pattern-fx-columns")!=null,"Missing FX count");});
                 Check("Tab advances by Step; Escape toggles Edit; text input keeps shortcuts",()=>{
                     window.row=2;window.step=3;Need(Shortcut(KeyCode.Tab),"Tab unhandled");Need(window.row==5,"Tab did not use Step");bool before=window.editMode;Need(Shortcut(KeyCode.Escape)&&window.editMode!=before,"Escape did not toggle Edit");
@@ -79,7 +79,7 @@ namespace Laubrary.ZTracker.Editor
                     Undo.PerformUndo();Need(song.model.tracks.Select(t=>t.id).SequenceEqual(before),"One Undo did not restore the order");window.BuildPane();
                 });
                 Check("block selection paints every row, beat rows included, for keys, shift-click and mouse drag on every column type",()=>{
-                    var t0=song.model.tracks.First(t=>t.kind==TrackKind.Sequencer);t0.columns=new System.Collections.Generic.List<ColumnVisibility>{new ColumnVisibility{volume=true,pan=true,delay=true,sampleFx=true}};t0.visibleEffectColumns=1;
+                    var t0=song.model.tracks.First(t=>t.kind==TrackKind.Sequencer);t0.columns=new System.Collections.Generic.List<ColumnVisibility>{new ColumnVisibility{volume=true,pan=true,delay=true,sampleFx=true}};t0.visibleEffectColumns=1;if(t0.envelopeColumns.Count==0)t0.envelopeColumns.Add(new EnvelopeColumnData{uid="selection-envelope",command="0P"});
                     if(!song.model.tracks.Any(t=>t.kind==TrackKind.Event))window.AddTrack(TrackKind.Event);
                     window.pane=0;window.BuildPane();LayoutChain(window);
                     var kinds=window.fields.Select(f=>f.kind).Distinct().ToList();Need(kinds.Count==Enum.GetValues(typeof(FieldKind)).Length,"Fixture lacks a column type: "+string.Join(",",kinds));
@@ -100,15 +100,15 @@ namespace Laubrary.ZTracker.Editor
                     // Shift-click: click the first cell, shift-click the last.
                     window.Select(3,3,false);LayoutChain(window);
                     var first=window.gridCanvas.Q<Label>("cell-0-0");using(var e=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,mousePosition=first.worldBound.center})){e.target=first;first.SendEvent(e);}
-                    using(var e=PointerUpEvent.GetPooled(new Event{type=EventType.MouseUp,button=0,mousePosition=first.worldBound.center}))first.panel.visualTree.SendEvent(e);
+                    using(var e=PointerUpEvent.GetPooled(new Event{type=EventType.MouseUp,button=0,mousePosition=first.worldBound.center}))window.rootVisualElement.panel.visualTree.SendEvent(e);
                     var last=window.gridCanvas.Q<Label>("cell-"+bottom+"-"+lastVisible);using(var e=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,modifiers=EventModifiers.Shift,mousePosition=last.worldBound.center})){e.target=last;last.SendEvent(e);}
-                    using(var e=PointerUpEvent.GetPooled(new Event{type=EventType.MouseUp,button=0,mousePosition=last.worldBound.center}))last.panel.visualTree.SendEvent(e);
+                    using(var e=PointerUpEvent.GetPooled(new Event{type=EventType.MouseUp,button=0,mousePosition=last.worldBound.center}))window.rootVisualElement.panel.visualTree.SendEvent(e);
                     Need(window.anchorRow==0&&window.anchorSub==0&&window.row==bottom&&window.sub==lastVisible,"Shift-click did not extend the block");Painted("shift-click");
                     // Mouse drag from the first cell to the last.
                     window.Select(3,3,false);LayoutChain(window);first=window.gridCanvas.Q<Label>("cell-0-0");last=window.gridCanvas.Q<Label>("cell-"+bottom+"-"+lastVisible);var end=last.worldBound.center;
                     PointerDrag(first,end,10,finish:false);
                     Need(window.anchorRow==0&&window.anchorSub==0&&window.row==bottom&&window.sub==lastVisible,"Mouse drag did not select the block: anchor "+window.anchorRow+","+window.anchorSub+" cursor "+window.row+","+window.sub);Painted("mouse drag");
-                    window.Select(0,0,false);
+                    window.Select(0,0,false);t0.envelopeColumns.Clear();window.BuildPane();
                 });
                 Check("Paste Insert pushes rows down in every column type, drops the overflow with a notice, carries commands and automation, and Undoes in one step",()=>{
                     var a=song.model.tracks.First(t=>t.kind==TrackKind.Sequencer);a.columns=new System.Collections.Generic.List<ColumnVisibility>{new ColumnVisibility{volume=true,pan=true,delay=true,sampleFx=true}};a.visibleEffectColumns=1;a.visibleNoteColumns=1;
