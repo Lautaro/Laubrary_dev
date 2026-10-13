@@ -19,6 +19,8 @@ namespace Laubrary.ZTracker
         public static ZTrackerPlayback Current => current;
         public bool IsPlaying => generator != null && !stopping;
         public bool IsSong { get; private set; }
+        /// <summary>The authored asset captured by this playback; observation never writes to it.</summary>
+        public ZTrackerSong SourceSong { get; private set; }
         public int AuditionNote { get; private set; }
         public int AuditionPreset { get; private set; }
         public TrackerSapGenerator Generator => generator;
@@ -81,6 +83,7 @@ namespace Laubrary.ZTracker
                 host.snapshot = data; data = null;
                 host.catalog = new EventCatalog(host.snapshot.Data, prepared);
                 host.IsSong = song != null; host.AuditionNote = note; host.AuditionPreset = preset;
+                host.SourceSong = song;
                 host.generator = root.AddComponent<TrackerSapGenerator>();
                 host.generator.Configure(prepared, false); prepared = null;
                 if (song != null)
@@ -108,6 +111,7 @@ namespace Laubrary.ZTracker
         public bool TryGetPosition(out int order, out int row) { order = lastOrder; row = lastRow; return IsPlaying && haveRow; }
         /// <summary>The detached song data that is playing (never the asset itself). Read only.</summary>
         public SongData PlayingSong => snapshot?.Data;
+        public bool TryReadTrack(int track, out TrackerTrackReadout value) { value = default; return IsPlaying && generator.TryReadTrack(track, out value); }
         ZTrackerSongClock clock;
         /// <summary>Live song position: current row, time into it and until the next, tempo, and the row's cells.
         /// Reading it consumes nothing, so it can be used alongside the event stream.</summary>

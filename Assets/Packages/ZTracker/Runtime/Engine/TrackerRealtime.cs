@@ -348,7 +348,7 @@ namespace Laubrary.ZTracker.Engine
             for(int t=0;t<state.trackCount;t++)for(int i=0;i<frames;i++){int a=t*state.maxFrames+i;state.left[a]=state.right[a]=0;}
             for(int b=0;b<state.busCount;b++)for(int i=0;i<frames;i++){int a=b*state.maxFrames+i;state.busLeft[a]=state.busRight[a]=0;}
             int offset=0;
-            if(state.paused){for(int f=0;f<frames;f++)state.outputLeft[f]=state.outputRight[f]=0;events.PublishHead(state.samplePosition,state.sampleRate,state.playing,true,RewindStatus(),RowReverseStatus());state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);return;}
+            if(state.paused){for(int f=0;f<frames;f++)state.outputLeft[f]=state.outputRight[f]=0;events.PublishReadout(in state,RewindStatus(),RowReverseStatus());state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);return;}
             while(offset<frames){
                 if(state.rewind.phase==TrackerRewindPhase.Reversing){offset+=ReverseMix(offset,frames-offset);continue;}
                 if(state.playing&&state.rowPending)EnterRow();
@@ -369,7 +369,7 @@ namespace Laubrary.ZTracker.Engine
             double energy=0;for(int f=0;f<frames;f++)energy+=(double)state.outputLeft[f]*state.outputLeft[f]+(double)state.outputRight[f]*state.outputRight[f];
             state.ticket[5]=math.aslong(math.asdouble(state.ticket[5])+energy);
 #endif
-            events.PublishHead(state.samplePosition,state.sampleRate,state.playing&&state.rewind.phase==TrackerRewindPhase.Idle,state.paused,RewindStatus(),RowReverseStatus());
+            events.PublishReadout(in state,RewindStatus(),RowReverseStatus());
             state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);
         }
         // Song clock: one entry per entered row (and per held repeat), on the transport sample timeline.

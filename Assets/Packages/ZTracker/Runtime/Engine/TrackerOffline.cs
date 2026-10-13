@@ -37,7 +37,7 @@ namespace Laubrary.ZTracker.Engine
             if(eventCapacity<2||eventCapacity>1048576)throw new ArgumentOutOfRangeException(nameof(eventCapacity));
             prepared=song;prepared.Published=true;witness=new NativeArray<int>(1,Allocator.Persistent);
             realtime=(TrackerRealtime*)UnsafeUtility.Malloc(sizeof(TrackerRealtime),16,Allocator.Persistent);
-            *realtime=new TrackerRealtime{state=song.state,events=TrackerEventRing.Create(eventCapacity),live=TrackerLiveRing.Create(1024)};liveTarget=new TrackerLiveTarget(realtime->live);
+            *realtime=new TrackerRealtime{state=song.state,events=TrackerEventRing.Create(eventCapacity,song.state.trackCount),live=TrackerLiveRing.Create(1024)};liveTarget=new TrackerLiveTarget(realtime->live);
         }
         void RequireAlive(){if(realtime==null)throw new ObjectDisposedException(nameof(TrackerOffline));}
         public bool Compiled{get{RequireAlive();return witness[0]==1;}}
@@ -48,6 +48,7 @@ namespace Laubrary.ZTracker.Engine
         public long ClockRowsWritten{get{RequireAlive();return realtime->events.ClockRowsWritten;}}
         public bool TryReadClockRow(long serial,out TrackerClockRow value){RequireAlive();return realtime->events.TryReadClockRow(serial,out value);}
         public bool TryReadClockHead(out TrackerClockHead value){RequireAlive();return realtime->events.TryReadClockHead(out value);}
+        public bool TryReadTrack(int track,out TrackerTrackReadout value){RequireAlive();return realtime->events.TryReadTrack(track,out value);}
         public void SetMacro(int instrument,int macro,float value)=>SendCommand(TrackerCommand.SetMacro(instrument,macro,value));
         public void TargetMacro(int instrument,int macro,float value,float step)=>SendCommand(TrackerCommand.TargetMacro(instrument,macro,value,step));
         public float ObserveMacro(int instrument,int macro){RequireAlive();if(instrument<0||instrument>=realtime->state.instrumentCount||macro<0||macro>=8)throw new ArgumentOutOfRangeException();return realtime->state.macros[instrument*8+macro].value;}
