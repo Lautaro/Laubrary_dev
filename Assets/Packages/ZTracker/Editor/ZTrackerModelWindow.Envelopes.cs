@@ -341,7 +341,7 @@ namespace Laubrary.ZTracker.Editor
             }, true);
             if (cursor.HasValue) { var c = cursor.Value; int at = fields.FindIndex(x => x.track == c.track && x.column == c.column && x.kind == c.kind); if (at < 0) at = fields.FindLastIndex(x => x.track == c.track); if (at >= 0 && at != sub) { sub = at; RefreshCells(); RefreshCellDetails(); } }
             // A new column has nothing to draw until it drives a command: offer the choice straight away.
-            if (bindNew && count > now) { int column = count - 1; grid?.schedule.Execute(() => ShowEnvelopeMenu(trackIndex, column)); }
+            if (bindNew && count > now) { int column = count - 1; ShowEnvelopeMenu(trackIndex, column); }
         }
 
         internal void BindEnvelope(int trackIndex, int column, string key)
@@ -358,9 +358,11 @@ namespace Laubrary.ZTracker.Editor
 
         Label EnvelopeTitleLabel(int trackIndex, int column) => gridCanvas?.Q<Label>("pattern-env-title-" + trackIndex + "-" + column);
 
-        internal void ShowEnvelopeMenu(int trackIndex, int column, VisualElement anchor = null)
+        internal void ShowEnvelopeMenu(int trackIndex, int column, VisualElement anchor = null, int retries = 0)
         {
             CloseFxSuggestions(); bindMenu?.Close(); var t = Data?.tracks.ElementAtOrDefault(trackIndex); var c = ZTrackerEnvelopes.Column(t, column); if (c == null) return;
+            // Right after a rebuild the column title may not be laid out yet: open once the grid has its size, under the title.
+            if (anchor == null && (EnvelopeTitleLabel(trackIndex, column) == null || float.IsNaN(EnvelopeTitleLabel(trackIndex, column).worldBound.width)) && retries < 3 && grid != null) { grid.schedule.Execute(() => ShowEnvelopeMenu(trackIndex, column, null, retries + 1)); return; }
             if (anchor == null) anchor = EnvelopeTitleLabel(trackIndex, column); if (anchor == null && labels.TryGetValue(new Vector2Int(row, sub), out var cell)) anchor = cell; if (anchor == null) anchor = grid; if (anchor == null) return;
             string key = c.command ?? "", id = EnvelopeId(trackIndex, column);
             var menu = Z.Menu(anchor).Width(320).Search("Type a command id, then Enter", 300);
