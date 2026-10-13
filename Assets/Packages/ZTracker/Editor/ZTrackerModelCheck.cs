@@ -473,7 +473,7 @@ namespace Laubrary.ZTracker.Editor
                 var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
                 void Call(string name,params object[] args){var method=typeof(ZTrackerModelWindow).GetMethod(name,flags);Assert(method!=null,"Missing editor transport "+name);method.Invoke(window,args);}
                 try{
-                    typeof(ZTrackerModelWindow).GetField("song",flags).SetValue(window,s);
+                    typeof(ZTrackerModelWindow).GetProperty("song",flags).SetValue(window,s);
                     typeof(ZTrackerModelWindow).GetField("instrument",flags).SetValue(window,i);
                     Call("Upgrade");Unchanged();Call("Play",false);Unchanged();
                     Assert(typeof(ZTrackerModelWindow).GetField("host",flags).GetValue(window)!=null,"Modern editor play failed");
@@ -488,7 +488,7 @@ namespace Laubrary.ZTracker.Editor
                         selectedWindow.hideFlags=HideFlags.HideAndDontSave;
                         try{
                             selectedWindow.ShowUtility();selectedWindow.CreateGUI();
-                            var picker=selectedWindow.rootVisualElement.Q<ObjectField>("song");Assert(picker!=null,"Attached song picker missing");picker.value=s;Unchanged();
+                            var holder=selectedWindow.rootVisualElement.Q("lau-asset-field");var picker=holder as ObjectField??holder?.Q<ObjectField>();Assert(picker!=null,"Attached song picker missing");picker.value=s;Unchanged();
                             var details=(VisualElement)typeof(ZTrackerModelWindow).GetField("cellDetails",flags).GetValue(selectedWindow);
                             Assert(details!=null&&details.Query<Button>().ToList().Any(b=>b.text=="Base"),"Attached note-variation choices missing");
                             Assert(details.Query<Button>().ToList().Count>=2,"Legacy preset choice missing on selection/reopen");Unchanged();
@@ -501,7 +501,7 @@ namespace Laubrary.ZTracker.Editor
             var editSong=Song();var editWindow=ScriptableObject.CreateInstance<ZTrackerModelWindow>();
             var editFlags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
             try{
-                typeof(ZTrackerModelWindow).GetField("song",editFlags).SetValue(editWindow,editSong);
+                typeof(ZTrackerModelWindow).GetProperty("song",editFlags).SetValue(editWindow,editSong);
                 var view=(SongData)typeof(ZTrackerModelWindow).GetProperty("Data",editFlags).GetValue(editWindow);
                 typeof(ZTrackerModelWindow).GetMethod("SongEdit",editFlags).Invoke(editWindow,new object[]{"legacy tempo",(Action)(()=>view.bpm=111),false});
                 Assert(editSong.schemaVersion==1&&editSong.model.bpm==111&&editSong.legacyArchive.bpm==120,"Explicit legacy edit did not commit detached view/migration");

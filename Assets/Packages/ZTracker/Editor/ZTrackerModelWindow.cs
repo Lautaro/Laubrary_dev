@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Laubrary.AssetKit.Editor;
 using Laubrary.ZTracker.Model;
 using Laubrary.ZTracker.Engine;
 using Laubrary.Zui;
@@ -10,10 +11,17 @@ using UnityEngine.UIElements;
 
 namespace Laubrary.ZTracker.Editor
 {
-    /// <summary>Canonical model authoring. View changes never recreate or stop the audio graph.</summary>
-    public sealed partial class ZTrackerModelWindow : ZuiWindow
+    /// <summary>
+    /// Canonical model authoring. View changes never recreate or stop the audio graph. The song is a LauAsset: the
+    /// shared AssetKit window base gives it the same toolbar (pick, New, Browse, Duplicate, Rename, Delete), the
+    /// thumbnail browser (shown when no song is open) and Tags as every other Laubrary tool.
+    /// </summary>
+    public sealed partial class ZTrackerModelWindow : ZuiAssetWindow<ZTrackerSong>
     {
-        [SerializeField] ZTrackerSong song;
+        // The edited song is the AssetKit base's asset. A window saved before the move kept it in a field named
+        // "song"; that value is read once from here and handed to the base, so an open window keeps its song.
+        [SerializeField, UnityEngine.Serialization.FormerlySerializedAs("song")] ZTrackerSong legacySong;
+        ZTrackerSong song { get => asset; set => asset = value; }
         [SerializeField] ZTrackerInstrument instrument;
         [SerializeField] int order,row,track,sub,octave=DefaultPatternOctave,step=DefaultPatternStep,pane,entryInstrument;
         [SerializeField] bool follow=true,editMode=true;
@@ -45,17 +53,37 @@ namespace Laubrary.ZTracker.Editor
         TrackData SelectedTrack=>Data==null||Data.tracks.Count==0?null:Data.tracks[Mathf.Clamp(track,0,Data.tracks.Count-1)];
         [MenuItem("Laubrary/ZTracker")]
         public static void Open(){var window=GetWindow<ZTrackerModelWindow>("ZTracker");window.EnableMidiPreferenceRestore();}
-        protected override void BuildUI(VisualElement root)
+        /// <summary>Opens ZTracker on <paramref name="value"/> (LauAsset Edit, a double-click in the Project window).</summary>
+        public static void OpenFor(ZTrackerSong value){Open();var window=GetWindow<ZTrackerModelWindow>("ZTracker");if(value!=null)window.SetAsset(value);}
+        protected override string TypeLabel=>"Song";
+        protected override string NewAssetName=>"Song";
+        protected override string DefaultFolder=>"Assets/ZTracker";
+        protected override bool AutoInsertTagsSection=>false;
+        protected override void InitializeNewAsset(ZTrackerSong item){SeedSong(item);item.model.name=item.name;}
+        protected override void InitializeDuplicate(ZTrackerSong copy){if(copy.schemaVersion==1&&copy.model!=null){copy.model.id=Id();copy.model.name=copy.name;}}
+        // One name for a song: its title follows a rename of its file (an Undo step; the file rename itself is file work).
+        protected override void OnRenamed(ZTrackerSong item){if(item==song&&Data!=null&&Data.name!=item.name)SongEdit("song name",()=>Data.name=item.name);}
+        protected override void OnAssetChanged(){StopPreview();order=row=track=sub=0;instrument=null;Upgrade();}
+        // Saving, importing or reimporting any asset raises projectChanged; only the browser needs that rescan.
+        protected override void OnProjectChanged(){if(song==null||IsBrowsing)base.OnProjectChanged();}
+        protected override void BuildToolbarExtras(VisualElement row)
         {
-            root.UnregisterCallback<KeyDownEvent>(PatternShortcutFromControls,TrickleDown.TrickleDown);
-            root.RegisterCallback<KeyDownEvent>(PatternShortcutFromControls,TrickleDown.TrickleDown);
-            WireInstrumentKeyboard(root);
-            root.AddToClassList("tracker-compact");
+            // Save, Undo and Redo wrap together on a narrow window.
+            var edit=Z.Row(Button("Save","Save this song and its edited instrument.",Save,"save"),Named(Z.IconButton("arrow-counter-clockwise","Undo the last authored change.",Undo.PerformUndo),"undo"),Named(Z.IconButton("arrow-clockwise","Redo the last undone change.",Undo.PerformRedo),"redo"));
+            edit.style.flexShrink=0;row.Add(edit);
+            row.Add(BuildMidiControls());
+        }
+        protected override void BuildAsset(VisualElement root,ZTrackerSong edited)
+        {
+            var window=rootVisualElement;
+            window.UnregisterCallback<KeyDownEvent>(PatternShortcutFromControls,TrickleDown.TrickleDown);
+            window.RegisterCallback<KeyDownEvent>(PatternShortcutFromControls,TrickleDown.TrickleDown);
+            WireInstrumentKeyboard(window);
+            window.AddToClassList("tracker-compact");
             minSize=new Vector2(760,440);
             var path=AssetDatabase.FindAssets("ZTracker t:StyleSheet").Select(AssetDatabase.GUIDToAssetPath).FirstOrDefault(p=>p.EndsWith("/ZTracker.uss"));
-            if(path!=null)root.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(path));
-            root.Add(Flow(Named(Z.Object(song,"Choose a song to edit.",v=>{StopPreview();song=v;order=row=track=sub=0;Upgrade();Rebuild();},200),"song"),Button("New song","Create a saved empty version-1 song.",CreateSong,"new-song"),Button("Save","Save this song and its edited instrument.",Save,"save"),
-                Named(Z.IconButton("arrow-counter-clockwise","Undo the last authored change.",Undo.PerformUndo),"undo"),Named(Z.IconButton("arrow-clockwise","Redo the last undone change.",Undo.PerformRedo),"redo"),BuildMidiControls()));
+            if(path!=null){var sheet=AssetDatabase.LoadAssetAtPath<StyleSheet>(path);if(!window.styleSheets.Contains(sheet))window.styleSheets.Add(sheet);}
+            root.style.flexGrow=1;root.style.minHeight=0;
             status=Z.Text("Idle",tooltip:"Preview status.");status.name="transport-status";status.style.width=210;status.style.height=24;status.style.whiteSpace=WhiteSpace.NoWrap;status.style.overflow=Overflow.Hidden;
             root.Add(Flow(Named(Z.IconButton("play","Start the song from its first row. Space toggles play/stop.",()=>Play(false)),"play"),Named(Z.IconButton("play-circle","Start at the selected sequence slot and row.",()=>Play(true)),"play-cursor"),Named(Z.IconButton("stop","Stop preview and release its owned audio buffers.",StopPreview),"stop"),Z.Toggle("Follow","Scroll the pattern to each row reached by playback.",follow,v=>follow=v),status));
             root.Add(Z.Segmented(pane,new[]{"Pattern","Mixer","Automation","Instrument","Song"},"Choose the authoring workspace.",v=>{pane=v;BuildPane();if(pane==3)rootVisualElement.Focus();}));
@@ -168,9 +196,9 @@ namespace Laubrary.ZTracker.Editor
             }MidiPump();RefreshTransport();
         }
         void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Pending: Stop/Play":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
-        void OnEnable(){Undo.undoRedoPerformed+=OnUndo;Upgrade();}
+        protected override void OnEnable(){if(asset==null&&legacySong!=null)asset=legacySong;legacySong=null;base.OnEnable();Undo.undoRedoPerformed-=OnUndo;Undo.undoRedoPerformed+=OnUndo;Upgrade();}
         void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();RefreshLive();BuildPane();}
-        protected override void OnDisable(){CaptureWorkspace();ReleaseInstrumentKeys();pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();MidiShutdown();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
+        protected override void OnDisable(){LauAssetGridGUI.ClearCache(chipThumbs);CaptureWorkspace();ReleaseInstrumentKeys();pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();MidiShutdown();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
         // ZuiWindow may rebuild on domain reload/view changes; it must not stop a healthy graph.
         protected override void OnBeforeRebuild(){CaptureWorkspace();displayedWorkspace=null;pumpSchedule?.Pause();pumpSchedule=null;}
         void Save(){if(song!=null)AssetDatabase.SaveAssetIfDirty(song);if(Data!=null)foreach(var linked in Data.instruments.Where(i=>i!=null).Distinct())AssetDatabase.SaveAssetIfDirty(linked);if(instrument!=null)AssetDatabase.SaveAssetIfDirty(instrument);}
@@ -179,19 +207,25 @@ namespace Laubrary.ZTracker.Editor
         static void Folder(){if(!AssetDatabase.IsValidFolder("Assets/ZTracker"))AssetDatabase.CreateFolder("Assets","ZTracker");}
         void CreateSong()
         {
-            StopPreview();Folder();song=CreateInstance<ZTrackerSong>();song.schemaVersion=1;song.model=new SongData{id=Id(),name="Untitled"};
-            song.model.tracks.Add(new TrackData{id=Id(),name="Track 1",columns=new List<ColumnVisibility>{new ColumnVisibility{volume=true,pan=true,delay=true,sampleFx=true}}});song.model.tracks.Add(new TrackData{id=Id(),name="Master",kind=TrackKind.Master,visibleNoteColumns=0});
-            var pattern=NewPattern("Pattern 1");song.model.patterns.Add(pattern);song.model.sequence.Add(new SequenceSlot{id=Id(),patternId=pattern.id});
-            AssetDatabase.CreateAsset(song,AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Song.asset"));Undo.RegisterCreatedObjectUndo(song,"Tracker: create song");AssetDatabase.SaveAssetIfDirty(song);order=row=track=sub=0;pane=0;instrument=null;Rebuild();
+            StopPreview();Folder();var created=CreateInstance<ZTrackerSong>();SeedSong(created);
+            AssetDatabase.CreateAsset(created,AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Song.asset"));Undo.RegisterCreatedObjectUndo(created,"Tracker: create song");AssetDatabase.SaveAssetIfDirty(created);pane=0;SetAsset(created);
         }
-        PatternData NewPattern(string name){var p=new PatternData{id=Id(),name=name};foreach(var t in Data.tracks)p.tracks.Add(new PatternTrack{trackId=t.id});return p;}
+        /// <summary>A new song: version 1, one note track and the master, one empty pattern in the sequence.</summary>
+        internal static void SeedSong(ZTrackerSong target)
+        {
+            target.schemaVersion=1;target.model=new SongData{id=Id(),name="Untitled"};
+            target.model.tracks.Add(new TrackData{id=Id(),name="Track 1",columns=new List<ColumnVisibility>{new ColumnVisibility{volume=true,pan=true,delay=true,sampleFx=true}}});target.model.tracks.Add(new TrackData{id=Id(),name="Master",kind=TrackKind.Master,visibleNoteColumns=0});
+            var pattern=NewPattern(target.model,"Pattern 1");target.model.patterns.Add(pattern);target.model.sequence.Add(new SequenceSlot{id=Id(),patternId=pattern.id});
+        }
+        PatternData NewPattern(string name)=>NewPattern(Data,name);
+        static PatternData NewPattern(SongData data,string name){var p=new PatternData{id=Id(),name=name};foreach(var t in data.tracks)p.tracks.Add(new PatternTrack{trackId=t.id});return p;}
         void BuildSongControls(VisualElement root)
         {
             BuildPatternSidebar(root);
         }
         void BuildSongSettings(VisualElement root)
         {
-            root.Add(Z.Field("Name","Song title.",Z.TextInput(Data.name,"Rename the song.",v=>SongEdit("song name",()=>Data.name=v),175)));
+            root.Add(Flow(Z.Field("Name","Song title.",Z.TextInput(Data.name,"Rename the song.",v=>SongEdit("song name",()=>Data.name=v),175)),SongTags()));
             root.Add(Flow(CommandMenu(DialSong("BPM",(float)Data.bpm,32,999,"Song tempo in beats per minute. Right-click to give it a command id.",v=>Data.bpm=v,decimals:2,defaultValue:(float)new SongData().bpm),SongTempoTarget),DialSong("LPB",Data.linesPerBeat,1,256,"Lines per beat.",v=>Data.linesPerBeat=(int)v,defaultValue:new SongData().linesPerBeat),Z.ScrubNumber("TPL",Data.ticksPerLine,1,16,"Effect ticks per line.",v=>SongEdit("ticks per line",()=>Data.ticksPerLine=v),85,6)));
             root.Add(Flow(Z.Field("Voices","Maximum simultaneous voices.",Z.Int(Data.voiceCapacity,"Voice pool capacity; changing this takes effect on next Play.",v=>SongEdit("voice capacity",()=>Data.voiceCapacity=Math.Max(1,v)),85)),Z.Field("Seed","Deterministic random seed.",Z.TextInput(Data.seed.ToString(),"Unsigned 64-bit random seed.",v=>{if(ulong.TryParse(v,out var seed))SongEdit("random seed",()=>Data.seed=seed);},110)),Z.Toggle("Beat events","Emit song beat events.",Data.beatTicks,v=>SongEdit("song beat events",()=>Data.beatTicks=v,true)),Data.beatTicks?DialSong("Beat interval",Data.beatIntervalLines,1,512,"Lines between song beat events.",v=>Data.beatIntervalLines=(int)v,defaultValue:new SongData().beatIntervalLines):null));
             BuildSlotMutes(root);
@@ -213,7 +247,7 @@ namespace Laubrary.ZTracker.Editor
         void BuildInstrumentSelector(VisualElement root)
         {
             var box=Z.BoxKeyed("Instruments","Choose the instrument used by note entry and audition.","tracker.model.instruments");
-            box.Add(Flow(Button("+ Instrument","Create and add a new instrument.",CreateInstrument,"new-instrument"),Button("+ Drumkit","Create a drum kit and open its key map.",CreateDrumKit,"new-drum-kit"),Named(Z.Object<ZTrackerInstrument>(null,"Add an existing instrument.",v=>{if(v==null)return;SongEdit("add instrument",()=>Data.instruments.Add(v),true);},155),"add-instrument")));
+            box.Add(Flow(Button("+ Instrument","Create and add a new instrument.",CreateInstrument,"new-instrument"),Button("+ Drumkit","Create a drum kit and open its key map.",CreateDrumKit,"new-drum-kit"),AddInstrumentButton()));
             if(Data.instruments.Count>0)box.Add(Named(Z.MiniRadio(entryInstrument,Data.instruments.Select((v,i)=>$"{i:X2} {InstrumentTitle(v)}").ToArray(),"Select an instrument; the preview button auditions it.",v=>{entryInstrument=v;instrument=Data.instruments[v];if(pane==3)BuildPane();},wrap:true),"instrument-selector"));
             if(Data.instruments.Count>0)box.Add(Flow(Z.IconButton("pencil","Open the selected instrument.",()=>{instrument=Data.instruments[Mathf.Clamp(entryInstrument,0,Data.instruments.Count-1)];pane=3;Rebuild();}),Z.IconButton("play","Audition the selected instrument at the current octave.",()=>Audition(octave*12)),Z.IconButton("stop","Release instrument audition notes.",AuditionOff)));root.Add(box);
         }

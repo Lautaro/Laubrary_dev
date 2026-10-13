@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "ZTracker/Instrument", fileName = "NewInstrument")]
-public class ZTrackerInstrument : ScriptableObject, ISerializationCallbackReceiver
+public class ZTrackerInstrument : ScriptableObject, ISerializationCallbackReceiver, Laubrary.PreviewKit.IVisualPreview
 {
     public int schemaVersion;
     public Laubrary.ZTracker.Model.InstrumentData model;
@@ -417,6 +417,12 @@ public class ZTrackerInstrument : ScriptableObject, ISerializationCallbackReceiv
                 return kitEntries[i].displayName;
         return null;
     }
+
+    // ── its picture in Laubrary's asset browsers and pickers (view only; never dirties the asset) ──
+    public Texture2D RenderPreviewTexture() => Laubrary.ZTracker.Model.ZTrackerThumbnails.Instrument(schemaVersion == 1 ? model : null);
+    public bool CanAnimatePreview => false;
+    public float PreviewFps => 0;
+    public void UpdateAnimatedPreview(Texture2D tex, double time) { }
 }
 
 public enum InstrumentType

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "ZTracker/Song", fileName = "NewSong")]
-public class ZTrackerSong : ScriptableObject, ISerializationCallbackReceiver
+public class ZTrackerSong : ScriptableObject, ISerializationCallbackReceiver, Laubrary.PreviewKit.IVisualPreview
 {
     // Zero intentionally has no initializer: an absent YAML field is legacy.
     public int schemaVersion;
@@ -80,6 +80,12 @@ public class ZTrackerSong : ScriptableObject, ISerializationCallbackReceiver
         }
         return total;
     }
+
+    // ── its picture in Laubrary's asset browsers and pickers (view only; never dirties the asset) ──
+    public Texture2D RenderPreviewTexture() => Laubrary.ZTracker.Model.ZTrackerThumbnails.Song(schemaVersion == 1 ? model : null);
+    public bool CanAnimatePreview => false;
+    public float PreviewFps => 0;
+    public void UpdateAnimatedPreview(Texture2D tex, double time) { }
 
 }
 

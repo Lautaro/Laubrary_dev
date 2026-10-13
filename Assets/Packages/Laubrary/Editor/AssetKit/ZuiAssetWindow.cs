@@ -64,6 +64,15 @@ namespace Laubrary.AssetKit.Editor
         protected virtual void OnAssetChanged() { }
         /// Seed a freshly-created asset with tool-specific default content.
         protected virtual void InitializeNewAsset(T item) { }
+        /// Fix up a fresh Duplicate before it is opened, e.g. give it its own internal identity so the copy and the
+        /// original are never mistaken for one another. Called after the file is copied, inside the Duplicate's undo group.
+        protected virtual void InitializeDuplicate(T copy) { }
+        /// After the toolbar's Rename changed the file name (the asset's name is the new one), e.g. to keep a display
+        /// name the tool shows elsewhere the same as the file's.
+        protected virtual void OnRenamed(T item) { }
+        /// A tool's own always-present controls (save, undo/redo, a device menu…), placed in the asset toolbar row
+        /// after the file actions, so the tool's chrome stays one row instead of a second toolbar under this one.
+        protected virtual void BuildToolbarExtras(VisualElement row) { }
         protected virtual float CellSize => 104f;
         protected virtual float ThumbSize => 92f;
 
@@ -247,9 +256,11 @@ namespace Laubrary.AssetKit.Editor
 
         VisualElement BuildToolbar()
         {
+            var picker = Z.Object<T>(asset, $"The {TypeLabel} asset being edited — assign one directly, or use Browse.",
+                v => SetAsset(v), 200f);
+            picker.name = "lau-asset-field";   // a stable handle for a tool's own checks and walks
             var row = Z.Row(
-                Z.Object<T>(asset, $"The {TypeLabel} asset being edited — assign one directly, or use Browse.",
-                    v => SetAsset(v), 200f),
+                picker,
                 Z.Button("New", $"Create a brand new {TypeLabel} asset (undoable).",
                     () => { creating = true; renaming = false; createText = NewAssetName;
                              createFolder = RememberedNewFolder() ?? FolderForNew(); createFolderExplicit = false; Rebuild(); }),
@@ -270,6 +281,9 @@ namespace Laubrary.AssetKit.Editor
                     var d = AssetLibrary<T>.Duplicate(asset);
                     if (d != null)
                     {
+                        InitializeDuplicate(d);
+                        EditorUtility.SetDirty(d);
+                        AssetDatabase.SaveAssetIfDirty(d);
                         Undo.RegisterCreatedObjectUndo(d, "Duplicate " + TypeLabel);
                         SetAsset(d);
                         if (browsing) { RefreshBrowse(); Rebuild(); }
@@ -300,8 +314,10 @@ namespace Laubrary.AssetKit.Editor
                     filterField.SelectRange(_browseFilter.Length, _browseFilter.Length);
                 });
             }
-            row.Add(filterField);
+            // The filter only acts on the library grid, so it is shown only while the grid is.
+            if (asset == null || browsing) row.Add(filterField);
 
+            BuildToolbarExtras(row);
             row.Add(Z.Flexible());
             return row;
         }
@@ -404,8 +420,9 @@ namespace Laubrary.AssetKit.Editor
             TextField nameField = Z.TextInput(renameText, "New file name for this asset.", v => renameText = v, 200f);
             void Confirm()
             {
-                AssetLibrary<T>.Rename(asset, renameText);
+                bool renamed = AssetLibrary<T>.Rename(asset, renameText);
                 renaming = false;
+                if (renamed) OnRenamed(asset);
                 if (browsing) RefreshBrowse();
                 Rebuild();
             }
