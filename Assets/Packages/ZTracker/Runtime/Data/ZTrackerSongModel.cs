@@ -87,7 +87,9 @@ namespace Laubrary.ZTracker.Model
         public List<EventCell> events = new List<EventCell>();
         public bool HasPayload => notes.Exists(n => n.HasPayload) || effects.Exists(e => e.command.HasPayload) || events.Exists(e => e.present);
     }
-    [Serializable] public sealed class AutomationPoint { public double line; public float value; }
+    /// <summary>How the line leaves a point: as the lane says, straight to the next point, or held until the next point.</summary>
+    public enum AutomationShape { Lane, Linear, Step }
+    [Serializable] public sealed class AutomationPoint { public double line; public float value; public AutomationShape segment; }
     [Serializable] public sealed class AutomationLane
     {
         public string id = "";
@@ -134,6 +136,16 @@ namespace Laubrary.ZTracker.Model
         public string command = "";
         public bool bar;
     }
+    /// <summary>
+    /// An envelope column of a track: a line drawn down the pattern that drives one command. <c>command</c> is a song
+    /// command's stable uid or a built-in id (0L, 0P); empty while unbound. Its points live in each pattern as the
+    /// automation lane <c>ZTrackerEnvelopes.LaneId(uid)</c> of this track, so the engine plays them like any lane.
+    /// </summary>
+    [Serializable] public sealed class EnvelopeColumnData
+    {
+        public string uid = "";
+        public string command = "";
+    }
     [Serializable] public sealed class SendDestination
     {
         public string trackId = "";
@@ -151,6 +163,7 @@ namespace Laubrary.ZTracker.Model
         public int visibleNoteColumns = 1, visibleEffectColumns = 1;
         public List<ColumnVisibility> columns = new List<ColumnVisibility>();
         public List<EffectColumnView> effectColumnViews = new List<EffectColumnView>();
+        public List<EnvelopeColumnData> envelopeColumns = new List<EnvelopeColumnData>();
         public float preVolume = 1, prePan, preWidth = 1, postVolume = 1, postPan;
         public bool triggerMute, outputMute, solo;
         public AudioEffectChainData devices = new AudioEffectChainData();

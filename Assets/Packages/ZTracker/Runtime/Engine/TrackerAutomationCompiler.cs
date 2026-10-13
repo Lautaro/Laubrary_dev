@@ -233,6 +233,7 @@ namespace Laubrary.ZTracker.Engine
                         int target = -1;
                         bool timing = t.kind == ParameterKind.Timing;
                         bool valid = !lane.unsupported && !t.unresolved && ti >= 0 && lane.scaling == 0 && (lane.sourceMode == "" || lane.sourceMode == "Points" || lane.sourceMode == "Lines") && Enum.IsDefined(typeof(AutomationInterpolation), lane.interpolation) && math.isfinite(lane.timeQuantum) && lane.timeQuantum >= 1d / 256;
+                        valid &= lane.points.All(p => Enum.IsDefined(typeof(AutomationShape), p.segment));
                         var sorted = lane.points.OrderBy(p => p.line).ToList();
                         double prev = -1;
                         foreach (var point in sorted)
@@ -249,9 +250,12 @@ namespace Laubrary.ZTracker.Engine
 
                         if (t.kind == ParameterKind.Dynamic)
                         {
-                            // An envelope column (or any lane) aimed at a song command definition, by its stable uid.
+                            // An envelope column (or any lane) aimed at a song command definition, by its stable uid,
+                            // or at a built-in the track's envelope column drives (0L, 0P).
                             if (dynamicUids.TryGetValue(t.parameter ?? "", out int dynamicTarget))
                                 target = dynamicTarget;
+                            else if (ZTrackerEnvelopes.IsBuiltin(t.parameter))
+                                target = BuiltinEnvelope(ti, t.parameter[1]);
                         }
                         else if (t.kind == ParameterKind.Device)
                         {
@@ -338,10 +342,11 @@ namespace Laubrary.ZTracker.Engine
                             points = knots.Count,
                             count = sorted.Count,
                             linear = lane.interpolation == AutomationInterpolation.Linear,
-                            timing = timing
+                            timing = timing,
+                            envelope = ZTrackerEnvelopes.IsEnvelopeLane(lane)
                         };
                         foreach (var point in sorted)
-                            knots.Add(new TrackerAutomationPoint { line = point.line, value = point.value });
+                            knots.Add(new TrackerAutomationPoint { line = point.line, value = point.value, linear = point.segment == AutomationShape.Linear || point.segment == AutomationShape.Lane && a.linear });
                         lanes.Add(a);
                     }
                 }

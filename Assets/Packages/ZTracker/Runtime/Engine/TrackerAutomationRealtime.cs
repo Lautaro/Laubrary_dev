@@ -212,8 +212,16 @@ namespace Laubrary.ZTracker.Engine
                 var lane = state.automation[i];
                 if (lane.pattern != pattern || lane.count == 0 || timingOnly && !lane.timing || !timingOnly && lane.timing)
                     continue;
-                float value = state.deviceParameters[lane.target].authored;
                 var first = state.automationPoints[lane.points];
+                if (lane.envelope)
+                {
+                    // An envelope column drives its command only between its first and last point, and gives way for the
+                    // whole row to a typed command for the same command on that row.
+                    if (time < first.line || time > state.automationPoints[lane.points + lane.count - 1].line || state.deviceParameters[lane.target].typedRow == state.rowSerial)
+                        continue;
+                }
+
+                float value = state.deviceParameters[lane.target].authored;
                 if (time >= first.line)
                 {
                     value = first.value;
@@ -222,11 +230,9 @@ namespace Laubrary.ZTracker.Engine
                         var b = state.automationPoints[lane.points + j];
                         if (time < b.line)
                         {
-                            if (lane.linear)
-                            {
-                                var a = state.automationPoints[lane.points + j - 1];
+                            var a = state.automationPoints[lane.points + j - 1];
+                            if (a.linear)
                                 value = math.lerp(a.value, b.value, (float)((time - a.line) / (b.line - a.line)));
-                            }
 
                             break;
                         }

@@ -206,6 +206,7 @@ namespace Laubrary.ZTracker.Engine
                     var parameter = state.deviceParameters[op.target];
                     parameter.written = true;
                     parameter.latent = op.value / 255f;
+                    parameter.typedRow = state.rowSerial;
                     state.deviceParameters[op.target] = parameter;
                     state.parameterDirty[op.target] = 1;
                     continue;

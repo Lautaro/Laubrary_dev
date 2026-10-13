@@ -21,7 +21,19 @@ namespace Laubrary.ZTracker.Engine
 
         /// <summary>Normalized latent value → target units; the authored position maps back to the exact authored value.</summary>
         static float DynamicValue(in TrackerDeviceParameter p, float u)
-            => u == p.authored ? p.destinationAuthored : (float)((double)p.min + ((double)p.max - p.min) * u);
+            => u == p.authored ? p.destinationAuthored : p.curve != 0 ? CurveValue(p.curve, u) : (float)((double)p.min + ((double)p.max - p.min) * u);
+
+        /// <summary>
+        /// The built-in curves, continuous in u and equal to the typed command at every byte value: 1 = 0L track pre gain
+        /// (00 silent, 01…FF from −60 to +3 dB), 2 = 0P track pre pan (00 left, 80 centre, FF right).
+        /// </summary>
+        static float CurveValue(byte curve, float u)
+        {
+            double v = math.saturate(u) * 255d;
+            if (curve == 1)
+                return v <= 0 ? 0 : v < 1 ? (float)(v * .001) : math.pow(10f, (float)((-60 + 63 * (v - 1) / 254) / 20));
+            return (float)((v - 128) / (v <= 128 ? 128d : 127d));
+        }
 
         float ClampDynamic(in TrackerDeviceParameter p, float value)
         {
@@ -59,18 +71,23 @@ namespace Laubrary.ZTracker.Engine
             if (p.laneRamp && !state.silentReplay)
             {
                 // A linear lane: start exactly on the line here and reach its value at the next evaluation point.
+                // An envelope column whose line begins here, or resumes after a typed command took a row, starts from
+                // where the target is and glides onto the line by that point instead of jumping (no click).
+                float from = p.laneEnvelope && !p.laneOwned && !state.dynamicLanding ? p.destination : value;
                 p.laneRamp = false;
-                p.destination = value;
+                p.laneOwned = true;
+                p.destination = from;
                 p.target = ClampDynamic(in p, DynamicValue(in p, math.saturate(p.laneNext)));
                 p.remaining = (int)math.max(1, math.round(p.laneFrames));
                 p.step = (float)(((double)p.target - p.destination) / p.remaining);
                 p.stepping = true;
                 state.deviceParameters[at] = p;
-                ApplyDynamic(in p, value, value, 1);
+                ApplyDynamic(in p, from, from, 1);
                 return;
             }
 
             p.laneRamp = false;
+            p.laneOwned = false;
             if (value == p.target && (p.remaining > 0 || value == p.destination))
             {
                 state.deviceParameters[at] = p;
@@ -196,6 +213,7 @@ namespace Laubrary.ZTracker.Engine
         /// <summary>Play, Stop and Seek: every command target returns exactly to its authored value, without a ramp.</summary>
         void ResetDynamic()
         {
+            state.dynamicLanding = true;
             for (int i = 0; i < state.dynamicCount; i++)
             {
                 int at = state.dynamicParameters[i];
@@ -206,6 +224,8 @@ namespace Laubrary.ZTracker.Engine
                 p.step = 0;
                 p.stepping = false;
                 p.laneRamp = false;
+                p.laneOwned = false;
+                p.typedRow = -1;
                 state.deviceParameters[at] = p;
                 if (p.kind == 3)
                 {
@@ -234,8 +254,9 @@ namespace Laubrary.ZTracker.Engine
         void DynamicLaneHint(in TrackerAutomation lane, double time)
         {
             var parameter = state.deviceParameters[lane.target];
-            if (!parameter.dynamic || !lane.linear || state.silentReplay || state.held)
+            if (!parameter.dynamic || !SegmentLinear(in lane, time) || state.silentReplay || state.held)
                 return;
+            parameter.laneEnvelope = lane.envelope;
             int tpl = math.max(1, state.ticksPerLine);
             double tickTime = state.row + (math.floor((time - state.row) * tpl + 1e-9) + 1) / tpl;
             double next = math.min(tickTime, state.row + 1);
@@ -265,16 +286,25 @@ namespace Laubrary.ZTracker.Engine
                 var b = state.automationPoints[lane.points + j];
                 if (time < b.line)
                 {
-                    if (lane.linear)
-                    {
-                        var a = state.automationPoints[lane.points + j - 1];
+                    var a = state.automationPoints[lane.points + j - 1];
+                    if (a.linear)
                         value = math.lerp(a.value, b.value, (float)((time - a.line) / (b.line - a.line)));
-                    }
                     return value;
                 }
                 value = b.value;
             }
             return value;
+        }
+
+        /// <summary>Whether the lane's line runs straight at <paramref name="time"/>: the shape of the segment there (before the first point, the lane's own).</summary>
+        bool SegmentLinear(in TrackerAutomation lane, double time)
+        {
+            if (lane.count == 0 || time < state.automationPoints[lane.points].line)
+                return lane.linear;
+            for (int j = 1; j < lane.count; j++)
+                if (time < state.automationPoints[lane.points + j].line)
+                    return state.automationPoints[lane.points + j - 1].linear;
+            return state.automationPoints[lane.points + lane.count - 1].linear;
         }
     }
 }

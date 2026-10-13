@@ -147,6 +147,18 @@ namespace Laubrary.ZTracker.Engine
                     CommandDiagnostic("UNSUPPORTED_COMMAND", c, address);
                     return false;
                 }
+
+                // A track whose envelope column drives 0L/0P: the typed command writes the same record, so the two
+                // compose row by row (the typed value takes its own row, the line resumes after it).
+                if (column < 0 && (id[1] == 'L' || id[1] == 'P'))
+                {
+                    int envelope = BuiltinEnvelope(track, id[1]);
+                    if (envelope >= 0)
+                    {
+                        op.kind = 300;
+                        op.target = envelope;
+                    }
+                }
             }
             else if (id[0] == 'Z' && column < 0)
             {

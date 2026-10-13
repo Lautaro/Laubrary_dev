@@ -234,9 +234,17 @@ namespace Laubrary.ZTracker.Engine
         public float destinationAuthored, destination, target, step, laneNext;
         public int remaining;
         public double laneFrames;
+        // curve: how a normalized value maps to the target (0 linear min…max; 1 the 0L gain curve; 2 the 0P pan curve).
+        // An envelope lane (laneEnvelope) glides onto its line instead of jumping when something else wrote last
+        // (laneOwned false); typedRow is the row serial on which a typed command took the value for its row.
+        public byte curve;
+        public bool laneOwned, laneEnvelope;
+        public long typedRow;
     }
-    public struct TrackerAutomation { public int pattern, target, points, count; public bool linear, timing; }
-    public struct TrackerAutomationPoint { public double line; public float value; }
+    // envelope: an envelope column's lane, which drives its target only between its first and last point.
+    public struct TrackerAutomation { public int pattern, target, points, count; public bool linear, timing, envelope; }
+    // linear: the segment leaving this point is a straight line (otherwise the value holds until the next point).
+    public struct TrackerAutomationPoint { public double line; public float value; public bool linear; }
     public struct TrackerClockCommand { public int kind, value; } // 1 BPM, 2 LPB, 3 TPL, 4 break
     public struct TrackerAuthoredEvent { public int track, column, payload; }
     public struct TrackerPattern { public int rows, lineCount; }
@@ -340,6 +348,10 @@ namespace Laubrary.ZTracker.Engine
         public double rowDuration, automationTime, automationDeadline;
         public ulong seed;
         public long rowOccurrence;
+        // rowSerial counts every row entered (including a seek's silent replay); dynamicLanding is true from a
+        // Play/Stop/Seek reset until the first row has been entered, where lanes land exactly on their line.
+        public long rowSerial;
+        public bool dynamicLanding;
     }
     public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap }
     public struct TrackerCommand

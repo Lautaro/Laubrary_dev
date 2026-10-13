@@ -109,8 +109,67 @@ namespace Laubrary.ZTracker.Engine
                     dynamicIds.Add(id, index);
                     dynamicUids.Add(definition.uid, index);
                 }
+            BuildBuiltinEnvelopes(song, parameters, records);
             state.dynamicParameters = Native(records);
             state.dynamicCount = records.Count;
         }
+
+        // Track index * 2 + (0 = 0L, 1 = 0P) → record index, for tracks whose envelope columns drive a built-in.
+        readonly Dictionary<int, int> builtinEnvelopes = new Dictionary<int, int>();
+
+        /// <summary>
+        /// An envelope column bound to a built-in (0L track pre gain, 0P track pre pan) gets one record per track and
+        /// command, mapped through the same curve the typed command uses, so the column and that track's typed 0L/0P
+        /// share it and compose row by row. Songs without such a column get no record and are unchanged.
+        /// </summary>
+        void BuildBuiltinEnvelopes(SongData song, List<TrackerDeviceParameter> parameters, List<int> records)
+        {
+            var wanted = new SortedSet<int>();
+            for (int ti = 0; ti < song.tracks.Count; ti++)
+                if (song.tracks[ti]?.envelopeColumns != null)
+                    foreach (var column in song.tracks[ti].envelopeColumns)
+                        if (column != null && ZTrackerEnvelopes.IsBuiltin(column.command)) wanted.Add(ti * 2 + (column.command == "0L" ? 0 : 1));
+            foreach (var pattern in song.patterns)
+                foreach (var pt in pattern.tracks)
+                {
+                    if (pt?.automation == null) continue;
+                    foreach (var lane in pt.automation)
+                    {
+                        if (lane?.target == null || lane.target.kind != ParameterKind.Dynamic || !ZTrackerEnvelopes.IsBuiltin(lane.target.parameter)) continue;
+                        string trackId = string.IsNullOrEmpty(lane.target.trackId) ? pt.trackId : lane.target.trackId;
+                        int ti = song.tracks.FindIndex(t => t != null && t.id == trackId);
+                        if (ti >= 0) wanted.Add(ti * 2 + (lane.target.parameter == "0L" ? 0 : 1));
+                    }
+                }
+            foreach (int key in wanted)
+            {
+                int ti = key / 2; bool gain = key % 2 == 0;
+                var tr = state.tracks[ti];
+                var p = new TrackerDeviceParameter { device = -1, track = ti, instrument = -1, chain = -1, node = -1, route = -1, min = 0, max = 1, dynamic = true, smooth = true, written = true, kind = 4, parameter = gain ? 0 : 1, curve = (byte)(gain ? 1 : 2), typedRow = -1 };
+                p.destinationAuthored = gain ? tr.authoredPreGain : tr.authoredPrePan;
+                p.authored = BuiltinPosition(p.curve, p.destinationAuthored);
+                p.latent = p.emitted = p.authored;
+                p.destination = p.target = p.destinationAuthored;
+                builtinEnvelopes[key] = parameters.Count;
+                records.Add(parameters.Count);
+                parameters.Add(p);
+            }
+        }
+
+        /// <summary>The normalized position (0…1) the 0L or 0P curve gives a target value; the inverse of TrackerRealtime.CurveValue.</summary>
+        static float BuiltinPosition(byte curve, float value)
+        {
+            if (curve == 1)
+            {
+                if (value <= 0) return 0;
+                double v = value < .001f ? value / .001 : 1 + 254 * (20 * math.log10(value) + 60) / 63;
+                return (float)math.saturate(v / 255);
+            }
+            float b = value <= 0 ? 128 + value * 128 : 128 + value * 127;
+            return math.saturate(b / 255);
+        }
+
+        /// <summary>The record a built-in envelope uses for this track and command, or -1.</summary>
+        internal int BuiltinEnvelope(int track, char command) => builtinEnvelopes.TryGetValue(track * 2 + (command == 'L' ? 0 : 1), out int at) ? at : -1;
     }
 }

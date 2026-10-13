@@ -20,7 +20,7 @@ namespace Laubrary.ZTracker.Engine
             // the ordered model IDs/payloads below, not wrapper instance IDs.
             copy.instruments.Clear();
             copy.name="";copy.diagnostics.Clear();copy.bpm=120;copy.linesPerBeat=4;copy.ticksPerLine=6;
-            foreach(var t in copy.tracks){t.name="";t.color=Color.gray;t.columns.Clear();t.effectColumnViews?.Clear();t.visibleEffectColumns=0;t.preVolume=t.postVolume=t.preWidth=1;t.prePan=t.postPan=0;t.triggerMute=t.outputMute=t.solo=false;NormalizeLiveChain(t.devices);}
+            foreach(var t in copy.tracks){t.name="";t.color=Color.gray;t.columns.Clear();t.effectColumnViews?.Clear();t.envelopeColumns?.Clear();t.visibleEffectColumns=0;t.preVolume=t.postVolume=t.preWidth=1;t.prePan=t.postPan=0;t.triggerMute=t.outputMute=t.solo=false;NormalizeLiveChain(t.devices);}
             foreach(var t in copy.tracks)
             {
                 if(t.sourceDevices!=null)foreach(var s in t.sourceDevices){if(s==null)continue;s.pluginId="";if(s.parameters!=null)foreach(var p in s.parameters){if(p==null)continue;p.defaultValue=0;p.parameter="";}}
@@ -28,7 +28,8 @@ namespace Laubrary.ZTracker.Engine
             }
             // A command's id, name and colour can change while playing; its target and range shape the compiled record.
             if(copy.dynamicParameters!=null)foreach(var d in copy.dynamicParameters)if(d!=null){d.id="";d.name="";d.color=Color.clear;}
-            foreach(var p in copy.patterns){p.name="";foreach(var t in p.tracks){t.lines.Clear();if(t.automation!=null)foreach(var lane in t.automation){if(lane==null)continue;lane.points?.Clear();lane.interpolation=AutomationInterpolation.Step;}}}
+            // Envelope column lanes come and go with their first and last point; a built-in one changes the record count, which the structural check catches.
+            foreach(var p in copy.patterns){p.name="";foreach(var t in p.tracks){t.lines.Clear();t.automation?.RemoveAll(ZTrackerEnvelopes.IsEnvelopeLane);if(t.automation!=null)foreach(var lane in t.automation){if(lane==null)continue;lane.points?.Clear();lane.interpolation=AutomationInterpolation.Step;}}}
             var key=new StringBuilder(JsonUtility.ToJson(copy));
             foreach(var i in source.instruments){if(i==null){key.Append("null");continue;}key.Append('|').Append(i.playbackSourceIdentity!=0?i.playbackSourceIdentity:i.GetInstanceID());var data=ZTrackerMigration.Copy(i.model);var q=data.parameters;
                 q.volume=q.pan=q.fineTune=q.blend=q.pulseWidth=q.waveBRatio=q.pmDepth=q.unisonDetune=q.unisonSpread=0;
@@ -115,7 +116,7 @@ namespace Laubrary.ZTracker.Engine
             for(int i=0;i<old.deviceCount;i++){var d=next.devices[i];if(d.authoredEnabled==old.devices[i].authoredEnabled)d.enabled=old.devices[i].enabled;next.devices[i]=d;}
             for(int i=0;i<old.deviceParameterCount;i++){var p=next.deviceParameters[i];var before=old.deviceParameters[i];if(p.authored==before.authored&&p.authoredPresent==before.authoredPresent){p.latent=before.latent;p.emitted=before.emitted;p.written=before.written;}
                 // A command definition keeps where its target is and where it is heading, if it still points at the same place.
-                if(p.dynamic&&before.dynamic&&p.kind==before.kind&&p.parameter==before.parameter&&p.track==before.track&&p.instrument==before.instrument&&p.chain==before.chain&&p.node==before.node&&p.destinationAuthored==before.destinationAuthored){p.destination=before.destination;p.target=before.target;p.step=before.step;p.remaining=before.remaining;p.stepping=before.stepping;}
+                if(p.dynamic&&before.dynamic&&p.kind==before.kind&&p.parameter==before.parameter&&p.track==before.track&&p.instrument==before.instrument&&p.chain==before.chain&&p.node==before.node&&p.destinationAuthored==before.destinationAuthored){p.destination=before.destination;p.target=before.target;p.step=before.step;p.remaining=before.remaining;p.stepping=before.stepping;p.laneOwned=before.laneOwned;p.laneEnvelope=before.laneEnvelope;p.typedRow=before.typedRow;}
                 next.deviceParameters[i]=p;}
             for(int i=0;i<old.columnCount;i++){var col=next.columns[i];if(col.pendingCell>=0){var cell=old.cells[col.pendingCell];int dest=next.carryCells+i;for(int j=0;j<cell.opCount;j++)next.ops[next.carryOps+i*3+j]=old.ops[cell.ops+j];cell.ops=next.carryOps+i*3;next.cells[dest]=cell;col.pendingCell=dest;next.columns[i]=col;}}
             for(int i=0;i<old.trackCount;i++){var before=old.tracks[i];var after=next.tracks[i];after.instrumentGain=before.instrumentGain;
@@ -130,7 +131,7 @@ namespace Laubrary.ZTracker.Engine
             next.samplePosition=old.samplePosition;next.transportOrigin=old.transportOrigin;next.cohort=old.cohort;next.sequenceIndex=old.sequenceIndex;next.row=old.row;next.tick=old.tick;next.breakRow=old.breakRow;
             next.rowStart=old.rowStart;next.rowEnd=old.rowEnd;next.rowDuration=old.rowDuration;next.clockCompensation=old.clockCompensation;next.tickDeadline=old.tickDeadline;next.tickRemaining=old.tickRemaining;
             next.liveTimingPending=old.liveTimingPending||next.authoredBpm!=old.authoredBpm||next.authoredLinesPerBeat!=old.authoredLinesPerBeat||next.authoredTicksPerLine!=old.authoredTicksPerLine;next.bpm=old.bpm;next.linesPerBeat=old.linesPerBeat;next.ticksPerLine=old.ticksPerLine;
-            next.playing=old.playing;next.paused=old.paused;next.held=old.held;next.holdRemaining=old.holdRemaining;next.rowPending=old.rowPending;next.loopSong=old.loopSong;next.normalization=old.normalization;next.rowOccurrence=old.rowOccurrence;next.automationTime=old.automationTime;next.automationDeadline=old.automationDeadline;
+            next.playing=old.playing;next.paused=old.paused;next.held=old.held;next.holdRemaining=old.holdRemaining;next.rowPending=old.rowPending;next.loopSong=old.loopSong;next.normalization=old.normalization;next.rowOccurrence=old.rowOccurrence;next.rowSerial=old.rowSerial;next.dynamicLanding=old.dynamicLanding;next.automationTime=old.automationTime;next.automationDeadline=old.automationDeadline;
             SapRenderTicket.Enter(old.ticket);SapRenderTicket.Exit(old.ticket,0,true);state=next;EvaluateParameters();
             // Sustain and release slopes are cached by held voices rather than read anew
             // every frame. Refresh only an edited stage, preserving its age and phase.

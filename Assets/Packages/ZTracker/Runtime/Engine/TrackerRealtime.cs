@@ -79,7 +79,7 @@ namespace Laubrary.ZTracker.Engine
             for(int visited=0;visited<1000000;visited++){
                 if(state.sequenceIndex==sequence&&state.row==row){state.silentReplay=false;state.transportOrigin=state.samplePosition-Quantize(state.rowStart);state.rowPending=true;state.playing=resume;if(discarded)Emit(TrackerEventKind.Diagnostic,payload:(int)TrackerRuntimeDiagnostic.SeekVoiceStateDiscarded);return;}
                 var pattern=state.patterns[state.sequence[state.sequenceIndex].pattern];var rr=state.rows[pattern.rows+state.row];EvaluateAutomation(state.row,true);RowGlobals(in rr);if(state.bpm==0||state.linesPerBeat==0)break;
-                int occurrence=state.sequenceIndex*state.rows.Length+pattern.rows+state.row;state.rowOccurrence=state.occurrences[occurrence]++;
+                int occurrence=state.sequenceIndex*state.rows.Length+pattern.rows+state.row;state.rowOccurrence=state.occurrences[occurrence]++;state.rowSerial++;
                 EvaluateAutomation(state.row);ResolveRowCommands(in rr);RowScalarWrites(in rr);
                 double evaluated=state.row;
                 int tick=1;
@@ -133,7 +133,7 @@ namespace Laubrary.ZTracker.Engine
             double previousBpm=state.bpm;int previousLpb=state.linesPerBeat,previousTpl=state.ticksPerLine;
             if(state.liveTimingPending){state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.liveTimingPending=false;}
             var seq=state.sequence[state.sequenceIndex];var pat=state.patterns[seq.pattern];var rr=state.rows[pat.rows+state.row];state.tick=0;state.breakRow=-1;state.held=false;
-            int occurrence=state.sequenceIndex*state.rows.Length+pat.rows+state.row;state.rowOccurrence=state.occurrences[occurrence]++;
+            int occurrence=state.sequenceIndex*state.rows.Length+pat.rows+state.row;state.rowOccurrence=state.occurrences[occurrence]++;state.rowSerial++;
             EvaluateAutomation(state.row,true);ClockCommands(in rr);
             if(state.bpm!=previousBpm||state.linesPerBeat!=previousLpb||state.ticksPerLine!=previousTpl)Emit(TrackerEventKind.TempoChanged);
             if(state.bpm==0||state.linesPerBeat==0){var stop=TrackerCommand.Stop();Apply(in stop);return;}
@@ -142,7 +142,7 @@ namespace Laubrary.ZTracker.Engine
             if(!ClockValid(state.rowStart,state.rowEnd,duration,state.clockCompensation)){state.playing=false;ClearVoices();Emit(TrackerEventKind.Diagnostic,payload:(int)(!math.isfinite(duration)||duration<1?TrackerRuntimeDiagnostic.InvalidClock:TrackerRuntimeDiagnostic.ClockLimit));Emit(TrackerEventKind.Stopped);return;}
             state.tickDeadline=state.rowStart+duration/state.ticksPerLine;
             PublishClockRow(false);
-            ResolveRowCommands(in rr);EvaluateAutomation(state.row);RowScalarWrites(in rr);ScheduleAutomationPoint(state.row);
+            ResolveRowCommands(in rr);EvaluateAutomation(state.row);RowScalarWrites(in rr);state.dynamicLanding=false;ScheduleAutomationPoint(state.row);
             Emit(TrackerEventKind.Row);Emit(TrackerEventKind.Tick);
             if(state.beatTicks&&state.row%state.beatInterval==0)Emit(TrackerEventKind.Beat);
             for(int t=0;t<state.trackCount;t++)if(state.tracks[t].beatTicks&&state.row%state.tracks[t].beatInterval==0&&!Muted(t))Emit(TrackerEventKind.Beat,t);
