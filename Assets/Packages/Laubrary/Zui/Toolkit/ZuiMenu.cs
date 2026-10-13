@@ -44,6 +44,8 @@ namespace Laubrary.Zui
         bool _searchEnabled;
         string _searchPlaceholder = "Search…";
         float _maxBodyHeight = 360f;
+        // Enter in the search field runs the first item the filter still shows, so a menu can be driven by typing alone.
+        readonly Dictionary<VisualElement, Action> _activate = new();
 
         internal ZuiMenu(VisualElement anchor) { _anchor = anchor; }
 
@@ -115,6 +117,7 @@ namespace Laubrary.Zui
                 var row = BuildItem(label, tooltip, onClick, @checked, enabled, icon, shortcut, close);
                 menu.Add(row);
                 if (_searchEnabled) _searchableItems.Add((row, (label ?? "").ToLowerInvariant(), section));
+                if (_searchEnabled && enabled) _activate[row] = () => { onClick?.Invoke(); close?.Invoke(); };
             });
             return this;
         }
@@ -236,6 +239,22 @@ namespace Laubrary.Zui
                     search.AddToClassList("zui-menu__search");
                     search.style.width = StyleKeyword.Auto;
                     search.style.marginBottom = 2f;
+                    search.RegisterCallback<KeyDownEvent>(e =>
+                    {
+                        if (e.keyCode != UnityEngine.KeyCode.Return && e.keyCode != UnityEngine.KeyCode.KeypadEnter) return;
+                        string q = (search.value ?? "").Trim().ToLowerInvariant();
+                        if (q.Length == 0) return;
+                        // An item whose label STARTS with the query wins over one that merely contains it.
+                        Action first = null, prefixed = null;
+                        foreach (var (row, text, _) in _searchableItems)
+                        {
+                            if (row.style.display == DisplayStyle.None || !_activate.TryGetValue(row, out var run)) continue;
+                            if (first == null) first = run;
+                            if (prefixed == null && text.StartsWith(q, StringComparison.Ordinal)) prefixed = run;
+                        }
+                        var pick = prefixed ?? first;
+                        if (pick != null) { e.StopPropagation(); pick(); }
+                    }, TrickleDown.TrickleDown);
                     menu.Add(search);
 
                     // Capped + scrollable body — the fix for ZuiPopover.Place's own documented limit that it
