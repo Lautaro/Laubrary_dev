@@ -31,7 +31,9 @@ namespace Laubrary.ZTracker.Editor
             void DoubleClick(VisualElement element)
             {
                 Need(element!=null,"Reset control missing");Layout();
-                using(var e=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,clickCount=2,mousePosition=element.worldBound.center})){e.target=element;element.SendEvent(e);}
+                var root=element.panel.visualTree;var at=element.worldBound.center;
+                using(var e=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,clickCount=2,mousePosition=at})){e.target=element;element.SendEvent(e);}
+                PointerRelease(root,at);
                 resets++;
             }
             try

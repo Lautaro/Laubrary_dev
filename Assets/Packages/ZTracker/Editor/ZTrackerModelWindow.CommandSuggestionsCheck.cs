@@ -145,7 +145,9 @@ namespace Laubrary.ZTracker.Editor
                     window.pane=4;window.BuildPane();LayoutChain(window);var chip=window.rootVisualElement.Q<Label>("command-chip-LW");var swatch=window.rootVisualElement.Q("command-color-LW");
                     Need(chip!=null&&swatch!=null&&Same(Back(chip),ZTrackerCommandRegistry.ColorOf(ZTrackerCommandRegistry.FindByUid(song.model,lv.uid))),"Song › Commands lacks the coloured chip or the colour field");
                     window.SetCommandColor(lv.uid,new Color(.9f,.5f,.5f,1));window.BuildPane();LayoutChain(window);chip=window.rootVisualElement.Q<Label>("command-chip-LW");
-                    using(var e=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,clickCount=2,mousePosition=chip.worldBound.center})){e.target=chip;chip.SendEvent(e);}
+                    var chipRoot=chip.panel.visualTree;var chipAt=chip.worldBound.center;
+                    using(var e=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown,button=0,clickCount=2,mousePosition=chipAt})){e.target=chip;chip.SendEvent(e);}
+                    PointerRelease(chipRoot,chipAt);
                     var picked=ZTrackerCommandRegistry.FindByUid(song.model,lv.uid).color;Need(ZTrackerCommandRegistry.AutoColors.Contains(picked),"Double-clicking the chip did not pick an automatic colour: "+picked);
                     window.pane=0;Rebuild();
                 });

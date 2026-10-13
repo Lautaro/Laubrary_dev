@@ -34,6 +34,7 @@ namespace Laubrary.ZTracker.Editor
                     Key(button,KeyCode.X,false);Need(window.instrumentKeys.Count==2&&Written()-start==4,"Independent key-up failed");
                     var text=root.Q<TextField>();text.Focus();Key(text,KeyCode.V,true);Need(window.instrumentKeys.Count==2&&Written()-start==4,"Typing triggered a note");
                     using(var click=PointerDownEvent.GetPooled(new Event{type=EventType.MouseDown})) { click.target=window.stage;window.InstrumentPointerDown(click); }
+                    PointerRelease(root.panel.visualTree,Vector2.zero);
                     Need(!IsTyping(root.focusController.focusedElement as VisualElement),"Blank-space click left stale typing focus");
                     Key(root,KeyCode.V,true);Need(window.instrumentKeys.Count==3,"Audition did not resume after typing");
                     window.OnLostFocus();Need(window.instrumentKeys.Count==0&&Written()-start==8,"Focus loss left held notes");

@@ -90,7 +90,9 @@ namespace Laubrary.ZTracker.Editor
                     var cell = library.Query(className: "lau-asset-browser__cell").ToList().FirstOrDefault(c => c.Q<Label>(className: "lau-asset-browser__cell-name")?.text == "Check song");
                     Need(cell != null, "the new song is not in the browser");
                     Need(cell.Q<Image>() != null, "the song's cell has no picture");
-                    using (var e = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0, clickCount = 2, mousePosition = cell.worldBound.center })) { e.target = cell; cell.SendEvent(e); }
+                    var cellRoot = cell.panel.visualTree; var cellAt = cell.worldBound.center;
+                    using (var e = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0, clickCount = 2, mousePosition = cellAt })) { e.target = cell; cell.SendEvent(e); }
+                    PointerRelease(cellRoot, cellAt);
                     Layout();
                     Need(window.song == song, "double-click did not open the song");
                     Need(window.rootVisualElement.Q("tracker-stage") != null, "the tracker workspace did not appear");

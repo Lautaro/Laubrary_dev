@@ -153,8 +153,10 @@ namespace Laubrary.ZTracker.Editor
                 {
                     Undo.ClearUndo(instrumentAsset); q.transpose = 7; window.BuildPane(); Layout();
                     var slider = Find("synth-transpose");
-                    using (var down = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0, clickCount = 2, mousePosition = slider.worldBound.center }))
+                    var sliderRoot = slider.panel.visualTree; var sliderAt = slider.worldBound.center;
+                    using (var down = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0, clickCount = 2, mousePosition = sliderAt }))
                     { down.target = slider; slider.SendEvent(down); }
+                    PointerRelease(sliderRoot, sliderAt);
                     Layout();
                     Need(q.transpose == 0, "Double-click did not reset semitone steps to the declared zero default");
                     Undo.PerformUndo(); Layout(); Need(q.transpose == 7, "Undo did not restore the authored semitone steps");

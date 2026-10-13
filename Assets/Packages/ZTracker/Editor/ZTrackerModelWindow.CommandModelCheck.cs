@@ -173,7 +173,9 @@ namespace Laubrary.ZTracker.Editor
 
         static void RightClick(VisualElement target)
         {
-            using (var right = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 1, mousePosition = target.worldBound.center })) { right.target = target; target.SendEvent(right); }
+            var root = target.panel.visualTree; var at = target.worldBound.center;
+            using (var right = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 1, mousePosition = at })) { right.target = target; target.SendEvent(right); }
+            PointerRelease(root, at, 1);
         }
 
         static void PickMenuItem(ZTrackerModelWindow window, string label)
@@ -241,7 +243,9 @@ namespace Laubrary.ZTracker.Editor
                 Need(range != null, "range control missing");
                 window.SongEdit("fixture range", () => asset.model.dynamicParameters[0].max = 1.2f, true); LayoutChain(window);
                 range = window.rootVisualElement.Q<ZuiMicroMinMax>("command-range-LV");
-                using (var down = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0, clickCount = 2, mousePosition = range.worldBound.center })) { down.target = range; range.SendEvent(down); }
+                var rangeRoot = range.panel.visualTree; var rangeAt = range.worldBound.center;
+                using (var down = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0, clickCount = 2, mousePosition = rangeAt })) { down.target = range; range.SendEvent(down); }
+                PointerRelease(rangeRoot, rangeAt);
                 Need(Mathf.Approximately(asset.model.dynamicParameters[0].max, 2) && Mathf.Approximately(asset.model.dynamicParameters[0].min, 0), "range double-click did not reset to 0–2: " + asset.model.dynamicParameters[0].min + "–" + asset.model.dynamicParameters[0].max);
                 Undo.PerformUndo(); Need(Mathf.Approximately(asset.model.dynamicParameters[0].max, 1.2f), "range reset Undo failed");
                 Undo.PerformRedo();

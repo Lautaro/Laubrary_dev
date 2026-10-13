@@ -29,6 +29,10 @@ namespace Laubrary.ZTracker.Editor
             MidiUiCheckReport = "RUNNING";
             var report = new StringBuilder(); int pass = 0, fail = 0;
             var prefsBefore = ReadCurrentMidiPrefs();
+            // This check clicks through the whole window, where a press is turned into a mere move while UI Toolkit's
+            // shared record still holds a button from earlier code; start from a clean record and say if it was not.
+            int heldAtStart = ReleaseHeldMouseButtons();
+            if (heldAtStart != 0) report.AppendLine("NOTE mouse buttons " + heldAtStart + " were still recorded as held by earlier code; released before the first click");
             var clip = AudioClip.Create("midi-ui-check", 96000, 1, 48000, false); var raw = new float[96000]; for (int i = 0; i < raw.Length; i++) raw[i] = .05f * Mathf.Sin(i * .05f); clip.SetData(raw, 0);
             var inst = TrackerEngineCheck.FixtureInstrument(clip); inst.name = "Check sine";
             // A synth needs no sample data, so the audio restart of the buffer step cannot invalidate the fixture.
@@ -40,21 +44,23 @@ namespace Laubrary.ZTracker.Editor
             var steps = new Queue<(string name, double wait, Action run)>();
             Action<bool, string> need = (c, m) => { if (!c) throw new Exception(m); };
             Func<string, VisualElement> find = name => window.rootVisualElement.Q(name) ?? throw new Exception("No element " + name);
+            string lastClick = "";
             Action<VisualElement, int> click = (element, button) =>
             {
                 var at = element.worldBound.center;
+                lastClick = CheckClickTrace(window, element, button, at);
                 window.SendEvent(new Event { type = EventType.MouseDown, button = button, mousePosition = at, clickCount = 1 });
                 window.SendEvent(new Event { type = EventType.MouseUp, button = button, mousePosition = at, clickCount = 1 });
             };
             Action<KeyCode, bool> key = (code, down) => window.SendEvent(new Event { type = down ? EventType.KeyDown : EventType.KeyUp, keyCode = code });
             Func<string, Button> anyButton = text => window.rootVisualElement.panel.visualTree.Query<Button>().ToList().FirstOrDefault(b => b.text == text);
             double energySong = 0, energyPreview = 0;
-            steps.Enqueue(("MIDI toggle turns MIDI on (real click)", .3, () => { need(find("midi-status") is Label s && s.text == "Off", "Status not Off at start"); click(find("midi-toggle"), 0); need(window.midiOn, "Click did not turn MIDI on"); }));
+            steps.Enqueue(("MIDI toggle turns MIDI on (real click)", .3, () => { need(find("midi-status") is Label s && s.text == "Off", "Status not Off at start"); click(find("midi-toggle"), 0); need(window.midiOn, "Click did not turn MIDI on: " + lastClick); }));
             steps.Enqueue(("right-click menu lists the simulated keyboard; picking it opens it", .5, () =>
             {
                 click(find("midi-toggle"), 1);
                 var item = anyButton(ZTrackerMidiSimulated.Device); need(item != null, "Menu has no Simulated keyboard entry");
-                click(item, 0); need(sim.IsOpen, "Simulated keyboard not opened");
+                click(item, 0); need(sim.IsOpen, "Simulated keyboard not opened: " + lastClick);
                 window.midiMenu?.Close(); window.midiMenu = null;
             }));
             steps.Enqueue(("status names device and target track/column; song renderer created", .5, () =>
@@ -74,7 +80,7 @@ namespace Laubrary.ZTracker.Editor
                 need(window.SongHost.RenderCompiled, "Song graph rendered managed code");
                 sim.NoteOff(60); sim.NoteOff(64); sim.NoteOff(67);
             }));
-            steps.Enqueue(("Play (real click) starts the song on the same renderer", .6, () => { var h = window.SongHost; click(find("play"), 0); need(window.playing && window.SongHost == h, "Play replaced the MIDI renderer or did not start"); }));
+            steps.Enqueue(("Play (real click) starts the song on the same renderer", .6, () => { var h = window.SongHost; click(find("play"), 0); need(window.playing && window.SongHost == h, "Play replaced the MIDI renderer or did not start: " + lastClick); }));
             steps.Enqueue(("latency: key arrival to applied in the playing graph", .1, () =>
             {
                 var ms = TrackerMidiCheck.MeasureAppliedLatency(window.SongHost.LiveInput, 40, 72);
@@ -88,7 +94,7 @@ namespace Laubrary.ZTracker.Editor
                 click(find("midi-toggle"), 1); var item = anyButton("256"); need(item != null, "No 256 buffer choice"); click(item, 0); window.midiMenu?.Close(); window.midiMenu = null;
                 AudioSettings.GetDSPBufferSize(out int buffer, out _); need(buffer == 256, "Buffer is " + buffer);
             }));
-            steps.Enqueue(("a fresh renderer after the audio restart; Play again", .8, () => { need(window.SongHost != null && window.SongHost.LiveInput.IsOpen, "No renderer after the buffer change"); click(find("play"), 0); need(window.playing, "Play failed"); }));
+            steps.Enqueue(("a fresh renderer after the audio restart; Play again", .8, () => { need(window.SongHost != null && window.SongHost.LiveInput.IsOpen, "No renderer after the buffer change"); click(find("play"), 0); need(window.playing, "Play failed: " + lastClick); }));
             steps.Enqueue(("latency measured at 256", .1, () =>
             {
                 var ms = TrackerMidiCheck.MeasureAppliedLatency(window.SongHost.LiveInput, 40, 72); need(ms.Length >= 30, "Only " + ms.Length + " keys were applied"); Array.Sort(ms);
@@ -97,8 +103,8 @@ namespace Laubrary.ZTracker.Editor
                 click(find("midi-toggle"), 1); var item = anyButton("Project"); need(item != null, "No Project buffer choice"); click(item, 0); window.midiMenu?.Close(); window.midiMenu = null;
             }));
             steps.Enqueue(("Project buffer restored; Play again", 1.5, () => { }));
-            steps.Enqueue(("restored", .6, () => { AudioSettings.GetDSPBufferSize(out int buffer, out _); need(buffer == ProjectDspBuffer(), "Buffer not restored: " + buffer); click(find("play"), 0); need(window.playing, "Play failed after restore"); }));
-            steps.Enqueue(("Rec (real click) while playing writes the key at the heard row", .5, () => { click(find("midi-record"), 0); need(window.midiRecord, "Rec did not latch"); sim.NoteOn(70, 100); }));
+            steps.Enqueue(("restored", .6, () => { AudioSettings.GetDSPBufferSize(out int buffer, out _); need(buffer == ProjectDspBuffer(), "Buffer not restored: " + buffer); click(find("play"), 0); need(window.playing, "Play failed after restore: " + lastClick); }));
+            steps.Enqueue(("Rec (real click) while playing writes the key at the heard row", .5, () => { click(find("midi-record"), 0); need(window.midiRecord, "Rec did not latch: " + lastClick); sim.NoteOn(70, 100); }));
             steps.Enqueue(("recorded while playing", .3, () =>
             {
                 sim.NoteOff(70); var lines = asset.model.patterns[0].tracks[0].lines;
@@ -107,7 +113,7 @@ namespace Laubrary.ZTracker.Editor
             }));
             steps.Enqueue(("Stop (real click), then Rec at the cursor: a chord fills columns and the cursor steps on when keys are up", .4, () =>
             {
-                click(find("stop"), 0); need(!window.playing, "Stop failed");
+                click(find("stop"), 0); need(!window.playing, "Stop failed: " + lastClick);
             }));
             steps.Enqueue(("stopped chord", .4, () => { window.pane = 0; window.BuildPane(); window.Select(9, 0, false); sim.NoteOn(62, 100); sim.NoteOn(65, 100); }));
             steps.Enqueue(("chord written", .3, () =>
@@ -125,7 +131,7 @@ namespace Laubrary.ZTracker.Editor
             }));
             steps.Enqueue(("Rec turns off after Undo rebuilds its control", .4, () =>
             {
-                click(find("midi-record"), 0); need(!window.midiRecord, "Rec did not turn off");
+                click(find("midi-record"), 0); need(!window.midiRecord, "Rec did not turn off: " + lastClick);
             }));
             steps.Enqueue(("Play resumes after Undo rebuild", .3, () =>
             {
@@ -134,7 +140,7 @@ namespace Laubrary.ZTracker.Editor
             steps.Enqueue(("Instrument workspace (real click) moves the keyboard to the clean preview over the playing song", .6, () =>
             {
                 var tabs = window.rootVisualElement.Query<Button>().ToList().FirstOrDefault(b => b.text == "Instrument"); need(tabs != null, "No Instrument tab");
-                window.entryInstrument = 0; window.instrument = inst; click(tabs, 0); need(window.pane == 3, "Tab click did not switch workspace");
+                window.entryInstrument = 0; window.instrument = inst; click(tabs, 0); need(window.pane == 3, "Tab click did not switch workspace: " + lastClick);
             }));
             steps.Enqueue(("clean preview plays while the song keeps playing", .5, () =>
             {
@@ -203,6 +209,9 @@ namespace Laubrary.ZTracker.Editor
                 bool prefsPreserved = prefsBefore.enabled == prefsAfter.enabled && prefsBefore.record == prefsAfter.record && prefsBefore.device == prefsAfter.device && prefsBefore.channel == prefsAfter.channel && prefsBefore.octave == prefsAfter.octave && prefsBefore.curve == prefsAfter.curve && prefsBefore.bend == prefsAfter.bend && prefsBefore.modWheel == prefsAfter.modWheel && prefsBefore.buffer == prefsAfter.buffer;
                 if (prefsPreserved) { pass++; report.AppendLine("PASS simulated UI check left every MIDI preference unchanged"); }
                 else { fail++; report.AppendLine("FAIL simulated UI check changed MIDI preferences"); }
+                int heldAfter = HeldMouseButtons();
+                if (heldAfter <= 0) { pass++; report.AppendLine("PASS no mouse button left recorded as held"); }
+                else { fail++; report.AppendLine("FAIL mouse buttons " + heldAfter + " left recorded as held; the next click in any window would be lost"); }
                 MidiUiCheckReport = $"MidiUiCheck passed={pass} failed={fail}\n" + report;
             };
             EditorApplication.update += tick;
