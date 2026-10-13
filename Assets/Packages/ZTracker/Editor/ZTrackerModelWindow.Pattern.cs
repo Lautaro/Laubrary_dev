@@ -28,7 +28,7 @@ namespace Laubrary.ZTracker.Editor
         static readonly string[] noteNames={"C-","C#","D-","D#","E-","F-","F#","G-","G#","A-","A#","B-"};
         void BuildPattern()
         {
-            if(stage==null)return;CloseFxSuggestions();Vector2 offset=grid?.scrollOffset??Vector2.zero;stage.Clear();fields.Clear();fieldX.Clear();labels.Clear();if(Pattern==null)return;
+            if(stage==null)return;CloseFxSuggestions();Vector2 offset=grid?.scrollOffset??SavedScroll("pattern-grid")??Vector2.zero;stage.Clear();fields.Clear();fieldX.Clear();labels.Clear();if(Pattern==null)return;
             // The pattern pane: a narrow tool column on the left, the grid filling the rest.
             var pane=new VisualElement{name="pattern-pane"};pane.style.flexDirection=FlexDirection.Row;pane.style.flexGrow=1;pane.style.minHeight=0;pane.style.minWidth=0;stage.Add(pane);
             var tools=new VisualElement{name="pattern-tools"};tools.AddToClassList("tracker-tools");tools.style.flexDirection=FlexDirection.Column;tools.style.flexShrink=0;tools.style.width=146;tools.style.marginRight=6;pane.Add(tools);
@@ -61,7 +61,7 @@ namespace Laubrary.ZTracker.Editor
             gridCanvas=new VisualElement();gridCanvas.name="pattern-grid-canvas";gridCanvas.style.width=width;gridCanvas.style.height=(Pattern.lineCount+2)*20;gridCanvas.style.flexShrink=0;grid.Add(gridCanvas);
             grid.verticalScroller.valueChanged+=v=>BuildVisibleCells();grid.horizontalScroller.valueChanged+=v=>BuildVisibleCells();grid.RegisterCallback<GeometryChangedEvent>(e=>BuildVisibleCells());BuildVisibleCells();
             cellDetails=Z.BoxKeyed("Cell","Parameters for the selected field.","tracker.model.cell");controls.Add(cellDetails);RefreshCellDetails();
-            RefreshCells();var built=grid;grid.schedule.Execute(()=>{built.scrollOffset=offset;
+            RefreshCells();var built=grid;grid.schedule.Execute(()=>{built.scrollOffset=workspaceRestoring?SavedScroll("pattern-grid")??offset:offset;
                 // A rebuild replaces the grid, which drops keyboard focus; hand it back unless the user is in another control.
                 var focused=built.focusController?.focusedElement as VisualElement;if(focused==null||focused.panel==null)built.Focus();});
         }

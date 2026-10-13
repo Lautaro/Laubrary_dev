@@ -113,7 +113,7 @@ namespace Laubrary.ZTracker.Editor
             foreach (var note in instrumentKeys.Values) midiRouter.ComputerKeyUp(note);
             instrumentKeys.Clear(); keyboardInstrument = null;
         }
-        void OnLostFocus(){ReleaseInstrumentKeys();ResetOctaveShortcutLatch();}
+        void OnLostFocus(){ReleaseInstrumentKeys();ResetOctaveShortcutLatch();SaveViewState();}
         void OnFocus()
         {
             if(pane==3) { rootVisualElement.Focus(); RefreshKeyboardStatus(); }

@@ -39,6 +39,14 @@ namespace Laubrary.ZTracker.Editor
             page = new WorkspacePage { key = key }; workspacePages.Add(page); return page;
         }
 
+        /// <summary>The offset saved for a named scroll view on the page now shown (used while a rebuilt view is being restored).</summary>
+        Vector2? SavedScroll(string name)
+        {
+            var page = workspacePages?.Find(p => p.key == WorkspaceKey());
+            var saved = page?.scrolls.Find(s => s.key == name);
+            return saved?.offset;
+        }
+
         void CaptureWorkspace()
         {
             if (displayedWorkspace == null || workspaceRestoring || rootVisualElement.childCount == 0) return;
@@ -78,17 +86,27 @@ namespace Laubrary.ZTracker.Editor
             workspaceRestoring = true;
             // Wait for both the retained tree and responsive columns to have real bounds.
             // This also runs after the base window's positional scroll restoration.
-            rootVisualElement.schedule.Execute(() =>
+            // After a script reload or a reopen the window can take longer than that to lay out (the pattern grid's
+            // content has no height yet, so an offset would be clamped to 0): try again until every saved offset fits
+            // or about two seconds have passed.
+            int attempts = 0;
+            void Apply()
             {
                 if (generation != workspaceGeneration) return;
+                bool pending = false;
                 var scrolls = rootVisualElement.Query<ScrollView>().ToList();
                 for (int i = 0; i < scrolls.Count; i++)
                 {
                     var saved = page.scrolls.Find(p => p.key == ScrollKey(scrolls[i], i));
-                    if (saved != null) scrolls[i].scrollOffset = saved.offset;
+                    if (saved == null) continue;
+                    scrolls[i].scrollOffset = saved.offset;
+                    var now = scrolls[i].scrollOffset;
+                    if (Mathf.Abs(now.x - saved.offset.x) > .5f || Mathf.Abs(now.y - saved.offset.y) > .5f) pending = true;
                 }
+                if (pending && ++attempts < 40) { rootVisualElement.schedule.Execute(Apply).StartingIn(50); return; }
                 workspaceRestoring = false;
-            }).StartingIn(80);
+            }
+            rootVisualElement.schedule.Execute(Apply).StartingIn(80);
         }
     }
 }

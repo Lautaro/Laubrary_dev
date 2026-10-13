@@ -52,7 +52,7 @@ namespace Laubrary.ZTracker.Editor
         PatternData Pattern=>Data==null||Data.sequence.Count==0?null:Data.patterns.Find(p=>p.id==Data.sequence[Mathf.Clamp(order,0,Data.sequence.Count-1)].patternId);
         TrackData SelectedTrack=>Data==null||Data.tracks.Count==0?null:Data.tracks[Mathf.Clamp(track,0,Data.tracks.Count-1)];
         [MenuItem("Laubrary/ZTracker")]
-        public static void Open(){var window=GetWindow<ZTrackerModelWindow>("ZTracker");window.EnableMidiPreferenceRestore();}
+        public static void Open(){var window=GetWindow<ZTrackerModelWindow>("ZTracker");window.EnableMidiPreferenceRestore();window.rememberView=true;if(!window.viewRestored){window.viewRestored=true;if(window.RestoreViewState())window.Rebuild();}}
         /// <summary>Opens ZTracker on <paramref name="value"/> (LauAsset Edit, a double-click in the Project window).</summary>
         public static void OpenFor(ZTrackerSong value){Open();var window=GetWindow<ZTrackerModelWindow>("ZTracker");if(value!=null)window.SetAsset(value);}
         protected override string TypeLabel=>"Song";
@@ -66,8 +66,18 @@ namespace Laubrary.ZTracker.Editor
         protected override void OnAssetChanged(){StopPreview();order=row=track=sub=0;instrument=null;Upgrade();}
         // Saving, importing or reimporting any asset raises projectChanged; only the browser needs that rescan.
         protected override void OnProjectChanged(){if(song==null||IsBrowsing)base.OnProjectChanged();}
+        // The compact ZTracker skin on the whole window, with or without a song open (the library looks the same as the editor).
+        void ApplyTrackerSkin()
+        {
+            var window=rootVisualElement;
+            window.AddToClassList("tracker-compact");
+            minSize=new Vector2(760,440);
+            var path=AssetDatabase.FindAssets("ZTracker t:StyleSheet").Select(AssetDatabase.GUIDToAssetPath).FirstOrDefault(p=>p.EndsWith("/ZTracker.uss"));
+            if(path!=null){var sheet=AssetDatabase.LoadAssetAtPath<StyleSheet>(path);if(!window.styleSheets.Contains(sheet))window.styleSheets.Add(sheet);}
+        }
         protected override void BuildToolbarExtras(VisualElement row)
         {
+            ApplyTrackerSkin();
             // Save, Undo and Redo wrap together on a narrow window.
             var edit=Z.Row(Button("Save","Save this song and its edited instrument.",Save,"save"),Named(Z.IconButton("arrow-counter-clockwise","Undo the last authored change.",Undo.PerformUndo),"undo"),Named(Z.IconButton("arrow-clockwise","Redo the last undone change.",Undo.PerformRedo),"redo"));
             edit.style.flexShrink=0;row.Add(edit);
@@ -79,10 +89,7 @@ namespace Laubrary.ZTracker.Editor
             window.UnregisterCallback<KeyDownEvent>(PatternShortcutFromControls,TrickleDown.TrickleDown);
             window.RegisterCallback<KeyDownEvent>(PatternShortcutFromControls,TrickleDown.TrickleDown);
             WireInstrumentKeyboard(window);
-            window.AddToClassList("tracker-compact");
-            minSize=new Vector2(760,440);
-            var path=AssetDatabase.FindAssets("ZTracker t:StyleSheet").Select(AssetDatabase.GUIDToAssetPath).FirstOrDefault(p=>p.EndsWith("/ZTracker.uss"));
-            if(path!=null){var sheet=AssetDatabase.LoadAssetAtPath<StyleSheet>(path);if(!window.styleSheets.Contains(sheet))window.styleSheets.Add(sheet);}
+            ApplyTrackerSkin();
             root.style.flexGrow=1;root.style.minHeight=0;
             status=Z.Text("Idle",tooltip:"Preview status.");status.name="transport-status";status.style.width=210;status.style.height=24;status.style.whiteSpace=WhiteSpace.NoWrap;status.style.overflow=Overflow.Hidden;
             root.Add(Flow(Named(Z.IconButton("play","Start the song from its first row. Space toggles play/stop.",()=>Play(false)),"play"),Named(Z.IconButton("play-circle","Start at the selected sequence slot and row.",()=>Play(true)),"play-cursor"),Named(Z.IconButton("stop","Stop preview and release its owned audio buffers.",StopPreview),"stop"),Z.Toggle("Follow","Scroll the pattern to each row reached by playback.",follow,v=>follow=v),status));
@@ -196,9 +203,9 @@ namespace Laubrary.ZTracker.Editor
             }MidiPump();RefreshTransport();
         }
         void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Pending: Stop/Play":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
-        protected override void OnEnable(){if(asset==null&&legacySong!=null)asset=legacySong;legacySong=null;base.OnEnable();Undo.undoRedoPerformed-=OnUndo;Undo.undoRedoPerformed+=OnUndo;Upgrade();}
+        protected override void OnEnable(){if(asset==null&&legacySong!=null)asset=legacySong;legacySong=null;if(asset!=null)viewRestored=true;base.OnEnable();EditorApplication.quitting-=OnViewQuitting;EditorApplication.quitting+=OnViewQuitting;Undo.undoRedoPerformed-=OnUndo;Undo.undoRedoPerformed+=OnUndo;Upgrade();}
         void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();RefreshLive();BuildPane();}
-        protected override void OnDisable(){LauAssetGridGUI.ClearCache(chipThumbs);CaptureWorkspace();ReleaseInstrumentKeys();pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();MidiShutdown();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
+        protected override void OnDisable(){EditorApplication.quitting-=OnViewQuitting;SaveViewState();LauAssetGridGUI.ClearCache(chipThumbs);CaptureWorkspace();ReleaseInstrumentKeys();pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();MidiShutdown();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
         // ZuiWindow may rebuild on domain reload/view changes; it must not stop a healthy graph.
         protected override void OnBeforeRebuild(){CaptureWorkspace();displayedWorkspace=null;pumpSchedule?.Pause();pumpSchedule=null;}
         void Save(){if(song!=null)AssetDatabase.SaveAssetIfDirty(song);if(Data!=null)foreach(var linked in Data.instruments.Where(i=>i!=null).Distinct())AssetDatabase.SaveAssetIfDirty(linked);if(instrument!=null)AssetDatabase.SaveAssetIfDirty(instrument);}
