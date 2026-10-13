@@ -20,6 +20,14 @@ Play, Stop and Seek clear game pitch offsets and the tempo override. A compatibl
 
 Run `Laubrary.ZTracker.Engine.TrackerGameControlCheck.Execute()` through editor eval for scoped checks. It creates and destroys in-memory fixtures, does not open a device or window and does not force collection. It checks row timestamps across three block sizes, override precedence and clearing, effect ramp/output, active/future/excluded-track pitch, sample pairs, macro composition, refresh/reset and rejected inputs.
 
+## Immediate bounded note retrigger
+
+`playback.RetriggerNote(track, instrument, note, velocity)` queues a fresh attack on the track's first note column. Unlike ordinary `PlayNote`, it cuts that column's previous held voices and release tails before starting the new group, regardless of the instrument's new-note action or legato. Layers and unison within the new group are retained, so mashing does not accumulate groups. Other columns and tracks are unaffected. Authored assets are untouched. The audio command is fixed-size and allocates nothing; lower-level clients set `TrackerCommandKind.RetriggerNote` on an `Audition` command.
+
+The Boolean return means the valid command was queued; invalid indices/pitch/velocity and a full command queue return false. The chosen instrument must map the requested pitch and the track must be audible. Attack begins at the next audio command boundary, plus normal output buffering. Requests in the same audio boundary execute in order with note events for each; the last attack wins, so sub-buffer bursts do not imply distinct audible durations. A hard restart can click on a waveform discontinuity; this is deliberate retrigger behavior. Call `ReleaseNote(track)` to start the instrument's normal release envelope; a later retrigger cuts that tail too.
+
+`TrackerRetriggerCheck.Execute()` checks 512 attacks with eight rendered frames between each (6000/second at 48 kHz), all three new-note actions and 64/333/1024 partitions. It checks every note event, pitch/cohort replacement, peak voice count and completed release. It opens no devices or windows and creates no saved assets.
+
 ## Tape rewind
 
 Set `ZTrackerPlayer.rewindHistorySeconds = 30` before `Play()`, or pass `rewindHistorySeconds: 30` to `ZTrackerPlayback.TryPlay`. Lower-level consumers call `TrackerPreparedSong.EnableRewindHistory(30)` before publication. Zero is the default and allocates no history. The valid enabled range is 1–120 seconds; 30 seconds of stereo floats at 48 kHz uses 11.52 MB. The buffer is owned and retired by the prepared song under the same native lifetime rules as its other storage.

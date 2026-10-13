@@ -198,6 +198,17 @@ namespace Laubrary.ZTracker
         public bool PlayNote(int track, int instrument, int note, float velocity = 1f)
             => SendCommand(TrackerCommand.Audition(instrument, Mathf.Clamp(note, 0, 119), Mathf.Clamp01(velocity), track));
 
+        /// <summary>Starts one fresh note group on column zero, cutting all its previous voices and release tails.
+        /// Authored Continue/NoteOff/legato cannot accumulate groups. Layers/unison within this one group remain intact.
+        /// Applied at the next audio block, independent of row timing. Does not change authored instrument settings.</summary>
+        public bool RetriggerNote(int track, int instrument, int note, float velocity = 1f)
+        {
+            if (PlayingSong == null || track < 0 || track >= PlayingSong.tracks.Count || instrument < 0 || instrument >= PlayingSong.instruments.Count || note < 0 || note > 119 || float.IsNaN(velocity) || float.IsInfinity(velocity) || velocity <= 0 || velocity > 1) return false;
+            var command = TrackerCommand.Audition(instrument, note, velocity, track);
+            command.kind = TrackerCommandKind.RetriggerNote;
+            return SendCommand(command);
+        }
+
         /// <summary>Releases the note playing on a track's first note column (its envelope's release runs).</summary>
         public bool ReleaseNote(int track) => SendCommand(new TrackerCommand { kind = TrackerCommandKind.AuditionOff, a = track, b = 0 });
         public bool Refresh(out string reason)

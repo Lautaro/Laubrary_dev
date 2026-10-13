@@ -427,7 +427,7 @@ namespace Laubrary.ZTracker.Engine
         public long rowSerial;
         public bool dynamicLanding;
     }
-    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap, TempoOverride, TrackTranspose, TrackDetune, DynamicParameterSet, Rewind, ReverseRows }
+    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap, TempoOverride, TrackTranspose, TrackDetune, DynamicParameterSet, Rewind, ReverseRows, RetriggerNote }
     public struct TrackerCommand
     {
         public TrackerCommandKind kind;

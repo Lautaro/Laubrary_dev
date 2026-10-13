@@ -65,6 +65,13 @@ namespace Laubrary.ZTracker.Engine
                     if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.c/127f;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c,-1,true);}break;
                 case TrackerCommandKind.AuditionNormalized:
                     if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127&&math.isfinite(c.value)&&c.value>=0&&c.value<=1){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.value;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c,-1,true);}break;
+                case TrackerCommandKind.RetriggerNote:
+                    if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.a>=0&&c.a<state.instruments.Length&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127&&math.isfinite(c.value)&&c.value>0&&c.value<=1){
+                        // One fresh group: remove held voices AND prior release tails on this column, irrespective of authored NNA.
+                        for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.active&&v.track==c.d&&v.column==0){v.active=false;state.voices[i]=v;}}
+                        int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.value;col.glideTarget=-1;state.columns[ci]=col;
+                        NoteOn(c.d,0,c.a,c.b,c.c,-1,true);
+                    }break;
                 case TrackerCommandKind.ReleaseVoice:
                     if(c.a>=0&&c.a<state.voices.Length&&state.voices[c.a].active&&state.voices[c.a].cohort==c.generation)for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&state.voices[i].cohort==c.generation)Release(i);break;
                 case TrackerCommandKind.AuditionOff:
