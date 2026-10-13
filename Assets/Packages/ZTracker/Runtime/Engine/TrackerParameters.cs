@@ -38,6 +38,8 @@ namespace Laubrary.ZTracker.Engine
         public bool legatoSlide;
         public int legatoVelocity;
         public float legatoVelocitySeconds, legatoVelocityScale;
+        // Polyphonic legato (T-0633): a new note while another is held joins its running envelopes (pitch stays its own).
+        public bool legatoPoly;
     }
     public static class TrackerParameters
     {

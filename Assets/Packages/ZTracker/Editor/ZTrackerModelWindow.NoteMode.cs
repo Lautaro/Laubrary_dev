@@ -35,7 +35,10 @@ namespace Laubrary.ZTracker.Editor
             var scale = Named(Z.MicroSlider("Scale %", q.legatoVelocityScale * 100, 0, 100, "How much of the velocity change applies: 100% reaches the new note's velocity, 50% goes half way, 0% keeps the held level. Double-click resets to 100%.",
                 v => InstrumentEdit("Legato velocity scale", () => q.legatoVelocityScale = v / 100), 120, defaultValue: defaults.legatoVelocityScale * 100, decimals: 0), "synth-legato-velocity-scale");
             scale.style.display = q.legatoVelocity == LegatoVelocity.Ignore ? DisplayStyle.None : DisplayStyle.Flex;
-            root.Add(Flow(velocity, slide, scale));
+            var scope = InstrumentChoice("Legato", q.legatoPoly ? 1 : 0, new[] { "Mono", "Poly" },
+                "Mono: an overlapping note in the same column takes over the held note. Poly: also, while any note of this instrument is held on the track (a chord across columns, overlapping lines), a new note does not restart the envelopes, modulation or vibrato; it joins them where they are and differs only in pitch. With no note held, a note starts normally.",
+                v => q.legatoPoly = v == 1, "synth-legato-scope");
+            root.Add(Flow(scope, velocity, slide, scale));
         }
     }
 }

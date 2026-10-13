@@ -158,6 +158,9 @@ namespace Laubrary.ZTracker.Model
         public float legatoVelocitySeconds = .05f;
         // Share of the velocity change that applies, 0..1 (Follow and Slide).
         public float legatoVelocityScale = 1;
+        // Polyphonic legato (T-0633): while another note of this instrument is held on the track, a new note in a different
+        // column starts on that note's running envelopes and modulation instead of restarting them, and differs only in pitch.
+        public bool legatoPoly;
         public int transpose;
         public float glideSeconds = .1f;
         public bool arpeggioSpeedIsPerNote = true;

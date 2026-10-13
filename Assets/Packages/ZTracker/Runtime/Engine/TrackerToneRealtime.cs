@@ -109,6 +109,28 @@ namespace Laubrary.ZTracker.Engine
             if(m.loop==SampleLoop.PingPong&&((long)((time-m.loopStart)/width)&1)!=0)phase=width-phase;
             return m.loopStart+phase;
         }
+        // Polyphonic legato (T-0633): while another note of this instrument is held on the track (in any column), a new note
+        // takes over that note's running synth state instead of restarting it: the amplitude, blend, pulse, ratio, phase
+        // modulation and detune envelopes and their lagging values, the instrument modulation devices, the FM operator
+        // envelopes and the vibrato. Only what makes it a different note stays its own: pitch, oscillator phases,
+        // velocity and level, pan, glide. The source is the most recently started held voice of the same sample and unison
+        // member; a note whose only neighbours are released tails starts normally. Fixed-size copies only.
+        void JoinRunningNote(ref TrackerVoice v,int index)
+        {
+            int best=-1;long bestAge=long.MaxValue;
+            for(int i=0;i<state.voices.Length;i++)
+            {
+                if(i==index)continue;var o=state.voices[i];
+                if(!o.active||o.released||o.track!=v.track||o.instrument!=v.instrument||o.sample!=v.sample||o.cohort==v.cohort||o.memberSpread!=v.memberSpread||o.age>=bestAge)continue;
+                best=i;bestAge=o.age;
+            }
+            if(best<0)return;
+            var s=state.voices[best];
+            v.stage=s.stage;v.envelope=s.envelope;v.envelopePosition=s.envelopePosition;v.envTime=s.envTime;v.envRows=s.envRows;
+            v.blendStage=s.blendStage;v.blendLevel=s.blendLevel;v.blendCurrent=s.blendCurrent;v.pmCurrent=s.pmCurrent;v.ratioCurrent=s.ratioCurrent;v.pulseCurrent=s.pulseCurrent;v.detuneCurrent=s.detuneCurrent;
+            v.fmStage=s.fmStage;v.fmLevel=s.fmLevel;v.vibratoPhase=s.vibratoPhase;v.vibratoFade=s.vibratoFade;v.vibratoSmooth=s.vibratoSmooth;
+            for(int m=0;m<state.modStride;m++)state.modulationState[v.modulationOffset+m]=state.modulationState[s.modulationOffset+m];
+        }
         void InitTone(ref TrackerVoice v,in TrackerTone tone,in TrackerSample sample,int member,int previousNote,bool held)
         {
             v.memberSpread=tone.members>1?(member*(1f/(tone.members-1)))*2-1:0;v.memberGain=1/math.sqrt((float)tone.members);

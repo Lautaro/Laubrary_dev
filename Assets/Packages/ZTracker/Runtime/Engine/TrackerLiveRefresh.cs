@@ -39,7 +39,7 @@ namespace Laubrary.ZTracker.Engine
                 q.waveA=q.waveB=q.blendMode=q.fmAlgorithm=q.instFilterMode=0;
                 q.enumDomain=SoundEnumDomain.NativeDirect;
                 q.instFilterEnabled=q.glideEnabled=q.glideLegato=q.legatoEnabled=q.legatoSlides=q.blendEnvelope=false; q.transpose=0;
-                q.legatoVelocity=LegatoVelocity.Follow;q.legatoVelocitySeconds=q.legatoVelocityScale=0;
+                q.legatoPoly=false;q.legatoVelocity=LegatoVelocity.Follow;q.legatoVelocitySeconds=q.legatoVelocityScale=0;
                 q.blendAttack=q.blendDecay=q.blendSustain=q.blendRelease=q.vibratoRandomness=q.instDelaySend=q.instReverbSend=0;
                 // The renderer always has four native FM slots, including when the
                 // authored subtractive instrument has not initialized its operators.

@@ -293,6 +293,7 @@ namespace Laubrary.ZTracker.Engine
                 for(int m=0;m<state.modStride;m++)state.modulationState[voice.modulationOffset+m]=default;
                 for(int m=0;m<sample.modCount;m++){var mod=state.mods[sample.modStart+m];if(mod.parameterEnvelope)state.modulationState[voice.modulationOffset+m]=new TrackerModState{output=Curve(in mod,0)};}
                 InitTone(ref voice,in tone,in sample,member,!zone.tracking?voice.note:col.hasPreviousNote?col.previousNote:note,previousHeld);
+                if(tone.legatoPoly&&tone.kind!=0)JoinRunningNote(ref voice,index);
                 double sourceExponent=tone.kind==0?math.log2(clip.frequency/(double)state.sampleRate)+((zone.tracking?note-zone.baseNote:0)+(double)sample.tune)/12d:math.log2(440d/state.sampleRate)+(note-69)/12d+((double)tone.baseGlobalTune+tone.transposeCents+voice.memberSpread*voice.detuneCurrent)/1200d;
                 if(math.isfinite(sourceExponent)&&(sourceExponent<-20||sourceExponent>20))ReportPitchLimit(ref voice);
                 voice.filterCutoff=-1;voice.filterQ=-1;state.voices[index]=voice;

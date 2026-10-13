@@ -270,6 +270,47 @@ namespace Laubrary.ZTracker.Editor
                 }
                 report.AppendLine("MEASURE saved instruments read with the new defaults: " + assets);
             });
+            // Polyphonic legato (T-0633): a note in another column, while one is held, joins the running envelopes at its own pitch.
+            float[] PolyRender(bool poly, bool releaseFirst)
+            {
+                var ins = SlideInstrument(SlideSource.Synth); var q = ins.model.parameters;
+                q.waveA = 0; q.waveB = 0; q.blend = 0; q.attack = .4f; q.decay = 0; q.sustain = 1; q.release = .005f; q.volume = .5f;
+                q.legatoEnabled = true; q.legatoSlides = true; q.legatoPoly = poly;
+                var song = releaseFirst ? SlideSong(ins, 32, (0, 60, 128), (8, -1, 0)) : SlideSong(ins, 32, (0, 60, 128));
+                song.tracks[0].visibleNoteColumns = 2;
+                var second = TrackerEngineCheck.Note(67, 0, 128); second.column = 1;
+                song.patterns[0].tracks[0].WriteLine(new PatternLine { line = 16, notes = { second } });
+                return SlideRender(song, SlideRate * 4);
+            }
+            double Rms(float[] x, double a, double b) { int i0 = (int)(a * SlideRate), i1 = (int)(b * SlideRate); double sum = 0; for (int i = i0; i < i1; i++) sum += x[i] * x[i]; return Math.Sqrt(sum / (i1 - i0)); }
+            double Power(float[] x, double hz, double a, double b)
+            {
+                int i0 = (int)(a * SlideRate), i1 = (int)(b * SlideRate); double re = 0, im = 0;
+                for (int i = i0; i < i1; i++) { double ph = 2 * Math.PI * hz * i / SlideRate; re += x[i] * Math.Cos(ph); im += x[i] * Math.Sin(ph); }
+                return 2 * Math.Sqrt(re * re + im * im) / (i1 - i0);
+            }
+            Check("Poly legato: a note in another column joins the held note's running attack instead of restarting it", () =>
+            {
+                var mono = PolyRender(false, false); var poly = PolyRender(true, false);
+                double before = Rms(poly, 1.9, 2.0), monoAfter = Rms(mono, 2.0, 2.02), polyAfter = Rms(poly, 2.0, 2.02), steady = Rms(poly, 2.6, 2.62);
+                report.AppendLine("MEASURE level before the second note " + before.ToString("0.000") + "; 20 ms after it: mono " + monoAfter.ToString("0.000") + ", poly " + polyAfter.ToString("0.000") + "; steady poly " + steady.ToString("0.000"));
+                Need(monoAfter < before * 1.05, "mono legato: the second note did not start from its attack (" + monoAfter.ToString("0.000") + " vs " + before.ToString("0.000") + ")");
+                Need(polyAfter > before * 1.3, "poly legato: the second note did not start at the running level (" + polyAfter.ToString("0.000") + " vs " + before.ToString("0.000") + ")");
+            });
+            Check("Poly legato: the new note keeps its own pitch beside the held one", () =>
+            {
+                var poly = PolyRender(true, false);
+                double held = Power(poly, 261.6256, 2.1, 2.5), added = Power(poly, 391.9954, 2.1, 2.5), other = Power(poly, 330, 2.1, 2.5);
+                report.AppendLine("MEASURE amplitude at the held pitch " + held.ToString("0.000") + ", at the new pitch " + added.ToString("0.000") + ", between " + other.ToString("0.000"));
+                Need(held > .15 && added > .15 && other < .05, "the two pitches were not both sounding");
+            });
+            Check("Poly legato: with no note held, a new note starts from its attack as usual", () =>
+            {
+                var poly = PolyRender(true, true);
+                double steadyLevel = Rms(poly, 2.6, 2.62), after = Rms(poly, 2.0, 2.02);
+                report.AppendLine("MEASURE after the first note was released: 20 ms into the second " + after.ToString("0.000") + " of " + steadyLevel.ToString("0.000"));
+                Need(after < steadyLevel * .25, "the second note joined a released note's envelope (" + after.ToString("0.000") + ")");
+            });
             report.AppendLine("TOTAL passed=" + pass + " failed=" + fail);
             return report.ToString();
         }
