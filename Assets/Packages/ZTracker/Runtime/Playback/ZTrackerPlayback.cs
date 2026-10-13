@@ -139,7 +139,7 @@ namespace Laubrary.ZTracker
         /// later authored commands/automation can replace it. Tempo targets apply at the next row, after its authored
         /// timing writes, beneath SetTempo's persistent override. Returns false for missing/invalid definitions.</summary>
         public bool SetCommandParameter(string uid, float normalized, int track = -1)
-            => IsPlaying && generator.CurrentPrepared.TryCommandParameter(uid, normalized, track, out var command) && generator.SendCommand(command);
+            => IsPlaying && generator.SetCommandParameter(uid, normalized, track);
 
         /// <summary>Gates a track: its own pattern notes stop sounding, while notes played with <see cref="PlayNote"/>
         /// still sound. Ungating restores the pattern notes. The track's output mute is kept as authored.</summary>
