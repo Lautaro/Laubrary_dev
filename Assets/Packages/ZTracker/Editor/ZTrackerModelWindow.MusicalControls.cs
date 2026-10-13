@@ -201,12 +201,12 @@ namespace Laubrary.ZTracker.Editor
         {
             string Field(string stage) => prefix.Length == 0 ? stage : prefix + char.ToUpperInvariant(stage[0]) + stage.Substring(1);
             float Read(string stage) => Convert.ToSingle(owner.GetType().GetField(Field(stage)).GetValue(owner));
-            void Write(string stage, float value) => InstrumentEdit(title + " " + stage, () => owner.GetType().GetField(Field(stage)).SetValue(owner, value));
+            void Write(string stage, float value) => InstrumentEdit((prefix.Length > 0 ? prefix + " " : "envelope ") + stage, () => owner.GetType().GetField(Field(stage)).SetValue(owner, value));
             var hold = owner.GetType().GetField(Field("hold"));
             var reset = EnvelopeDefaults(Activator.CreateInstance(owner.GetType()), prefix);
             var control = hold == null
-                ? Z.Adsr(title, () => Read("attack"), v => Write("attack", v), () => Read("decay"), v => Write("decay", v), () => Read("sustain"), v => Write("sustain", v), () => Read("release"), v => Write("release", v), "Drag a stage handle; double-click resets it. Exact time inputs are milliseconds and sustain is percent.", reset)
-                : Z.Adsr(title, () => Read("attack"), v => Write("attack", v), () => Read("hold"), v => Write("hold", v), () => Read("decay"), v => Write("decay", v), () => Read("sustain"), v => Write("sustain", v), () => Read("release"), v => Write("release", v), "Drag a stage handle; double-click resets it. Hold keeps the peak before decay begins.", reset);
+                ? Z.Adsr(title, () => Read("attack"), v => Write("attack", v), () => Read("decay"), v => Write("decay", v), () => Read("sustain"), v => Write("sustain", v), () => Read("release"), v => Write("release", v), "Attack, decay, sustain and release. Drag a point or a slider; double-click resets a stage.", reset)
+                : Z.Adsr(title, () => Read("attack"), v => Write("attack", v), () => Read("hold"), v => Write("hold", v), () => Read("decay"), v => Write("decay", v), () => Read("sustain"), v => Write("sustain", v), () => Read("release"), v => Write("release", v), "Attack, hold, decay, sustain and release. Drag a point or a slider; double-click resets a stage. Hold keeps the peak before decay begins.", reset);
             control.style.maxWidth = Length.Percent(100);
             return Named(control, name);
         }

@@ -141,8 +141,8 @@ namespace Laubrary.ZTracker.Editor
                     Dial("synth-volume", 137); Near(inst.model.parameters.volume, 1.37f, "Percent volume conversion");
                     Dial("synth-pan", -40); Near(inst.model.parameters.pan, -.4f, "Signed pan conversion");
                     var attack = Find<ZuiAdsr>("amplitude-adsr").Q<ZuiMicroSlider>("adsr-input-attack");
-                    typeof(ZuiMicroSlider).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(attack, new object[] { 125f, true });
-                    Near(inst.model.parameters.attack, .125f, "ADSR milliseconds conversion");
+                    typeof(ZuiMicroSlider).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(attack, new object[] { 250f, true });
+                    Near(inst.model.parameters.attack, .25f, "ADSR milliseconds conversion");
                 });
                 Check("right-click mode action preserves authored points across Static Curve and Undo", () =>
                 {

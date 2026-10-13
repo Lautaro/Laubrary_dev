@@ -87,7 +87,7 @@ namespace Laubrary.ZTracker.Editor
                     Need(scroll != null && adsr != null, "Missing attached FM envelope workspace");
                     scroll.scrollOffset = new Vector2(0, 180); Layout(); float beforeScroll = scroll.scrollOffset.y; float beforeAttack = ins.model.parameters.fmOperators[2].attack;
                     var hit = typeof(ZuiAdsr).GetMethod("StageAtLocal", BindingFlags.Instance | BindingFlags.NonPublic);
-                    var handle = adsr.HandlePosition(0); var lanePoint = new Vector2(handle.x, handle.y + 45);
+                    var handle = adsr.HandlePosition(0); var lanePoint = new Vector2(handle.x, adsr.LaneCenter(0).y + 12);
                     Need(hit != null && (int)hit.Invoke(adsr, new object[] { lanePoint }) == 0, "Attack lane outside the tiny handle is not editable");
                     adsr.BeginDrag(0); adsr.DragToLocal(handle + new Vector2(24, 0)); adsr.EndDrag(); Layout();
                     Need(ins.model.parameters.fmOperators[2].attack > beforeAttack, "Attack handle did not edit the operator");
