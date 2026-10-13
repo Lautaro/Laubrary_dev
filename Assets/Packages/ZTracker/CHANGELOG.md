@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Reverse-row transport now decelerates forward for 0.75 seconds before changing direction, then accelerates backward and reaches the same pattern's start at exactly three seconds total. Note pitch reaches a 2% near-stop floor, volume reaches 50%, and the public phase/turn-row readout plus direction-tagged clock/events distinguish both stages. Pause and cancellation apply throughout; no history allocation is needed.
+
 - Public `RetriggerNote` replaces all voices and release tails on the first note column with one fresh attack group, independent of authored new-note action/legato. Layers and unison inside the new group remain intact; command handling stays native and allocation-free. `TrackerRetriggerCheck.Execute()` verifies 512 consecutive attacks and release across three buffer sizes and all three new-note actions.
 
 - Note cells retain readable pitch and octave in every note column, including drum-displayed synths and missing drum mappings; mapped icons complement the pitch instead of replacing it. The model editor follows the matching game-owned song through independent heard-clock and native block snapshots, showing actual/queued tempo, row, direction/tape progress, activity, game pitch offsets and gates/mutes. Preview controls are disabled while the game owns playback. A 30 ms poll targets at most 100 ms visible readout lag on a responsive editor; authored controls remain authored values. Checks: `CheckNoteDisplayMatrix()` and `TrackerLiveReadoutCheck.Execute()`.

@@ -40,7 +40,7 @@ namespace Laubrary.ZTracker.Editor
             }
             observedLive = true; ObservedLiveBlock = head.blocks; LiveReadoutObservedAt = now;
             bool tape = head.rewind.IsRewinding;
-            string mode = head.paused != 0 ? "Paused" : tape ? "Tape " + head.rewind.Progress.ToString("P0") : head.rowReverse.active ? "Reverse " + head.rowReverse.Progress.ToString("P0") : head.playing != 0 ? "Playing" : "Stopped";
+            string mode = head.paused != 0 ? "Paused" : tape ? "Tape " + head.rewind.Progress.ToString("P0") : head.rowReverse.active ? (head.rowReverse.phase == TrackerRowReversePhase.Slowing ? "Slowing " : "Reverse ") + head.rowReverse.Progress.ToString("P0") : head.playing != 0 ? "Playing" : "Stopped";
             int shownOrder = head.sequence, shownRow = head.row;
             double shownBpm = head.bpm;
             if (external != null && !tape && external.Clock.TryGetHeard(out var heard)) { shownOrder = heard.Order; shownRow = heard.Row; shownBpm = heard.Bpm; }

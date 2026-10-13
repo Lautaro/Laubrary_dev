@@ -142,7 +142,7 @@ namespace Laubrary.ZTracker.Engine
         {
             if(events.counters==null||state.silentReplay)return;
             if(state.rewind.phase!=TrackerRewindPhase.Idle&&kind!=TrackerEventKind.RewindStarted&&kind!=TrackerEventKind.RewindCompleted&&kind!=TrackerEventKind.RewindRefused&&kind!=TrackerEventKind.RowReverseRefused&&kind!=TrackerEventKind.Diagnostic&&kind!=TrackerEventKind.PreparedSwap)return;
-            events.Write(new TrackerEvent{kind=kind,samplePosition=state.samplePosition,bpm=state.bpm,direction=state.rowReverse.active?TrackerPlaybackDirection.Reverse:TrackerPlaybackDirection.Forward,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,tick=state.tick,track=track,column=column,note=note,instrument=instrument,payload=payload});
+            events.Write(new TrackerEvent{kind=kind,samplePosition=state.samplePosition,bpm=state.bpm,direction=RowDirection,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,tick=state.tick,track=track,column=column,note=note,instrument=instrument,payload=payload});
         }
         // Binary64 quantizer from COMMANDS.md P-CLOCK; no floating epsilon tied to musical time.
         public static bool ClockValid(double start,double end,double duration,double compensation)=>math.isfinite(duration)&&duration>=1&&math.isfinite(start)&&start>=0&&math.isfinite(end)&&end<=1099511627776d&&math.isfinite(compensation)&&Quantize(end)>Quantize(start);
@@ -174,7 +174,7 @@ namespace Laubrary.ZTracker.Engine
             if(state.bpm!=previousBpm||state.linesPerBeat!=previousLpb||state.ticksPerLine!=previousTpl)Emit(TrackerEventKind.TempoChanged);
             if(state.bpm==0||state.linesPerBeat==0){var stop=TrackerCommand.Stop();Apply(in stop);return;}
             BeginPatternHistory();
-            double duration=state.rowReverse.active?ReverseRowBoundary(state.rowReverse.startRow-state.row+1)-state.rowStart:(state.sampleRate*60d)/(state.bpm*state.linesPerBeat);state.rowDuration=duration;
+            double duration=state.rowReverse.active?(state.rowReverse.phase==TrackerRowReversePhase.Slowing?ForwardRowBoundary(state.row-state.rowReverse.startRow+1):ReverseRowBoundary(state.rowReverse.turnRow-state.row+1))-state.rowStart:(state.sampleRate*60d)/(state.bpm*state.linesPerBeat);state.rowDuration=duration;
             if(state.rowReverse.active)state.bpm=state.sampleRate*60d/(duration*state.linesPerBeat);
             state.rowEnd=ClockEnd(state.rowStart,duration,ref state.clockCompensation);
             if(!ClockValid(state.rowStart,state.rowEnd,duration,state.clockCompensation)){state.playing=false;ClearVoices();Emit(TrackerEventKind.Diagnostic,payload:(int)(!math.isfinite(duration)||duration<1?TrackerRuntimeDiagnostic.InvalidClock:TrackerRuntimeDiagnostic.ClockLimit));Emit(TrackerEventKind.Stopped);return;}
@@ -196,7 +196,7 @@ namespace Laubrary.ZTracker.Engine
             state.tick++;
             if(state.tick>=state.ticksPerLine){
                 state.tick=0;
-                if(state.rowReverse.active){state.row--;state.rowStart=state.rowEnd;state.rowPending=true;EnterRow();return;}
+                if(state.rowReverse.active){state.row+=state.rowReverse.phase==TrackerRowReversePhase.Slowing?1:-1;state.rowStart=state.rowEnd;state.rowPending=true;EnterRow();return;}
                 if(state.holdRemaining>0)
                 {
                     if(!state.held)EvaluateAutomation(state.row+1);
@@ -367,9 +367,9 @@ namespace Laubrary.ZTracker.Engine
                     int n=(int)math.min(frames-offset,next-state.samplePosition);
                     for(int ci=0;ci<state.columnCount;ci++){var c=state.columns[ci];if(c.pendingCell>=0&&c.due>state.samplePosition)n=(int)math.min(n,c.due-state.samplePosition);}
                     if(state.automationDeadline<exactNext)n=(int)math.min(n,state.transportOrigin+Quantize(state.automationDeadline)-state.samplePosition);
-                    n=RewindSliceLimit(n);
+                    n=RowReverseSliceLimit(RewindSliceLimit(n));
                     if(state.dynamicCount>0){n=DynamicSliceLimit(n);AdvanceDynamic(n);}
-                    RenderVoices(offset,n);Mix(offset,n);CaptureMix(offset,n);SlowMix(offset,n);RowReverseGain(offset,n);state.samplePosition+=n;offset+=n;CompleteRowReverse();
+                    RenderVoices(offset,n);Mix(offset,n);CaptureMix(offset,n);SlowMix(offset,n);RowReverseGain(offset,n);state.samplePosition+=n;offset+=n;TurnRowReverse();CompleteRowReverse();
                 }else {int n=RewindSliceLimit(frames-offset);if(state.dynamicCount>0){n=DynamicSliceLimit(n);AdvanceDynamic(n);}RenderVoices(offset,n);Mix(offset,n);if(state.rewind.phase==TrackerRewindPhase.Slowing){CaptureMix(offset,n);SlowMix(offset,n);state.samplePosition+=n;}offset+=n;}
             }
 #if UNITY_EDITOR || ZTRACKER_PROOF
@@ -383,7 +383,7 @@ namespace Laubrary.ZTracker.Engine
         void PublishClockRow(bool held)
         {
             if(state.silentReplay||state.rewind.phase!=TrackerRewindPhase.Idle)return;
-            events.PublishRow(new TrackerClockRow{start=state.transportOrigin+state.rowStart,duration=state.rowDuration,bpm=state.bpm,direction=state.rowReverse.active?TrackerPlaybackDirection.Reverse:TrackerPlaybackDirection.Forward,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,linesPerBeat=state.linesPerBeat,ticksPerLine=state.ticksPerLine,holdRemaining=state.holdRemaining,occurrence=state.rowOccurrence,held=held?(byte)1:(byte)0});
+            events.PublishRow(new TrackerClockRow{start=state.transportOrigin+state.rowStart,duration=state.rowDuration,bpm=state.bpm,direction=RowDirection,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,linesPerBeat=state.linesPerBeat,ticksPerLine=state.ticksPerLine,holdRemaining=state.holdRemaining,occurrence=state.rowOccurrence,held=held?(byte)1:(byte)0});
         }
         [BurstDiscard] void MarkManagedRender(){state.ticket[3]=-1;}
         void ApplyDue(double before,bool inclusive=true)
@@ -414,7 +414,7 @@ namespace Laubrary.ZTracker.Engine
                     if(HasParameterEnvelope(in v,TrackerParameter.FilterCutoff))cutoff=VoiceParameter(in v,TrackerParameter.FilterCutoff);
                     if(HasParameterEnvelope(in v,TrackerParameter.FilterResonance))resonance=VoiceParameter(in v,TrackerParameter.FilterResonance);
                     ToneTargets(ref v,in tone);
-                    double increment=ModulatedStep(ref v,in tone,pitch+liveBend+v.commandArp+(tone.kind==0?v.commandPitch+v.commandVibrato:0));
+                    double increment=ModulatedStep(ref v,in tone,pitch+liveBend+v.commandArp+(tone.kind==0?v.commandPitch+v.commandVibrato:0))*RowReversePitchScale(state.rowReverse.elapsed+f);
                     if(!math.isfinite(increment)||increment<=0){v.active=false;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.InvalidPitch);break;}
                     float l,r;
                     if(tone.kind!=0){l=tone.kind==2?(tone.algorithm>TrackerFmSetups.Base?FMSetupVoice(ref v,in tone,(float)increment):FM(ref v,in tone,(float)increment)):Synth(ref v,in tone,(float)increment);r=l;}
