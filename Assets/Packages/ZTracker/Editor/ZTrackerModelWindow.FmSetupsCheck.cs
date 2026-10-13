@@ -29,6 +29,8 @@ namespace Laubrary.ZTracker.Editor
             {
                 var asset = CreateInstance<ZTrackerInstrument>(); asset.schemaVersion = 1; asset.model = NewInstrumentData(); asset.model.synthMode = SynthMode.FM;
                 var q = asset.model.parameters; q.type = InstrumentType.FM; q.fmAlgorithm = algorithm; q.fmFeedback = 0; q.volume = .1f; q.attack = q.decay = 0; q.sustain = 1; q.pan = 0;
+                // The route models below are per output sample; oversampling (T-0645, its own check) is switched off here.
+                q.fmSingleRate = true;
                 for (int op = 0; op < 4; op++) q.fmOperators[op] = new ZTrackerInstrument.FMOperatorData { freqRatio = (ratio ?? ratios)[op], level = (level ?? levels)[op], attack = 0, decay = 0, sustain = 1, release = 1, feedback = feedback != null && op < 3 ? feedback[op] : 0 };
                 return asset;
             }
@@ -147,6 +149,11 @@ namespace Laubrary.ZTracker.Editor
                 {
                     var x = Render(Make(TrackerFmSetups.Base + 10, new[] { 1f, 1f, 1f }, null, new[] { 1f, 1f, 1f, 1f }), 48000);
                     Need(x.All(v => !float.IsNaN(v) && !float.IsInfinity(v)), "Non-finite output"); Need(x.Max(v => Math.Abs(v)) <= .11f, "Output exceeded the carrier's level: " + x.Max(v => Math.Abs(v)));
+                    // Oversampled (the default since T-0645): the half-band filter rings a little on this noise-like sound.
+                    var dense = Make(TrackerFmSetups.Base + 10, new[] { 1f, 1f, 1f }, null, new[] { 1f, 1f, 1f, 1f }); dense.model.parameters.fmSingleRate = false;
+                    var y = Render(dense, 48000); float peak = y.Max(v => Math.Abs(v));
+                    report.AppendLine("MEASURE densest setup at full feedback: peak " + x.Max(v => Math.Abs(v)).ToString("0.0000") + " at the output rate, " + peak.ToString("0.0000") + " oversampled (carrier level 0.1)");
+                    Need(y.All(v => !float.IsNaN(v) && !float.IsInfinity(v)) && peak <= .14f, "Oversampled output not bounded: " + peak);
                 });
                 Check("the setup path runs in Burst and allocates nothing while feedback changes", () =>
                 {

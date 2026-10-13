@@ -53,11 +53,20 @@ namespace Laubrary.ZTracker.Editor
             }
             root.Add(Z.Field("Setup", "Pick how the four operators connect. Each tile shows its routing; C is the carrier you hear and A, B and D bend its phase.", picker));
             var extras = Flow();
-            if (classic) extras.Add(Diagnostic("Older routing: " + ClassicFmNames[algorithm], "This instrument uses the older " + ClassicFmNames[algorithm] + " routing" + (q.fmAlgorithm >= 6 ? " (stored as " + q.fmAlgorithm + ", played as Parallel)" : "") + ", which sends more than one operator to the output. It still plays exactly as before. Picking a setup above switches to that setup."));
+            // T-0645: how a note starts and how finely FM is computed. Both read for the current state.
+            extras.Add(InstrumentToggle("Oversample", !q.fmSingleRate, !q.fmSingleRate
+                ? "On: FM is computed at twice the output rate and filtered, so bright, high notes keep clean overtones instead of harsh, inharmonic ones folded back from above the highest audible frequency (aliasing). Costs about a quarter more processing per FM note. Click to compute at the output rate, as FM played before."
+                : "Off: FM is computed at the output rate. Cheaper, but on bright, high notes the overtones above the highest audible frequency fold back down as harsh, inharmonic tones (aliasing). Click to compute at twice the rate.",
+                v => q.fmSingleRate = !v, "fm-oversample", true));
+            extras.Add(InstrumentToggle("Free phase", q.fmFreePhase, q.fmFreePhase
+                ? "On: each note starts its operators part-way through their waves, at a point of its own (always the same for the same note in the same place), so repeated notes have slightly different attacks. Click to start every note at the start of its waves, so every attack is identical."
+                : "Off: every note starts its operators at the start of their waves, so every attack is identical. Click to start each note part-way through its waves, at a point of its own, for slightly varied attacks.",
+                v => q.fmFreePhase = v, "fm-free-phase", true));
+            if (classic) extras.Add(Diagnostic("Older routing: " + ClassicFmNames[algorithm], "This instrument uses the older " + ClassicFmNames[algorithm] + " routing" + (q.fmAlgorithm >= 6 ? " (stored as " + q.fmAlgorithm + ", played as Parallel)" : "") + ", which sends more than one operator to the output. It still plays; picking a setup above switches to that setup."));
             // Output feedback is the older whole-instrument feedback into A. New sounds use each
             // modulator's own Feedback instead; the control stays wherever it is in use.
             if (classic || q.fmFeedback != 0) extras.Add(ParameterValue("fmFeedback", q.fmFeedback, v => { q.fmFeedback = v; graph?.MarkDirtyRepaint(); }, "synth-fmFeedback", q, "fmFeedback"));
-            if (extras.childCount > 0) root.Add(extras);
+            root.Add(extras);
             if (q.fmOperators == null || q.fmOperators.Length < 4)
             {
                 root.Add(Flow(Button("Create operators", "Add the missing FM operators using the declared synth defaults. Existing operators and their settings stay unchanged; Undo restores the earlier array.", () => InstrumentEdit("create FM operators", () => EnsureFmOperators(q), true), "fm-create-operators"),

@@ -268,6 +268,8 @@ namespace Laubrary.ZTracker.Engine
         public float4 fmPhase, fmLevel, fmReleaseStart;
         public int4 fmStage;
         public float fmPrevious;
+        // The FM 2x oversampling half-band filter's state (T-0645): previous input (X) and output (Y) of its eight all-pass stages.
+        public float4 fmHalfX0, fmHalfX1, fmHalfY0, fmHalfY1;
         // Modulator self-feedback (A, B, D): the gliding amount and the last two raw outputs.
         public float3 fmFeedbackAmount, fmFeedbackLast, fmFeedbackBefore;
         public float vibratoPhase, vibratoFade;

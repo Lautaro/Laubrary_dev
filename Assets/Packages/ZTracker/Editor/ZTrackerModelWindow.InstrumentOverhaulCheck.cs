@@ -115,7 +115,7 @@ namespace Laubrary.ZTracker.Editor
                 Check("FM routing " + (route + 1) + " predicts actual DSP and each operator changes PCM", () =>
                 {
                     var asset = CreateInstance<ZTrackerInstrument>(); asset.schemaVersion = 1; asset.model = NewInstrumentData(); asset.model.synthMode = SynthMode.FM;
-                    var q = asset.model.parameters; q.type = InstrumentType.FM; q.fmAlgorithm = route; q.fmFeedback = 0; q.volume = .1f; q.attack = q.decay = 0; q.sustain = 1; q.pan = 0;
+                    var q = asset.model.parameters; q.type = InstrumentType.FM; q.fmAlgorithm = route; q.fmFeedback = 0; q.volume = .1f; q.attack = q.decay = 0; q.sustain = 1; q.pan = 0; q.fmSingleRate = true; // per-sample route model (T-0645)
                     float[] ratios = { 1f, 1.7f, 2.3f, 3.2f }; float[] levels = { .19f, .23f, .31f, .37f };
                     for (int op = 0; op < 4; op++) q.fmOperators[op] = new ZTrackerInstrument.FMOperatorData { freqRatio = ratios[op], level = levels[op], attack = 0, decay = 0, sustain = 1, release = 1 };
                     float[] Render()

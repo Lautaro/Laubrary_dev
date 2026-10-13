@@ -207,6 +207,12 @@ namespace Laubrary.ZTracker.Model
         public float instFilterCutoff = 1, instFilterResonance = .707f, instDelaySend, instReverbSend;
         public int fmAlgorithm;
         public float fmFeedback;
+        // T-0645: false (the default) starts every FM operator at phase 0 on each note, so every note has the identical
+        // attack; true starts each note part-way through its waves, at a repeatable offset of its own.
+        public bool fmFreePhase;
+        // T-0645: false (the default) computes FM at twice the output rate, so bright high notes do not alias; true computes
+        // at the output rate (cheaper, and how every FM sound played before).
+        public bool fmSingleRate;
         public ZTrackerInstrument.FMOperatorData[] fmOperators;
         public bool kitOverlap = true;
         public ZTrackerInstrument.KitEntry[] kitEntries;

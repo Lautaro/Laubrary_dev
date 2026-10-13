@@ -170,8 +170,29 @@ namespace Laubrary.ZTracker.Engine
             float speed=PointCurve(tone.arpPoints,tone.arpPointCount,0,false);v.arpStep=math.max(1,speed*state.sampleRate/(tone.arpPerNote?1:math.max(1,tone.arpNoteCount)));
             if(tone.arpNoteCount>=2){float first=state.points[tone.arpNotes].value;v.step*=math.pow(2d,first/12d);}
             // A new note starts at the current feedback amount; only later edits glide.
-            if(tone.kind==2)v.fmFeedbackAmount=FMFeedbackTarget(in v);
+            if(tone.kind==2){v.fmFeedbackAmount=FMFeedbackTarget(in v);v.fmPhase=FmStartPhase(in v,in tone);}
             // Main ADSR remains per voice. Macros alter its rates without touching the saved asset.
+        }
+        /// <summary>
+        /// Where an FM note's four operators start (T-0645). By default every operator starts at phase 0, so every note
+        /// has the identical attack. With Free phase the note starts as if its operators had already been running for a while: a time offset hashed from
+        /// the note's identity (track, column, note and unison member), never from a clock, so the same note in the same
+        /// place always starts the same way and renders repeat exactly, while the notes of a chord start at unrelated
+        /// points of their waves. The four operators share that one offset, each advanced at its own frequency, so
+        /// within a note they keep their relationship: the tone (and the level of routings with several carriers at the
+        /// same ratio) is the same as with key sync; only where the wave starts differs.
+        /// </summary>
+        float4 FmStartPhase(in TrackerVoice v,in TrackerTone tone)
+        {
+            if(!tone.fmFreePhase)return default;
+            uint id=(uint)v.note^((uint)v.track<<8)^((uint)v.column<<20),member=(uint)math.asint(v.memberSpread);
+            double offset=Seed(id,member,4)&0xffffff;var phase=default(float4);
+            for(int op=0;op<4;op++){
+                int p=(int)TrackerParameter.Op0Ratio+op*7;float fixedHz=VoiceParameter(in v,(TrackerParameter)(p+1));
+                double cycles=offset*(fixedHz>0?fixedHz/(double)state.sampleRate:v.step*VoiceParameter(in v,(TrackerParameter)p));
+                phase[op]=math.isfinite(cycles)?(float)(cycles-math.floor(cycles)):0;
+            }
+            return phase;
         }
         static void StartGlide(ref TrackerVoice v,double semitones)
         {
@@ -287,6 +308,15 @@ namespace Laubrary.ZTracker.Engine
         float FM(ref TrackerVoice v,in TrackerTone tone,float increment,in TrackerFmBlock block)
         {
             FmOperators(ref v,in block,increment,out var level,out var inc);
+            if(tone.fmSingleRate){float single=FMClassic(ref v,in tone,level,in block);v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);return single;}
+            inc*=.5f;
+            float first=FMClassic(ref v,in tone,level,in block);v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);
+            float second=FMClassic(ref v,in tone,level,in block);v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);
+            return FmDecimate(ref v,first,second);
+        }
+        // One output sample of the six older routings at the current phases (output feedback is the previous output).
+        float FMClassic(ref TrackerVoice v,in TrackerTone tone,float4 level,in TrackerFmBlock block)
+        {
             float feedback=FmValue(in v,in block,TrackerParameter.FMFeedback,block.outputFeedback)*v.fmPrevious;
             float a=math.sin(v.fmPhase.x*2*math.PI+feedback)*level.x,b=math.sin(v.fmPhase.y*2*math.PI)*level.y,c=math.sin(v.fmPhase.z*2*math.PI)*level.z,d=math.sin(v.fmPhase.w*2*math.PI)*level.w,output;
             switch(tone.algorithm){
@@ -299,15 +329,45 @@ namespace Laubrary.ZTracker.Engine
                 // be added in cycles here, which made the same Feedback setting 2π times stronger on Parallel only.
                 default:output=(a+b+c+d)*.25f;break;
             }
-            v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);v.fmPrevious=output;return output;
+            v.fmPrevious=output;return output;
         }
         // A voice playing one of the ten single-carrier setups (fmAlgorithm 101..110).
         float FMSetupVoice(ref TrackerVoice v,in TrackerTone tone,float increment,in TrackerFmBlock block)
         {
             FmOperators(ref v,in block,increment,out var level,out var inc);
+            int setup=tone.algorithm-TrackerFmSetups.Base;
+            if(tone.fmSingleRate){float single=FMSetupSample(ref v,setup,level,in block,state.sampleRate);v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);return single;}
+            inc*=.5f;
+            float first=FMSetupSample(ref v,setup,level,in block,2f*state.sampleRate);v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);
+            float second=FMSetupSample(ref v,setup,level,in block,2f*state.sampleRate);v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);
+            return FmDecimate(ref v,first,second);
+        }
+        float FMSetupSample(ref TrackerVoice v,int setup,float4 level,in TrackerFmBlock block,float rate)
+        {
             float feedback=FmValue(in v,in block,TrackerParameter.FMFeedback,block.outputFeedback)*v.fmPrevious;
-            float output=FMSetup(ref v,tone.algorithm-TrackerFmSetups.Base,level,feedback,in block);
-            v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);v.fmPrevious=output;return output;
+            float output=FMSetup(ref v,setup,level,feedback,in block,rate);
+            v.fmPrevious=output;return output;
+        }
+        // 2x oversampling (T-0645). FM's sidebands reach far above the highest frequency the output can hold, and every
+        // one above it folds back down as an unrelated, inharmonic tone (aliasing): bright, high notes turn harsh and
+        // grainy. An oversampled voice computes two samples per output sample at half the phase step, then this
+        // half-band filter passes everything up to 22 kHz unchanged (at a 48 kHz output) and removes 26..70 kHz by
+        // about 100 dB or more before every second sample is dropped, so the sidebands between the old and the doubled limit no longer
+        // fold back. Two four-stage all-pass chains (a polyphase IIR half-band, 8 coefficients, transition 4% of the
+        // doubled rate); its state is 16 floats in the voice. Coefficients from the standard elliptic half-band design.
+        const float Hb0=.0406334609f,Hb1=.1505051290f,Hb2=.3007570560f,Hb3=.4607745050f,Hb4=.6095243149f,Hb5=.7385038411f,Hb6=.8492238104f,Hb7=.9497427837f;
+        static float FmDecimate(ref TrackerVoice v,float earlier,float later)
+        {
+            float a=later,b=earlier,t;
+            t=(a-v.fmHalfY0.x)*Hb0+v.fmHalfX0.x;v.fmHalfX0.x=a;v.fmHalfY0.x=t;a=t;
+            t=(b-v.fmHalfY0.y)*Hb1+v.fmHalfX0.y;v.fmHalfX0.y=b;v.fmHalfY0.y=t;b=t;
+            t=(a-v.fmHalfY0.z)*Hb2+v.fmHalfX0.z;v.fmHalfX0.z=a;v.fmHalfY0.z=t;a=t;
+            t=(b-v.fmHalfY0.w)*Hb3+v.fmHalfX0.w;v.fmHalfX0.w=b;v.fmHalfY0.w=t;b=t;
+            t=(a-v.fmHalfY1.x)*Hb4+v.fmHalfX1.x;v.fmHalfX1.x=a;v.fmHalfY1.x=t;a=t;
+            t=(b-v.fmHalfY1.y)*Hb5+v.fmHalfX1.y;v.fmHalfX1.y=b;v.fmHalfY1.y=t;b=t;
+            t=(a-v.fmHalfY1.z)*Hb6+v.fmHalfX1.z;v.fmHalfX1.z=a;v.fmHalfY1.z=t;a=t;
+            t=(b-v.fmHalfY1.w)*Hb7+v.fmHalfX1.w;v.fmHalfX1.w=b;v.fmHalfY1.w=t;b=t;
+            return .5f*(a+b);
         }
         float3 FMFeedbackTarget(in TrackerVoice v)=>new float3(VoiceParameter(in v,TrackerParameter.Op0Feedback),VoiceParameter(in v,TrackerParameter.Op1Feedback),VoiceParameter(in v,TrackerParameter.Op2Feedback));
         // One single-carrier setup: modulators A, B, D (slots 0..2) feed carrier C (slot 3)
@@ -315,13 +375,13 @@ namespace Laubrary.ZTracker.Engine
         // and Merge code (setups 4 and 7 match them to float rounding). Each modulator's own
         // feedback is added only when its amount is non-zero, so 0 is bit-identical to
         // having no feedback at all.
-        float FMSetup(ref TrackerVoice v,int setup,float4 level,float feedback,in TrackerFmBlock block)
+        float FMSetup(ref TrackerVoice v,int setup,float4 level,float feedback,in TrackerFmBlock block,float rate)
         {
             int r=TrackerFmSetups.Routes(setup);
             // A changed amount glides over a few milliseconds (sample-rate independent)
             // rather than stepping, so live edits on a held note do not click.
             float3 target=new float3(FmValue(in v,in block,TrackerParameter.Op0Feedback,block.operatorFeedback.x),FmValue(in v,in block,TrackerParameter.Op1Feedback,block.operatorFeedback.y),FmValue(in v,in block,TrackerParameter.Op2Feedback,block.operatorFeedback.z)),amount=v.fmFeedbackAmount;
-            if(math.any(amount!=target)){amount+=(target-amount)*math.min(1f,1f/(TrackerFmSetups.FeedbackGlideSeconds*state.sampleRate));amount=math.select(amount,target,math.abs(target-amount)<1e-6f);v.fmFeedbackAmount=amount;}
+            if(math.any(amount!=target)){amount+=(target-amount)*math.min(1f,1f/(TrackerFmSetups.FeedbackGlideSeconds*rate));amount=math.select(amount,target,math.abs(target-amount)<1e-6f);v.fmFeedbackAmount=amount;}
             float3 shift=amount*TrackerFmSetups.MaxFeedbackCycles*.5f*(v.fmFeedbackLast+v.fmFeedbackBefore);
             float pa=v.fmPhase.x;if(amount.x!=0)pa+=shift.x;
             float ra=math.sin(pa*2*math.PI+feedback),a=ra*level.x;

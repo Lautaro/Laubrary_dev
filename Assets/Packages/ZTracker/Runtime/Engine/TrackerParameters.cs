@@ -45,6 +45,11 @@ namespace Laubrary.ZTracker.Engine
         public bool autoArp, arpPerCycle;
         public int arpRetrigger;
         public float arpStepSeconds, arpWindowSeconds;
+        // FM start phase (T-0645): false starts every operator at phase 0 on each note; true gives each note its own offset.
+        public bool fmFreePhase;
+        // FM rate (T-0645): false (default) computes FM voices at twice the output rate and filters before dropping every
+        // second sample, so sidebands above the output's highest frequency do not fold back; true computes at the output rate.
+        public bool fmSingleRate;
     }
     public static class TrackerParameters
     {

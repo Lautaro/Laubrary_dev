@@ -790,7 +790,9 @@ namespace Laubrary.ZTracker.Engine
             v.envelope = 0;
             v.phaseA = v.phaseB = v.fmPrevious = 0;
             v.fmFeedbackLast = v.fmFeedbackBefore = default;
-            v.fmPhase = v.fmLevel = default;
+            var retriggerTone = state.tones[v.sample];
+            v.fmPhase = FmStartPhase(in v, in retriggerTone);
+            v.fmLevel = default;
             v.fmStage = default;
             v.blendStage = 0;
             v.blendLevel = 0;
