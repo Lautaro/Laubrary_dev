@@ -32,7 +32,8 @@ namespace Laubrary.ZTracker.Engine
         /// closed when the host stops.</summary>
         public TrackerLiveTarget LiveInput=>liveTarget;
         GeneratorInstance instance;
-        NativeArray<long> controlDisposed;
+        // The graph's acknowledgement that its control half was disposed: one untracked 8-byte cell (see TrackerAckCell).
+        IntPtr controlDisposed;
         bool hasInstance,hasRing,accepting=true,transferred,autoplay;
         long retiredFrames,retiredBlocks;
         double retiredEnergy;
@@ -60,7 +61,7 @@ namespace Laubrary.ZTracker.Engine
             if(autoplay){var play=TrackerCommand.Play();realtime.Apply(in play);}
             foreach(var command in pending)realtime.Apply(in command);pending.Clear();
             initial.Published=true;transferred=true;
-            controlDisposed=new NativeArray<long>(1,Allocator.Persistent);
+            controlDisposed=TrackerAckCell.Create();
             instance=context.AllocateGenerator(realtime,new Control{rate=initial.state.sampleRate,disposed=controlDisposed});hasInstance=true;return instance;
         }
         public bool SendCommand(TrackerCommand command)
@@ -161,10 +162,10 @@ namespace Laubrary.ZTracker.Engine
             liveTarget?.Close();
             bool quiet=!transferred||StopAndConfirm(.25);
             bool disposed=!transferred||ControlDisposed(controlDisposed);
-            if(quiet&&disposed){foreach(var p in owned)if(!p.Disposed)p.DisposeAfterQuiet();if(hasRing)ring.Dispose();live.Dispose();if(controlDisposed.IsCreated)controlDisposed.Dispose();}
+            if(quiet&&disposed){foreach(var p in owned)if(!p.Disposed)p.DisposeAfterQuiet();if(hasRing)ring.Dispose();live.Dispose();TrackerAckCell.Free(controlDisposed);}
             else TrackerSapRegistry.Retain(owned,ring,hasRing,live,instance,hasInstance,controlDisposed);
             owned.Clear();hasRing=false;live=default;initial=current=null;transferred=false;hasInstance=false;
-            controlDisposed=default;
+            controlDisposed=IntPtr.Zero;
         }
         public void ReconfigureOutput(bool deviceChanged)
         {
@@ -180,16 +181,31 @@ namespace Laubrary.ZTracker.Engine
         struct Control:GeneratorInstance.IControl<TrackerRealtime>
         {
             public int rate;
-            public NativeArray<long> disposed;
+            public IntPtr disposed;
             public void Configure(ControlContext context,ref TrackerRealtime realtime,in AudioFormat format,out GeneratorInstance.Setup setup,ref GeneratorInstance.Properties properties){setup=new GeneratorInstance.Setup(speakerMode:AudioSpeakerMode.Stereo,sampleRate:rate);}
             public void Update(ControlContext context,Pipe pipe){}
             public Response OnMessage(ControlContext context,Pipe pipe,Message message){if(!message.Is<TrackerCommand>())return Response.Unhandled;var c=message.Get<TrackerCommand>();pipe.SendData(context,c);return Response.Handled;}
             // Unity invokes this after the generator leaves the processing thread.
             // Its realtime copy can still name a song already retired by a swap.
             // A graph-owned acknowledgement outlives all prepared-song tickets.
-            public void Dispose(ControlContext context,ref TrackerRealtime realtime){Interlocked.Exchange(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(disposed))[0],1);}
+            public void Dispose(ControlContext context,ref TrackerRealtime realtime){TrackerAckCell.Set(disposed);}
         }
-        internal static bool ControlDisposed(NativeArray<long> ticket)=>ticket.IsCreated&&Volatile.Read(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(ticket))[0])==1;
+        internal static bool ControlDisposed(IntPtr ack)=>TrackerAckCell.Done(ack);
+    }
+    /// <summary>
+    /// The graph's "control half disposed" acknowledgement for one generator (T-0637). Unity delivers it on the main
+    /// thread some time after the generator is destroyed, so a script reload can arrive first. The cell is plain
+    /// process memory, not a Unity allocation: when a reload comes before the acknowledgement, the generator's songs and
+    /// rings are freed (the render is confirmed quiet and the instance destroyed) and only these 8 bytes are left
+    /// allocated, so a late acknowledgement still writes into valid memory and nothing is reported as leaked.
+    /// </summary>
+    internal static unsafe class TrackerAckCell
+    {
+        public static IntPtr Create(){var p=System.Runtime.InteropServices.Marshal.AllocHGlobal(sizeof(long));*(long*)p=0;return p;}
+        public static void Set(IntPtr cell){if(cell!=IntPtr.Zero)Interlocked.Exchange(ref *(long*)cell,1);}
+        public static bool Done(IntPtr cell)=>cell!=IntPtr.Zero&&Volatile.Read(ref *(long*)cell)==1;
+        /// <summary>Frees an acknowledged cell; an unacknowledged one is kept for its late write.</summary>
+        public static void Free(IntPtr cell){if(Done(cell))System.Runtime.InteropServices.Marshal.FreeHGlobal(cell);}
     }
     /// <summary>Reads the renderer's per-voice envelope positions (see <see cref="TrackerEnvelopeHead"/>).</summary>
     public static unsafe class TrackerEnvelopeHeads
@@ -213,7 +229,7 @@ namespace Laubrary.ZTracker.Engine
     internal static class TrackerSapRegistry
     {
         static readonly List<TrackerSapGenerator> hosts=new List<TrackerSapGenerator>();
-        sealed class Retained { public List<TrackerPreparedSong> songs;public TrackerEventRing ring;public bool hasRing;public TrackerLiveRing live;public NativeArray<long> controlDisposed;public GeneratorInstance instance;public bool hasInstance; }
+        sealed class Retained { public List<TrackerPreparedSong> songs;public TrackerEventRing ring;public bool hasRing;public TrackerLiveRing live;public IntPtr controlDisposed;public GeneratorInstance instance;public bool hasInstance; }
         static readonly List<Retained> retained=new List<Retained>();
         static SapQuitDrain drain;
         static bool installed;
@@ -227,6 +243,8 @@ namespace Laubrary.ZTracker.Engine
 #endif
         }
 #if UNITY_EDITOR
+        // Set once a script reload has begun: nothing kept for a later Tick survives it (T-0637).
+        static bool reloading;
         // Back in edit mode the application is not quitting. With Enter Play Mode Options' domain reload switched off
         // nothing else resets this static, and a leftover drain refused every editor preview ("Assigned scriptable
         // generator returned an invalid instance" on Play in the ZTracker window).
@@ -234,7 +252,42 @@ namespace Laubrary.ZTracker.Engine
 #endif
         public static void Register(TrackerSapGenerator host){Install();hosts.Add(host);}
         public static void Unregister(TrackerSapGenerator host){hosts.Remove(host);}
-        public static void Retain(List<TrackerPreparedSong> songs,TrackerEventRing ring,bool hasRing,TrackerLiveRing live,GeneratorInstance instance,bool hasInstance,NativeArray<long> controlDisposed){retained.Add(new Retained{songs=new List<TrackerPreparedSong>(songs),ring=ring,hasRing=hasRing,live=live,instance=instance,hasInstance=hasInstance,controlDisposed=controlDisposed});EnsurePump();}
+            AssemblyReloadEvents.beforeAssemblyReload+=BeforeReload;
+#endif
+        }
+#if UNITY_EDITOR
+        // A retained bundle normally waits in this static list for the graph's acknowledgement, freed by a later Tick.
+        // A script reload discards the list, so everything still in it, or retained during the reload (a window closing
+        // its previews in OnDisable), was leaked: "Leak Detected: Persistent allocates 57 individual allocations" in
+        // the Editor log. During a reload the bundle is freed at once instead, as far as is safe (ReleaseForReload).
+        static void BeforeReload()
+        {
+            reloading=true;
+            foreach(var bundle in retained)ReleaseForReload(bundle);
+            retained.Clear();
+        }
+        public static void Retain(List<TrackerPreparedSong> songs,TrackerEventRing ring,bool hasRing,TrackerLiveRing live,GeneratorInstance instance,bool hasInstance,IntPtr controlDisposed)
+        {
+            var bundle=new Retained{songs=new List<TrackerPreparedSong>(songs),ring=ring,hasRing=hasRing,live=live,instance=instance,hasInstance=hasInstance,controlDisposed=controlDisposed};
+            if(reloading){ReleaseForReload(bundle);return;}
+            retained.Add(bundle);EnsurePump();
+        }
+        /// <summary>Bundles still waiting for the graph (diagnostics and checks).</summary>
+        internal static int RetainedCount=>retained.Count;
+        static void ReleaseForReload(Retained bundle)
+        {
+            if(bundle.hasInstance){
+                // The instance still exists: it is destroyed only once its render is seen quiet; otherwise the audio
+                // side may still read the songs, and keeping them (a reported leak) is the safe outcome.
+                if(!SapLifetime.WaitUntilQuiet(bundle.songs.Count,j=>SapRenderTicket.Read(bundle.songs[j].state.ticket),.06,.3))return;
+                ControlContext.WaitForBuiltInQueueFlush();if(ControlContext.builtIn.Exists(bundle.instance))ControlContext.builtIn.Destroy(bundle.instance);ControlContext.WaitForBuiltInQueueFlush();bundle.hasInstance=false;
+            }
+            foreach(var p in bundle.songs)if(!p.WaitUntilQuiet(.06,.3))return;
+            // Render quiet and the instance destroyed: no reader of the songs or rings remains. The control half's
+            // pending disposal writes only its acknowledgement cell, which stays allocated until it arrives.
+            foreach(var p in bundle.songs)p.DisposeAfterQuiet();
+            if(bundle.hasRing)bundle.ring.Dispose();bundle.live.Dispose();TrackerAckCell.Free(bundle.controlDisposed);
+            bundle.songs.Clear();bundle.hasRing=false;bundle.live=default;
         // The drain is a standalone-player workaround (T-0503). The editor quitting, or leaving Play mode, is handled by the
         // generators' own reload/mode hooks, so it never starts a drain that would outlive Play mode.
         static bool WantsQuit(){if(Application.isEditor)return true;if(drain.complete)return true;if(!drain.draining){drain.Begin(Time.realtimeSinceStartupAsDouble);foreach(var host in hosts)if(host!=null)host.Silence();EnsurePump();}return false;}
@@ -253,11 +306,11 @@ namespace Laubrary.ZTracker.Engine
                 if(bundle.hasInstance){bool beforeDestroy=SapLifetime.WaitUntilQuiet(bundle.songs.Count,j=>SapRenderTicket.Read(bundle.songs[j].state.ticket),.06,.07);if(!beforeDestroy)continue;ControlContext.WaitForBuiltInQueueFlush();if(ControlContext.builtIn.Exists(bundle.instance))ControlContext.builtIn.Destroy(bundle.instance);ControlContext.WaitForBuiltInQueueFlush();bundle.hasInstance=false;continue;}
                 // Queue flush/handle disappearance does not complete Unity's deferred
                 // control-disposal job. Its acknowledgement is the final consumer gate.
-                if(bundle.controlDisposed.IsCreated&&!TrackerSapGenerator.ControlDisposed(bundle.controlDisposed))continue;
+                if(bundle.controlDisposed!=IntPtr.Zero&&!TrackerSapGenerator.ControlDisposed(bundle.controlDisposed))continue;
                 // An accepted swap may never have reached realtime before Stop, so that unused owner's
                 // ticket can legitimately have no terminal mark. Observe every ticket, then free the bundle.
                 bool quiet=true;foreach(var p in bundle.songs)if(!p.WaitUntilQuiet(.06,.07))quiet=false;
-                if(!quiet)continue;foreach(var p in bundle.songs)p.DisposeAfterQuiet();if(bundle.hasRing)bundle.ring.Dispose();bundle.live.Dispose();if(bundle.controlDisposed.IsCreated)bundle.controlDisposed.Dispose();retained.RemoveAt(i);
+                if(!quiet)continue;foreach(var p in bundle.songs)p.DisposeAfterQuiet();if(bundle.hasRing)bundle.ring.Dispose();bundle.live.Dispose();TrackerAckCell.Free(bundle.controlDisposed);retained.RemoveAt(i);
             }
         }
     }
