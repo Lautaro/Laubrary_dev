@@ -27,12 +27,15 @@ namespace Laubrary.ZTracker.Engine
                         // Control disposal can receive the original realtime copy
                         // after a swap has retired its ticket. It must acknowledge
                         // the graph without reading that released song storage.
-                        using(var graphDone=new NativeArray<long>(1,Allocator.Persistent)){
+                        // The acknowledgement is an untracked process-memory cell since T-0637 (TrackerAckCell).
+                        {
+                            var graphDone=TrackerAckCell.Create();
                             var type=typeof(TrackerSapGenerator).GetNestedType("Control",System.Reflection.BindingFlags.NonPublic);
                             object control=Activator.CreateInstance(type);type.GetField("disposed").SetValue(control,graphDone);
-                            var stale=new TrackerRealtime{state=before};Need(graphDone[0]==0,"Graph acknowledgement was not initially pending");
+                            var stale=new TrackerRealtime{state=before};Need(!TrackerAckCell.Done(graphDone),"Graph acknowledgement was not initially pending");
                             type.GetMethod("Dispose").Invoke(control,new object[]{UnityEngine.Audio.ControlContext.builtIn,stale});
-                            Need(graphDone[0]==1,"Deferred graph consumer did not acknowledge disposal");
+                            Need(TrackerAckCell.Done(graphDone),"Deferred graph consumer did not acknowledge disposal");
+                            TrackerAckCell.Free(graphDone);
                         }
                         engine.Render(left,right,6000,partition);bool changed=false;while(engine.ReadEvent(out var e))if(e.kind==TrackerEventKind.NoteOn&&e.note==72&&e.samplePosition==6000)changed=true;Need(changed,"Inserted next-row note was not rendered at its original deadline");Need(engine.Compiled,"Managed renderer used");
                     }});
