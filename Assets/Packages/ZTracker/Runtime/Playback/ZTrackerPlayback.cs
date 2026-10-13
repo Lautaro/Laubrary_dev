@@ -120,6 +120,27 @@ namespace Laubrary.ZTracker
         }
         public bool SendCommand(TrackerCommand command) => IsPlaying && generator.SendCommand(command);
 
+        /// <summary>Overrides song tempo from the next row, without changing the current row duration. The last
+        /// queued value wins; authored tempo commands still advance underneath it. Clear to return to that authored
+        /// tempo. Accepts 32..999 BPM; Play, Stop and Seek clear the override.</summary>
+        public bool SetTempo(float bpm) => !float.IsNaN(bpm) && bpm >= 32 && bpm <= 999 && SendCommand(TrackerCommand.SetTempo(bpm));
+        public bool ClearTempoOverride() => SendCommand(TrackerCommand.ClearTempoOverride());
+
+        /// <summary>Adds semitones (-120..120) to active and future voices on one track, after all authored pitch
+        /// sources. Does not change note selection, event note values, or drum maps. Independent of track detune.</summary>
+        public bool SetTrackTranspose(int track, int semitones) => ValidTrack(track) && semitones >= -120 && semitones <= 120 && SendCommand(TrackerCommand.SetTrackTranspose(track, semitones));
+        /// <summary>Adds cents (-1200..1200) after authored pitch, independently of transposition. Set zero to clear.
+        /// Play, Stop and Seek clear both track offsets; compatible Refresh preserves them.</summary>
+        public bool SetTrackDetune(int track, float cents) => ValidTrack(track) && !float.IsNaN(cents) && cents >= -1200 && cents <= 1200 && SendCommand(TrackerCommand.SetTrackDetune(track, cents));
+        bool ValidTrack(int track) => PlayingSong != null && track >= 0 && track < PlayingSong.tracks.Count;
+
+        /// <summary>Writes an authored command definition by its stable uid, normalized 0..1 in its declared range.
+        /// Instrument-effect definitions require a track index. Uses the same ramp and precedence as pattern commands:
+        /// later authored commands/automation can replace it. Tempo targets apply at the next row, after its authored
+        /// timing writes, beneath SetTempo's persistent override. Returns false for missing/invalid definitions.</summary>
+        public bool SetCommandParameter(string uid, float normalized, int track = -1)
+            => IsPlaying && generator.CurrentPrepared.TryCommandParameter(uid, normalized, track, out var command) && generator.SendCommand(command);
+
         /// <summary>Gates a track: its own pattern notes stop sounding, while notes played with <see cref="PlayNote"/>
         /// still sound. Ungating restores the pattern notes. The track's output mute is kept as authored.</summary>
         public bool SetTrackGated(int track, bool gated)

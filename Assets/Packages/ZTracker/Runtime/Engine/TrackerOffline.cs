@@ -47,6 +47,8 @@ namespace Laubrary.ZTracker.Engine
         public void TargetMacro(int instrument,int macro,float value,float step)=>SendCommand(TrackerCommand.TargetMacro(instrument,macro,value,step));
         public float ObserveMacro(int instrument,int macro){RequireAlive();if(instrument<0||instrument>=realtime->state.instrumentCount||macro<0||macro>=8)throw new ArgumentOutOfRangeException();return realtime->state.macros[instrument*8+macro].value;}
         public bool SetExternal(string track,string device,int slot,float normalized){RequireAlive();if(!prepared.TryExternalCommand(track,device,slot,normalized,out var command))return false;SendCommand(command);return true;}
+        /// <summary>Main-thread stable-id command lookup, identical to the playback facade.</summary>
+        public bool SetCommandParameter(string uid,float normalized,int track=-1){RequireAlive();if(!prepared.TryCommandParameter(uid,normalized,track,out var command))return false;SendCommand(command);return true;}
         public void SendCommand(TrackerCommand command){RequireAlive();if(command.kind==TrackerCommandKind.Swap||command.kind==TrackerCommandKind.PreserveSwap)throw new ArgumentException("Use the owned refresh API for live updates");realtime->Apply(in command);}
         public bool RefreshPrepared(TrackerPreparedSong next,out string reason)
         {

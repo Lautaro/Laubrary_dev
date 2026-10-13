@@ -226,6 +226,7 @@ namespace Laubrary.ZTracker.Engine
                 p.laneRamp = false;
                 p.laneOwned = false;
                 p.typedRow = -1;
+                p.runtimePending = false;
                 state.deviceParameters[at] = p;
                 if (p.kind == 3)
                 {

@@ -36,9 +36,17 @@ namespace Laubrary.ZTracker.Engine
                 case TrackerCommandKind.Play:
                     ClearVoices();ResetChains();ResetDefaults();ResetCommandState();state.sequenceIndex=0;state.row=0;state.tick=0;state.breakRow=-1;state.rowStart=0;state.clockCompensation=0;state.transportOrigin=state.samplePosition;state.rowPending=true;state.playing=true;state.loopSong=c.a!=0;ResetColumns();Emit(TrackerEventKind.Started);break;
                 case TrackerCommandKind.Stop:
-                    state.playing=false;state.rowPending=true;ClearVoices();ResetChains();ResetColumns();ResetCommandState();Emit(TrackerEventKind.Stopped);break;
+                    state.playing=false;state.rowPending=true;ClearVoices();ResetChains();ResetColumns();ResetCommandState();ResetRuntimeControls();Emit(TrackerEventKind.Stopped);break;
                 case TrackerCommandKind.Pause:state.paused=true;break;
                 case TrackerCommandKind.Resume:state.paused=false;break;
+                case TrackerCommandKind.TempoOverride:
+                    if(math.isfinite(c.value)&&(c.value==0||c.value>=32&&c.value<=999))state.runtimeTempo=c.value;break;
+                case TrackerCommandKind.TrackTranspose:
+                    if(c.a>=0&&c.a<state.trackCount&&c.b>=-120&&c.b<=120){var t=state.tracks[c.a];t.runtimeTranspose=c.b;state.tracks[c.a]=t;}break;
+                case TrackerCommandKind.TrackDetune:
+                    if(c.a>=0&&c.a<state.trackCount&&math.isfinite(c.value)&&math.abs(c.value)<=1200){var t=state.tracks[c.a];t.runtimeDetune=c.value;state.tracks[c.a]=t;}break;
+                case TrackerCommandKind.DynamicParameterSet:
+                    if(c.a>=0&&c.a<state.deviceParameterCount&&math.isfinite(c.value)&&c.value>=0&&c.value<=1){var parameter=state.deviceParameters[c.a];if(!parameter.dynamic)break;if(parameter.kind==5){parameter.runtimePending=true;parameter.runtimeValue=c.value;state.deviceParameters[c.a]=parameter;}else {parameter.laneRamp=false;state.deviceParameters[c.a]=parameter;SetDeviceParameter(c.a,c.value);}}break;
                 case TrackerCommandKind.ReleaseAll:
                     for(int i=0;i<state.voices.Length;i++)Release(i);break;
                 case TrackerCommandKind.Seek:
@@ -71,7 +79,13 @@ namespace Laubrary.ZTracker.Engine
         void ResetColumns(){for(int i=0;i<state.columnCount;i++)state.columns[i]=new TrackerColumn{instrument=-1,volume=1,pan=0,due=-1,pendingCell=-1,glideTarget=-1,cutTick=-1,volumeCutTick=-1};}
         void ClearVoices(){for(int i=0;i<state.voices.Length;i++)state.voices[i]=default;for(int i=0;i<state.modulationState.Length;i++)state.modulationState[i]=default;}
         void ResetChains(){for(int i=0;i<state.chainCount;i++){ref var c=ref state.chains[i];c.processor.Reset(in c.layout,state.sampleRate,2463534242u,0);TrackerChainSeed.Apply(ref c.processor,in c.layout);}}
-        void ResetDefaults(){state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.normalization=1;for(int i=0;i<state.trackCount;i++){var t=state.tracks[i];t.livePostGain=t.postGain=t.authoredPostGain;t.livePostPan=t.postPan=t.authoredPostPan;t.outputMute=t.authoredOutputMute;t.triggerMute=t.authoredTriggerMute;t.gainRemaining=t.panRemaining=0;t.output=t.authoredOutput;t.instrumentGain=1;state.tracks[i]=t;}ResetToneDefaults();}
+        void ResetDefaults(){ResetRuntimeControls();state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.normalization=1;for(int i=0;i<state.trackCount;i++){var t=state.tracks[i];t.livePostGain=t.postGain=t.authoredPostGain;t.livePostPan=t.postPan=t.authoredPostPan;t.outputMute=t.authoredOutputMute;t.triggerMute=t.authoredTriggerMute;t.gainRemaining=t.panRemaining=0;t.output=t.authoredOutput;t.instrumentGain=1;state.tracks[i]=t;}ResetToneDefaults();}
+        void ResetRuntimeControls()
+        {
+            if(state.runtimeTempoApplied)state.bpm=state.underlyingBpm;
+            state.runtimeTempo=0;state.runtimeTempoApplied=false;state.underlyingBpm=0;
+            for(int i=0;i<state.trackCount;i++){var track=state.tracks[i];track.runtimeTranspose=0;track.runtimeDetune=0;state.tracks[i]=track;}
+        }
         void ClockCommands(in TrackerRow row)=>RowGlobals(in row);
         void Seek(int sequence,int row)
         {
@@ -131,10 +145,15 @@ namespace Laubrary.ZTracker.Engine
         void EnterRow()
         {
             double previousBpm=state.bpm;int previousLpb=state.linesPerBeat,previousTpl=state.ticksPerLine;
+            if(state.runtimeTempoApplied){state.bpm=state.underlyingBpm;state.runtimeTempoApplied=false;}
             if(state.liveTimingPending){state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.liveTimingPending=false;}
             var seq=state.sequence[state.sequenceIndex];var pat=state.patterns[seq.pattern];var rr=state.rows[pat.rows+state.row];state.tick=0;state.breakRow=-1;state.held=false;
             int occurrence=state.sequenceIndex*state.rows.Length+pat.rows+state.row;state.rowOccurrence=state.occurrences[occurrence]++;state.rowSerial++;
             EvaluateAutomation(state.row,true);ClockCommands(in rr);
+            // Authoring keeps advancing beneath the game override. A clear therefore restores the current
+            // authored tempo, rather than the song's initial value or the last overridden BPM.
+            for(int i=0;i<state.dynamicCount;i++){int at=state.dynamicParameters[i];var parameter=state.deviceParameters[at];if(!parameter.runtimePending)continue;parameter.runtimePending=false;state.deviceParameters[at]=parameter;SetDeviceParameter(at,parameter.runtimeValue);}
+            if(state.runtimeTempo>0&&state.bpm>0&&state.linesPerBeat>0){state.underlyingBpm=state.bpm;state.bpm=state.runtimeTempo;state.runtimeTempoApplied=true;}
             if(state.bpm!=previousBpm||state.linesPerBeat!=previousLpb||state.ticksPerLine!=previousTpl)Emit(TrackerEventKind.TempoChanged);
             if(state.bpm==0||state.linesPerBeat==0){var stop=TrackerCommand.Stop();Apply(in stop);return;}
             double duration=(state.sampleRate*60d)/(state.bpm*state.linesPerBeat);state.rowDuration=duration;

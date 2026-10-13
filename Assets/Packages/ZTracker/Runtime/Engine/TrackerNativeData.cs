@@ -239,6 +239,9 @@ namespace Laubrary.ZTracker.Engine
         // (laneOwned false); typedRow is the row serial on which a typed command took the value for its row.
         public byte curve;
         public bool laneOwned, laneEnvelope;
+        // Main-thread dynamic tempo writes wait for row entry; other targets ramp immediately.
+        public bool runtimePending;
+        public float runtimeValue;
         public long typedRow;
     }
     // envelope: an envelope column's lane, which drives its target only between its first and last point.
@@ -256,6 +259,9 @@ namespace Laubrary.ZTracker.Engine
         public int columns, columnCount, output, chainStart, chainCount, sendStart, sendCount;
         public int authoredOutput, parent;
         public float instrumentGain;
+        // Game-controlled offsets compose after every authored pitch source, including envelopes and macros.
+        public int runtimeTranspose;
+        public float runtimeDetune;
         public float preGain, prePan, width, postGain, postPan;
         public float authoredPreGain, authoredPrePan, authoredWidth;
         public float authoredPostGain, authoredPostPan, livePostGain, livePostPan, gainStep, panStep;
@@ -336,6 +342,9 @@ namespace Laubrary.ZTracker.Engine
         public int sampleRate, maxFrames, master, sequenceIndex, row, tick, breakRow, linesPerBeat, ticksPerLine, beatInterval;
         public double bpm, tickRemaining, rowStart, rowEnd, clockCompensation, tickDeadline;
         public double authoredBpm;
+        public float runtimeTempo;
+        public double underlyingBpm;
+        public bool runtimeTempoApplied;
         public int authoredLinesPerBeat, authoredTicksPerLine;
         public long transportOrigin;
         public long samplePosition, cohort;
@@ -353,7 +362,7 @@ namespace Laubrary.ZTracker.Engine
         public long rowSerial;
         public bool dynamicLanding;
     }
-    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap }
+    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap, TempoOverride, TrackTranspose, TrackDetune, DynamicParameterSet }
     public struct TrackerCommand
     {
         public TrackerCommandKind kind;
@@ -363,6 +372,13 @@ namespace Laubrary.ZTracker.Engine
         public TrackerState replacement;
         public static TrackerCommand Play(bool loop = true) => new TrackerCommand { kind = TrackerCommandKind.Play, a = loop ? 1 : 0 };
         public static TrackerCommand Stop() => new TrackerCommand { kind = TrackerCommandKind.Stop };
+        /// <summary>Persistent tempo override (32..999 BPM), effective at the next row; zero clears it.</summary>
+        public static TrackerCommand SetTempo(float bpm) => new TrackerCommand { kind = TrackerCommandKind.TempoOverride, value = bpm };
+        public static TrackerCommand ClearTempoOverride() => SetTempo(0);
+        /// <summary>Independent additive semitone offset (-120..120) for active and future track voices.</summary>
+        public static TrackerCommand SetTrackTranspose(int track, int semitones) => new TrackerCommand { kind = TrackerCommandKind.TrackTranspose, a = track, b = semitones };
+        /// <summary>Independent additive cents offset (-1200..1200); does not replace authored fine tune.</summary>
+        public static TrackerCommand SetTrackDetune(int track, float cents) => new TrackerCommand { kind = TrackerCommandKind.TrackDetune, a = track, value = cents };
         public static TrackerCommand Audition(int instrument, int note, int velocity = 127, int track = 0) => new TrackerCommand { kind = TrackerCommandKind.AuditionOn, a = instrument, b = note, c = velocity, d = track };
         /// <summary>Exact normalized audition gain. Integer-rounded velocity is used only for zone selection.</summary>
         public static TrackerCommand Audition(int instrument,int note,float velocity,int track=0)=>new TrackerCommand{kind=TrackerCommandKind.AuditionNormalized,a=instrument,b=note,c=(int)math.round(velocity*127),d=track,value=velocity};
