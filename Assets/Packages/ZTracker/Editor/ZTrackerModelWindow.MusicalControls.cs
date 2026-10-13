@@ -114,6 +114,26 @@ namespace Laubrary.ZTracker.Editor
             }
         }
 
+        // An envelope's Maximum (T-0640): the parameters whose engine range goes beyond the slider's range, so a taller
+        // envelope is meaningful, and the highest Maximum each may take, in the control's units (the engine's own
+        // clamp, which still holds). Normalized values (pan, blend, pulse, spread, feedback), the cutoff (already up to
+        // half the sample rate), resonance and fixed Hz (a sine above the audible range only aliases) keep their range.
+        static float EnvelopeMaximumLimit(string field)
+        {
+            switch (field)
+            {
+                case "volume": case "level": return 1600f;
+                case "fineTune": return 12000f;
+                case "waveBRatio": case "freqRatio": return 64f;
+                case "pmDepth": return 64f;
+                case "unisonDetune": case "vibratoDepth": return 1200f;
+                case "vibratoRate": return 100f;
+                case "vibratoFadeIn": return 20000f;
+                case "fmFeedback": return 16f;
+                default: return float.NaN;
+            }
+        }
+
         static ZUIEnvelopeData PresetEnvelope(ZTrackerInstrument.InstrumentPreset preset, string key)
         {
             var field = preset.GetType().GetField(key + "EnvelopeData");
@@ -145,7 +165,11 @@ namespace Laubrary.ZTracker.Editor
             var r = presentation ?? Musical(field);
             var original = getEnvelope();
             bool rows = original != null && original.durationInRows;
-            var ui = new ZUIValue(value * r.scale) { mode = original != null && original.enabled && original.points != null && original.points.Count > 0 ? ZUIValue.Mode.Curve : ZUIValue.Mode.Static, yMin = r.min, yMax = r.max, duration = original == null ? 1 : Math.Max(.001f, original.xMax) };
+            float maximumLimit = EnvelopeMaximumLimit(field); bool editableMaximum = !float.IsNaN(maximumLimit) && maximumLimit > r.max;
+            float storedMaximum = original != null && original.customMaximum ? original.yMax * r.scale : float.NaN;
+            bool customMaximum = editableMaximum && !float.IsNaN(storedMaximum) && !float.IsInfinity(storedMaximum) && storedMaximum > r.min && storedMaximum <= maximumLimit;
+            bool hasCurve = original != null && original.enabled && original.points != null && original.points.Count > 0;
+            var ui = new ZUIValue(value * r.scale) { mode = hasCurve ? original.adsr ? ZUIValue.Mode.Adsr : ZUIValue.Mode.Curve : ZUIValue.Mode.Static, yMin = r.min, yMax = customMaximum ? storedMaximum : r.max, duration = original == null ? 1 : Math.Max(.001f, original.xMax) };
             if (original != null && original.points != null && original.points.Count > 0)
                 foreach (var p in original.points) ui.points.Add(new ZUIEnvelopePoint(p.time / ui.duration, p.value * r.scale, p.exponent));
             else
@@ -156,11 +180,54 @@ namespace Laubrary.ZTracker.Editor
             var host = new VisualElement(); host.style.alignSelf = Align.FlexStart; host.style.flexShrink = 0; host.style.maxWidth = Length.Percent(100);
             ZuiValueControl control = null;
             float lastStatic = ui.staticValue;
+            // ADSR mode (T-0639): the stages live on the parameter's own envelope data, which is then written as an
+            // ordinary envelope (start, attack to the slider's value, decay to the sustain level, release back to start),
+            // so the engine, playheads and the Envelope mode all keep working; the engine only adds the ADSR release.
+            float startDefault = r.min < 0 && r.max > 0 ? 0 : r.min;
+            ZUIEnvelopeData NewEnvelope() => new ZUIEnvelopeData(0, ui.duration, r.min / r.scale, r.max / r.scale, false) { sustainPosition = ui.duration * .5f };
+            void PrepareAdsr(ZUIEnvelopeData env) { if (env.adsrSet) return; env.adsrStart = startDefault / r.scale; env.adsrSet = true; }
+            // Keeps the Envelope mode's points in step with the ADSR shape, so switching to Envelope starts from it.
+            void ShowShape(ZUIEnvelopeData env)
+            {
+                ui.duration = Math.Max(.001f, env.xMax); ui.points.Clear();
+                foreach (var p in env.points) ui.points.Add(new ZUIEnvelopePoint(p.time / ui.duration, p.value * r.scale, p.exponent));
+            }
+            float AdsrValue(Func<ZUIEnvelopeData, float> read, float fallback) { var env = getEnvelope(); return env != null && env.adsrSet ? read(env) : fallback; }
+            void AdsrEdit(string stage, Action<ZUIEnvelopeData> edit)
+            {
+                InstrumentEdit(r.label + " ADSR " + stage, () =>
+                {
+                    var env = getEnvelope()?.DeepCopy() ?? NewEnvelope(); PrepareAdsr(env); edit(env);
+                    if (ui.mode == ZUIValue.Mode.Adsr) { env.ShapeAdsr(ui.staticValue / r.scale); ShowShape(env); }
+                    setEnvelope(env);
+                });
+                control?.AdsrControl?.Refresh();
+            }
+            var adsrStages = new ZuiAdsr.Options();
+            var adsr = new ZuiValueControl.AdsrBinding
+            {
+                attack = () => AdsrValue(e => e.adsrAttack, adsrStages.attackDefault), setAttack = v => AdsrEdit("attack", e => e.adsrAttack = v),
+                decay = () => AdsrValue(e => e.adsrDecay, adsrStages.decayDefault), setDecay = v => AdsrEdit("decay", e => e.adsrDecay = v),
+                sustain = () => AdsrValue(e => e.adsrSustain, adsrStages.sustainDefault), setSustain = v => AdsrEdit("sustain", e => e.adsrSustain = v),
+                release = () => AdsrValue(e => e.adsrRelease, adsrStages.releaseDefault), setRelease = v => AdsrEdit("release", e => e.adsrRelease = v),
+                start = () => AdsrValue(e => e.adsrStart, startDefault / r.scale) * r.scale, setStart = v => AdsrEdit("start", e => e.adsrStart = v / r.scale),
+                startDefault = startDefault, stages = adsrStages,
+                startTooltip = "Where " + r.label + " starts each note, and returns to once the release has ended; the attack rises from here to the slider's value (the peak).",
+                tooltip = r.label + " follows its own attack, decay, sustain and release on every note: from Start up to the slider's value, down to the sustain level (a share of the way back to Start) while the key is held, and back to Start on release, from wherever it has got to. Drag a point or a slider; double-click resets a stage."
+            };
             void Publish()
             {
                 if (ui.staticValue != lastStatic) { apply(ui.staticValue / r.scale); lastStatic = ui.staticValue; }
                 if (getEnvelope() == null && ui.mode == ZUIValue.Mode.Static) { EndInstrumentGesture(); return; }
-                var env = getEnvelope()?.DeepCopy() ?? new ZUIEnvelopeData(0, ui.duration, r.min / r.scale, r.max / r.scale, false) { sustainPosition = ui.duration * .5f };
+                var env = getEnvelope()?.DeepCopy() ?? NewEnvelope();
+                if (ui.mode == ZUIValue.Mode.Adsr)
+                {
+                    PrepareAdsr(env); env.ShapeAdsr(ui.staticValue / r.scale); ShowShape(env);
+                    setEnvelope(env); EndInstrumentGesture(); RefreshSynthConditionalControls(rootVisualElement);
+                    control?.AdsrControl?.Refresh();
+                    return;
+                }
+                env.adsr = false;
                 env.enabled = ui.mode == ZUIValue.Mode.Curve;
                 if (env.enabled)
                 {
@@ -169,7 +236,10 @@ namespace Laubrary.ZTracker.Editor
                     float durationRatio = ui.duration / Math.Max(.001f, env.xMax);
                     env.loopStart *= durationRatio; env.loopEnd *= durationRatio; env.sustainPosition *= durationRatio;
                     env.requiresEndPoint = false;
-                    env.xMin = 0; env.xMax = ui.duration; env.yMin = r.min / r.scale; env.yMax = r.max / r.scale;
+                    env.xMin = 0; env.xMax = ui.duration; env.yMin = r.min / r.scale;
+                    // The envelope's own Maximum when one was chosen (T-0640), otherwise the slider's range.
+                    env.customMaximum = editableMaximum && ui.yMax > r.min && Math.Abs(ui.yMax - r.max) > r.max * 1e-6f;
+                    env.yMax = (env.customMaximum ? ui.yMax : r.max) / r.scale;
                     env.points.Clear();
                     foreach (var p in ui.points) env.points.Add(new ZUIEnvelopePoint(p.time * ui.duration, p.value / r.scale, p.exponent));
                     ClampMarkers(env);
@@ -225,10 +295,20 @@ namespace Laubrary.ZTracker.Editor
                     canvas.SetPlayheads(normalized, faded, count);
                 }).Every(33);
             }
-            control = Z.Value(r.label, ui, new ZuiValueControl.Options { absMin = r.min, absMax = r.max, staticDefault = (defaultValue ?? ParameterDefault(field, field)) * r.scale, decimals = r.decimals, logarithmic = r.logarithmic, controlWidth = 170, allowMinMax = false, allowSteps = false, allowOscillation = false, preserveCurveOnModeSwitch = true, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true, valueUnit = r.unit ?? "", xAxisLabel = rows ? "Song rows" : "Seconds", yAxisLabel = r.label, yAxisLegend = true, showAxisLegends = EnvelopeAxisLegends, xTickLabel = Ticks, decorateEnvelope = Decorate },
+            control = Z.Value(r.label, ui, new ZuiValueControl.Options { adsr = adsr, absMin = r.min, absMax = r.max, staticDefault = (defaultValue ?? ParameterDefault(field, field)) * r.scale, decimals = r.decimals, logarithmic = r.logarithmic, controlWidth = 170, allowMinMax = false, allowSteps = false, allowOscillation = false, preserveCurveOnModeSwitch = true, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true, valueUnit = r.unit ?? "", editableMaximum = editableMaximum, maximumLimit = editableMaximum ? maximumLimit : float.PositiveInfinity, xAxisLabel = rows ? "Song rows" : "Seconds", yAxisLabel = r.label, yAxisLegend = true, showAxisLegends = EnvelopeAxisLegends, xTickLabel = Ticks, decorateEnvelope = Decorate },
                 r.tip + " Right-click for a per-note envelope. Every new note restarts it; held loops leave on note-off. On the curve: drag the loop and hold markers; right-click the curve's background for its display options.", Publish, () => BeginInstrumentGesture(r.label));
             control.name = name;
             host.Add(control);
+            if (playheads && Laubrary.ZTracker.Engine.TrackerParameters.Resolve(parameterKey ?? field, out var adsrParameter))
+            {
+                var adsrHeads = new float[64]; var adsrFaded = new bool[64];
+                control.schedule.Execute(() =>
+                {
+                    var view = control.AdsrControl; if (view == null || view.panel == null) return;
+                    var env = getEnvelope(); int count = env == null || !env.enabled || !env.adsr ? 0 : ReadPlayheads(instrument, (int)adsrParameter, adsrHeads, adsrFaded);
+                    view.SetPlayheads(adsrHeads, adsrFaded, count);
+                }).Every(33);
+            }
             var timing = Flow(); timing.name = name + "-timing";
             float defaultDuration = rows ? EnvelopeDefaultRows : new ZUIEnvelopeData().xMax;
             timing.Add(Named(rows
@@ -241,8 +321,10 @@ namespace Laubrary.ZTracker.Editor
                 timing.Add(InstrumentChoice("Direction", Math.Max(0, original.loopMode - loopOffset), new[] { "Forward", "Ping-pong" }, "Forward jumps back to the loop start at its end; Ping-pong runs back and forth. The envelope continues forward after note-off.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; env.loopMode = v + loopOffset; setEnvelope(env); }, name + "-loop-direction"));
             timing.Add(InstrumentToggle("Sustain", original != null && original.sustainEnabled, "Hold the envelope at the dashed S marker on the curve until note-off, then play the rest of it.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; env.sustainEnabled = v; if (v && (env.sustainPosition <= 0 || env.sustainPosition > Last(env))) env.sustainPosition = Last(env) * .5f; env.sustainPosition = Mathf.Clamp(env.sustainPosition, 0, Last(env)); setEnvelope(env); }, name + "-sustain", true));
             host.Add(timing);
-            void LayoutMode() { bool curve = ui.mode == ZUIValue.Mode.Curve; bool expanded = curve && control.IsExpanded; timing.style.display = expanded ? DisplayStyle.Flex : DisplayStyle.None; host.style.width = expanded ? 380 : curve ? 260 : 170; }
-            control.ModeChanged += LayoutMode; control.ExpansionChanged += LayoutMode; LayoutMode();
+            void LayoutMode() { bool curve = ui.mode == ZUIValue.Mode.Curve; bool expanded = curve && control.IsExpanded; timing.style.display = expanded ? DisplayStyle.Flex : DisplayStyle.None; host.style.width = expanded ? 380 : curve || ui.mode == ZUIValue.Mode.Adsr ? 260 : 170;
+                // In a column grid (the Amplifier's Volume and Pan) an ADSR needs its full size, so its cell takes the whole row.
+                var cell = host.parent; if (cell?.parent != null && cell.parent.ClassListContains("tracker-instrument-columns")) { bool wide = ui.mode == ZUIValue.Mode.Adsr; if (cell.ClassListContains("tracker-instrument-wide") != wide) { cell.EnableInClassList("tracker-instrument-wide", wide); (cell.parent.userData as Action)?.Invoke(); } } }
+            control.ModeChanged += LayoutMode; control.ExpansionChanged += LayoutMode; LayoutMode(); host.RegisterCallback<AttachToPanelEvent>(_ => LayoutMode());
             return host;
         }
 

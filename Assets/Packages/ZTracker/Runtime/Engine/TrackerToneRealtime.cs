@@ -81,12 +81,23 @@ namespace Laubrary.ZTracker.Engine
             for(int n=1;n<count;n++){var b=state.points[start+n];if(time<=(float)b.time){var a=state.points[start+n-1];float t=(time-(float)a.time)/((float)b.time-(float)a.time);if(exponent)t=math.pow(t,b.exponent);return a.value+(b.value-a.value)*t;}}
             return state.points[start+count-1].value;
         }
-        float ToneCurve(in TrackerMod m,in TrackerVoice voice)=>PointCurve(m.points,m.pointCount,(float)ToneCurvePosition(in m,in voice),true);
+        float ToneCurve(in TrackerMod m,in TrackerVoice voice)
+        {
+            if(m.adsr&&voice.released){
+                // ADSR release (T-0639): from the level the held note had reached (the curve up to the sustain point) to
+                // the last point's value over the release time, so a short note never plays out its attack and decay.
+                double releasedAt=voice.releaseAge/(double)state.sampleRate,span=AdsrReleaseSpan(in m);
+                float from=PointCurve(m.points,m.pointCount,(float)math.min(releasedAt,m.sustainPosition),true),end=state.points[m.points+m.pointCount-1].value;
+                return span>0?math.lerp(from,end,(float)math.saturate((voice.envTime-releasedAt)/span)):end;
+            }
+            return PointCurve(m.points,m.pointCount,(float)ToneCurvePosition(in m,in voice),true);
+        }
         /// Where a voice is on one of the synth's own envelopes, in the envelope's own unit (seconds, or song rows for an
         /// envelope measured in rows). The sound and the editor's playheads both read it.
         double ToneCurvePosition(in TrackerMod m,in TrackerVoice voice)
         {
             double time=m.rows?voice.envRows:voice.envTime;
+            if(m.adsr&&voice.released){double releasedAt=voice.releaseAge/(double)state.sampleRate;return m.sustainPosition+math.min(AdsrReleaseSpan(in m),math.max(0,time-releasedAt));}
             if(voice.released&&(m.loopEnabled||m.sustainEnabled)){
                 double releasedAt=m.rows?voice.releaseRows:voice.releaseAge/(double)state.sampleRate;
                 double releasePosition=m.sustainEnabled?math.min(releasedAt,m.sustainPosition):releasedAt;

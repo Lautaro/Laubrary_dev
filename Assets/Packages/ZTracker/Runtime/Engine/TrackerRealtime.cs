@@ -562,6 +562,14 @@ namespace Laubrary.ZTracker.Engine
                         else value=m.sustain;ms.position+=1d/state.sampleRate;ms.seeked=false;break;
                     case ModulationDeviceKind.Multipoint:
                         if(ms.finished&&!m.parameterEnvelope)break;
+                        if(m.adsr&&v.released){
+                            // ADSR release (T-0639): from the level reached at note-off to the last point's value over the
+                            // release time, whatever stage the note was in; its position runs on from the sustain point.
+                            if(!ms.released){ms.released=true;ms.releaseStart=ms.output;ms.position=m.sustainPosition;}
+                            double span=AdsrReleaseSpan(in m);float end=state.points[m.points+m.pointCount-1].value;
+                            value=span>0?math.lerp(ms.releaseStart,end,(float)math.saturate((ms.position-m.sustainPosition)/span)):end;
+                            ms.position=math.min(ms.position+1d/state.sampleRate,m.sustainPosition+span);ms.seeked=false;break;
+                        }
                         // One sample of envelope time: seconds, or song rows at the tempo of the moment (T-0629).
                         double dt=m.rows?RowsPerSample:1d/state.sampleRate;
                         if(ms.direction==0){ms.direction=m.loop==SampleLoop.Backward?-1:1;if(!ms.seeked&&m.loop==SampleLoop.Backward&&m.loopEnabled)ms.position=m.loopEnd-dt;}
@@ -591,6 +599,8 @@ namespace Laubrary.ZTracker.Engine
             }
             volume=math.clamp(volume,0,16);cutoff=math.clamp(cutoff,20,s.legacyFilter!=0?state.sampleRate*.5f-100:state.sampleRate*.45f);resonance=math.clamp(resonance,.1f,10);drive=math.clamp(drive,0,100);
         }
+        /// <summary>An ADSR-drawn envelope's release time: from its sustain point to its last point.</summary>
+        double AdsrReleaseSpan(in TrackerMod m)=>m.pointCount>0?math.max(0,state.points[m.points+m.pointCount-1].time-m.sustainPosition):0;
         float Curve(in TrackerMod m,double pos)
         {
             if(m.pointCount==0)return 1;if(pos<=state.points[m.points].time)return state.points[m.points].value;

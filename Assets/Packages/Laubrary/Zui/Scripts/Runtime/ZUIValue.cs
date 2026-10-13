@@ -17,7 +17,9 @@ using UnityEngine;
 public class ZUIValue
 {
     // APPEND-ONLY: serialized as an int, so an existing asset's mode must never shift index.
-    public enum Mode { Static, MinMax, Curve, Steps, Oscillation }
+    // Adsr (T-0639): a per-note attack/decay/sustain/release whose stages the HOST stores and evaluates (offered only
+    // when a ZuiValueControl is given Options.adsr); here it keeps only its peak, the static value, and evaluates as Static.
+    public enum Mode { Static, MinMax, Curve, Steps, Oscillation, Adsr }
 
     [SerializeField] Mode m_mode = Mode.Static;
 

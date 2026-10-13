@@ -232,6 +232,10 @@ namespace Laubrary.ZTracker.Engine
         public SampleLoop loop;
         public float fadeSeconds, randomness;
         public bool advanceFirst, primaryEnvelope;
+        // An envelope drawn as an ADSR (T-0639): its points are attack, decay, the sustain point, release. A note
+        // released before the sustain point leaves from the level it has reached, like the amplifier's ADSR, and
+        // reaches the last point's value over the release time (last point time minus the sustain position).
+        public bool adsr;
     }
     public struct TrackerModState { public double position; public float releaseStart, output; public bool released, finished, seeked; public int direction; }
     public struct TrackerVoice

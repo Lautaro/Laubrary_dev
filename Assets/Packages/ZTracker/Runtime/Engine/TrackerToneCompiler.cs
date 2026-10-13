@@ -135,6 +135,7 @@ namespace Laubrary.ZTracker.Engine
             foreach(var p in env.points){if(!math.isfinite(p.time)||!math.isfinite(p.value)||!math.isfinite(p.exponent)||p.time<=prev||p.exponent<=0)throw new ArgumentException("Malformed tone envelope");points.Add(new TrackerModPoint{time=p.time,value=p.value,exponent=p.exponent});prev=p.time;}
             m.pointCount=env.Count;m.loopStart=env.loopStart;m.loopEnd=env.loopEnd;m.loopEnabled=env.loopEnabled;
             m.sustainEnabled=env.sustainEnabled;m.sustainPosition=env.sustainPosition;m.rows=env.durationInRows;
+            m.adsr=env.adsr&&env.sustainEnabled&&!env.loopEnabled&&!env.durationInRows;
             if(m.sustainEnabled&&(!math.isfinite(env.sustainPosition)||env.sustainPosition<0||env.sustainPosition>prev))throw new ArgumentException("Invalid parameter envelope sustain");
             if(m.loopEnabled){int mode=domain==SoundEnumDomain.NativeDirect?env.loopMode:env.loopMode-1;if(mode<0||mode>1||!math.isfinite(m.loopStart)||!math.isfinite(m.loopEnd)||m.loopEnd<=m.loopStart||m.loopStart<0||m.loopEnd>prev)throw new ArgumentException("Malformed tone loop");m.loop=mode==1?SampleLoop.PingPong:SampleLoop.Forward;}
             return m;

@@ -100,6 +100,18 @@ namespace Laubrary.Zui
             /// Called with the curve editor every time it is built (curve mode, expanded), so a host can add markers,
             /// playheads or a context menu (ZuiEnvelope.SetLoop / SetSustain / SetPlayheads, configuration.onEmptyContext).
             public Action<ZuiEnvelope> decorateEnvelope = null;
+            /// Envelope mode: offer Maximum in the right-click menu, an input for the top of the curve's value range
+            /// (prefilled with the current top, validated, one Undo step through OnBeforeMutate/OnChanged). OFF by
+            /// default: only a host whose own evaluator accepts values above absMax turns it on, and it states how
+            /// high it may go in maximumLimit. The chosen top is the ZUIValue's yMax; the host stores it. With
+            /// hideCurveRange the top otherwise stays pinned to absMax, which is also what the reset returns to.
+            public bool editableMaximum = false;
+            /// The highest Maximum allowed (the host's own limit, in this control's units).
+            public float maximumLimit = float.PositiveInfinity;
+            /// Offer ADSR as a mode (T-0639): the value is driven per note by an attack/decay/sustain/release that the
+            /// HOST stores and plays, from a Start value up to the slider's value (the peak). Null (default) = not
+            /// offered, because a host that cannot play it would silently ignore it.
+            public AdsrBinding adsr = null;
 
             public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
@@ -115,6 +127,20 @@ namespace Laubrary.Zui
             public Options WithYColor(Func<float, Color> map) { yColorFor = map; return this; }
 
             public Options Clone() => (Options)MemberwiseClone();
+        }
+
+        /// <summary>Where an ADSR-mode value keeps its stages: the host's getters and setters (each setter is one
+        /// edit the host records for Undo), the compact control's limits and defaults, and an optional Start value.</summary>
+        public sealed class AdsrBinding
+        {
+            public Func<float> attack, decay, sustain, release, start;
+            public Action<float> setAttack, setDecay, setSustain, setRelease, setStart;
+            public ZuiAdsr.Options stages = new ZuiAdsr.Options();
+            /// Start's default (double-click reset), in this control's units.
+            public float startDefault;
+            public string startLabel = "Start";
+            public string startTooltip = "The value at the start of each note, and again once the release has ended; the attack rises from here to the peak.";
+            public string tooltip = "This value's own attack, decay, sustain and release for each note: it rises from Start to the slider's value, falls to the sustain level while the key is held, and returns to Start on release. Drag a point or a slider; double-click resets a stage.";
         }
 
         // Curve-mode UI state keyed by the ZUIValue instance so it survives window rebuilds
@@ -168,7 +194,7 @@ namespace Laubrary.Zui
         /// earns a line of its own instead of being squeezed beside a radio with its label left stranded.
         public bool IsCurveShaped =>
             _v != null && (_v.mode == ZUIValue.Mode.Curve || _v.mode == ZUIValue.Mode.Steps ||
-                           _v.mode == ZUIValue.Mode.Oscillation);
+                           _v.mode == ZUIValue.Mode.Oscillation || _v.mode == ZUIValue.Mode.Adsr);
 
         /// Fires when the MODE changes (Static ⇄ Envelope ⇄ Steps ⇄ …). A host laying these out in a flowing
         /// row needs it: how much room this control deserves depends on its mode, and a mode switch rebuilds
@@ -267,6 +293,7 @@ namespace Laubrary.Zui
         {
             _content.Clear();
             _env = null;
+            AdsrControl = null;
             _inputsHost = null;
             _inputFields.Clear();
 
@@ -297,6 +324,9 @@ namespace Laubrary.Zui
                     break;
                 case ZUIValue.Mode.Oscillation:
                     BuildOscillation();
+                    break;
+                case ZUIValue.Mode.Adsr:
+                    BuildAdsr();
                     break;
             }
             bool expanded = IsExpanded;
@@ -331,6 +361,42 @@ namespace Laubrary.Zui
             row.style.marginBottom = 0f;
             row.Add(body);
             _content.Add(row);
+        }
+
+        /// <summary>The compact ADSR control while ADSR mode is shown, otherwise null.</summary>
+        public ZuiAdsr AdsrControl { get; private set; }
+
+        // ── ADSR mode (T-0639): the slider is the peak, Start beside it, the compact ADSR under both ──
+        void BuildAdsr()
+        {
+            AdsrControl = null;
+            var b = _opt.adsr;
+            if (b == null) { _v.mode = ZUIValue.Mode.Static; RebuildAll(); return; }
+            float width = float.IsNaN(b.stages.width) ? b.stages.laneWidth * 4f : b.stages.width;
+            var row = new VisualElement { name = "zui-value-adsr-levels" };
+            row.style.flexDirection = FlexDirection.Row; row.style.flexWrap = Wrap.NoWrap; row.style.width = Length.Percent(100); row.style.maxWidth = width; row.style.marginBottom = 1f;
+            bool withStart = b.start != null && b.setStart != null;
+            float sliderWidth = withStart ? (width - 2f) * .5f : width;
+            var peak = Z.MicroSlider(_label, _v.staticValue, _opt.absMin, _opt.absMax,
+                (string.IsNullOrEmpty(_tooltip) ? "" : _tooltip + " ") + "With ADSR this is the peak: the value the attack rises to.",
+                val => Mutate(() => _v.staticValue = val), sliderWidth, showValue: true,
+                defaultValue: _opt.staticDefault, decimals: _opt.decimals, logarithmic: _opt.logarithmic);
+            // The two share the row (they shrink with it in a narrow column, as the ADSR under them does).
+            peak.name = "zui-value-adsr-peak"; peak.style.width = StyleKeyword.Auto; peak.style.flexGrow = 1; peak.style.flexBasis = 0; peak.style.flexShrink = 1; peak.style.minWidth = 0; peak.style.marginRight = withStart ? 2f : 0f;
+            row.Add(peak);
+            if (withStart)
+            {
+                var start = Z.MicroSlider(b.startLabel, b.start(), _opt.absMin, _opt.absMax, b.startTooltip,
+                    val => { OnBeforeMutate?.Invoke(); b.setStart(val); OnChanged?.Invoke(); }, sliderWidth, showValue: true,
+                    defaultValue: b.startDefault, decimals: _opt.decimals, logarithmic: _opt.logarithmic);
+                start.name = "zui-value-adsr-start"; start.style.width = StyleKeyword.Auto; start.style.flexGrow = 1; start.style.flexBasis = 0; start.style.flexShrink = 1; start.style.minWidth = 0; start.style.marginRight = 0f;
+                row.Add(start);
+            }
+            _content.Add(row);
+            var adsr = Z.Adsr(null, b.attack, b.setAttack, b.decay, b.setDecay, b.sustain, b.setSustain, b.release, b.setRelease, b.tooltip, b.stages);
+            adsr.name = "zui-value-adsr";
+            AdsrControl = adsr;
+            _content.Add(adsr);
         }
 
         /// True when the clicked element is an editing surface whose own right-click gesture must survive —
@@ -372,7 +438,7 @@ namespace Laubrary.Zui
             if (_opt.hideCurveRange)
             {
                 _v.yMin = Mathf.Min(_opt.absMin, _opt.absMax);
-                _v.yMax = Mathf.Max(_opt.absMin, _opt.absMax);
+                _v.yMax = _opt.editableMaximum && ValidMaximum(_v.yMax) ? _v.yMax : DefaultMaximum;
             }
             var st = GetState(_v);
 
@@ -903,6 +969,64 @@ namespace Laubrary.Zui
             }
         }
 
+        // ── Maximum (T-0640): the top of an envelope's value range, set in the right-click menu ──
+        float DefaultMaximum => Mathf.Max(_opt.absMin, _opt.absMax);
+        float MaximumFloor => Mathf.Min(_opt.absMin, _opt.absMax);
+        bool ValidMaximum(float v) => !float.IsNaN(v) && !float.IsInfinity(v) && v > MaximumFloor && v <= _opt.maximumLimit;
+
+        /// The Maximum a typed value lands on: finite, above the minimum, at most maximumLimit, on the control's
+        /// decimals. Null when the input is not a number.
+        public float? ClampMaximum(float v)
+        {
+            if (float.IsNaN(v) || float.IsInfinity(v)) return null;
+            float step = _opt.decimals > 0 ? Mathf.Pow(10f, -_opt.decimals) : _opt.decimals == 0 ? 1f : Mathf.Max(1e-4f, (DefaultMaximum - MaximumFloor) * 1e-3f);
+            v = Mathf.Min(v, float.IsInfinity(_opt.maximumLimit) ? v : _opt.maximumLimit);
+            if (_opt.decimals >= 0) v = Mathf.Round(v / step) * step;
+            return Mathf.Max(v, MaximumFloor + step);
+        }
+
+        /// Sets the envelope's Maximum (one Undo step through the host's hooks). Points above it are lowered to it, so
+        /// the curve stays inside its range; Undo brings them back.
+        public void SetMaximum(float typed)
+        {
+            if (!_opt.editableMaximum) return;
+            var clamped = ClampMaximum(typed); if (clamped == null) return;
+            float v = clamped.Value; if (Mathf.Approximately(v, _v.yMax)) return;
+            Mutate(() =>
+            {
+                _v.yMax = v;
+                foreach (var point in _v.points) if (point.value > v) point.value = v;
+            });
+            RebuildAll(); UpdateReadout();
+        }
+
+        VisualElement MaximumRow(Action close)
+        {
+            string unit = string.IsNullOrEmpty(_opt.valueUnit) ? "" : " " + _opt.valueUnit;
+            string limit = float.IsInfinity(_opt.maximumLimit) ? "" : " It can go up to " + FormatCurveNumber(_opt.maximumLimit) + unit + ".";
+            string tip = "The top of this envelope's value range: the highest value its points can reach." + limit + " Lowering it brings any higher point down to it. Type a value and press Enter, or drag on the number. The arrow resets it to " + FormatCurveNumber(DefaultMaximum) + unit + ".";
+            var row = new VisualElement { name = "zui-value-maximum", tooltip = tip };
+            row.style.flexDirection = FlexDirection.Row; row.style.alignItems = Align.Center;
+            row.style.marginTop = 2f; row.style.marginBottom = 2f;
+            var caption = new Label("Maximum") { tooltip = tip };
+            caption.style.marginRight = 4f; caption.style.unityTextAlign = TextAnchor.MiddleLeft;
+            row.Add(caption);
+            var field = Z.Float(_v.yMax, tip, v => { SetMaximum(v); }, 70f, _opt.decimals < 0 ? 2 : Mathf.Clamp(_opt.decimals, 0, 4));
+            field.name = "zui-value-maximum-field";
+            field.isDelayed = true;
+            // Whatever lands (clamped, rounded) is shown back at once, so the field never shows a value it did not set.
+            field.RegisterValueChangedCallback(_ => field.schedule.Execute(() => field.SetValueWithoutNotify(_v.yMax)));
+            row.Add(field);
+            if (unit.Length > 0) { var u = new Label(unit.Trim()) { tooltip = tip }; u.style.marginLeft = 3f; row.Add(u); }
+            var reset = Z.IconButton("arrow-counter-clockwise", "Reset Maximum to " + FormatCurveNumber(DefaultMaximum) + unit + ".", () => { SetMaximum(DefaultMaximum); field.SetValueWithoutNotify(_v.yMax); });
+            reset.name = "zui-value-maximum-reset";
+            reset.style.marginLeft = 4f;
+            reset.style.visibility = Mathf.Approximately(_v.yMax, DefaultMaximum) ? Visibility.Hidden : Visibility.Visible;
+            field.RegisterValueChangedCallback(_ => reset.schedule.Execute(() => reset.style.visibility = Mathf.Approximately(_v.yMax, DefaultMaximum) ? Visibility.Hidden : Visibility.Visible));
+            row.Add(reset);
+            return row;
+        }
+
         // ── the ⋯ menu (mode / display / multiplier / copy-paste), a ZUI popover anchored to the ⋯ button ──
         void ShowMenu(VisualElement anchor)
         {
@@ -919,11 +1043,13 @@ namespace Laubrary.Zui
             if (_opt.allowCurve) { modes.Add(ZUIValue.Mode.Curve); modeLabels.Add("Envelope"); }
             if (_opt.allowSteps) { modes.Add(ZUIValue.Mode.Steps); modeLabels.Add("Steps"); }
             if (_opt.allowOscillation) { modes.Add(ZUIValue.Mode.Oscillation); modeLabels.Add("Oscillation"); }
+            if (_opt.adsr != null) { modes.Add(ZUIValue.Mode.Adsr); modeLabels.Add("ADSR"); }
             int modeSel = modes.IndexOf(_v.mode);
             if (hasMultiplier) menu.Section("Mode");
             menu.Radio(null, modeLabels.ToArray(), modeSel,
                 "How this value is produced: a Static point, a random Min-Max range, an Envelope over time, " +
-                "held Steps, or an Oscillation — a sine swinging between two envelopes at an animatable rate.",
+                "held Steps, an Oscillation — a sine swinging between two envelopes at an animatable rate — or an ADSR, " +
+                "attack, decay, sustain and release for each note (where offered).",
                 i => SetMode(modes[i]), closeOnSelect: true);
 
             // Curve-display options → persistent toggle rows (stay open so several can be flipped in one visit).
@@ -952,6 +1078,11 @@ namespace Laubrary.Zui
                         st.inputsSelectedOnly, on => { st.inputsSelectedOnly = on; if (!st.expanded) st.expanded = true; st.showInputs = true; RebuildAll(); }));
                     body.Add(row);
                 });
+                if (_opt.editableMaximum)
+                {
+                    menu.Separator();
+                    menu.Custom((body, close) => body.Add(MaximumRow(close)));
+                }
 
                 // Envelope SHAPE tools — generators (write the points) + the visual shape picker. All operate on
                 // the point list, so they live under Envelope mode only. Each opens a popover anchored to the ⋯

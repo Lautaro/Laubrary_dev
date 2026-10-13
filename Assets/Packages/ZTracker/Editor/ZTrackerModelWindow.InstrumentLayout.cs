@@ -29,6 +29,8 @@ namespace Laubrary.ZTracker.Editor
                 }
             }
             row.RegisterCallback<GeometryChangedEvent>(e => Layout(e.newRect.width));
+            // A child that changes how wide it must be (a value switched to ADSR, T-0639) asks for a new layout.
+            row.AddToClassList("tracker-instrument-columns"); row.userData = (Action)(() => Layout(0));
             row.RegisterCallback<AttachToPanelEvent>(_ => row.schedule.Execute(() => Layout(row.contentRect.width)));
             return row;
         }

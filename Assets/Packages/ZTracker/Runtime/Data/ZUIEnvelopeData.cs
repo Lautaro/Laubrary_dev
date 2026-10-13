@@ -32,6 +32,44 @@ public class ZUIEnvelopeData
     /// <summary>Direct access to the point list — hand this to ZUI.Envelope.</summary>
     public List<ZUIEnvelopePoint> points => m_points;
 
+    // An author-chosen top of the value range (T-0640, the envelope's Maximum): when set, yMax is that top and an
+    // editor keeps it instead of its own default range. Display only; the engine never reads yMax.
+    [SerializeField] bool m_customMaximum = false;
+    public bool customMaximum { get => m_customMaximum; set => m_customMaximum = value; }
+
+    // ADSR mode (T-0639): the envelope is drawn from four stages instead of free points. The points are always written
+    // from them (start, attack to the peak, decay to the sustain level, the sustain point, release back to start), so
+    // the engine plays it as an ordinary envelope; it only adds the ADSR release (leave from the level reached). Times in
+    // seconds; sustain is a share (0..1) of the way from start to the peak; start is in the parameter's stored units.
+    [SerializeField] bool m_adsr = false;
+    [SerializeField] bool m_adsrSet = false;
+    [SerializeField] float m_adsrAttack = .01f, m_adsrDecay = .2f, m_adsrSustain = .7f, m_adsrRelease = .5f, m_adsrStart = 0f;
+    public bool adsr { get => m_adsr; set => m_adsr = value; }
+    /// Whether the ADSR stages and start were ever set (a fresh one takes the editor's per-parameter start).
+    public bool adsrSet { get => m_adsrSet; set => m_adsrSet = value; }
+    public float adsrAttack { get => m_adsrAttack; set => m_adsrAttack = value; }
+    public float adsrDecay { get => m_adsrDecay; set => m_adsrDecay = value; }
+    public float adsrSustain { get => m_adsrSustain; set => m_adsrSustain = value; }
+    public float adsrRelease { get => m_adsrRelease; set => m_adsrRelease = value; }
+    public float adsrStart { get => m_adsrStart; set => m_adsrStart = value; }
+
+    /// Writes the points (and sustain point and length) of the ADSR shape rising from adsrStart to <paramref name="peak"/>.
+    /// A stage of 0 still advances by a tenth of a millisecond, because points need strictly increasing times; an
+    /// attack of 0 starts at the peak instead (a vertical wall).
+    public void ShapeAdsr(float peak)
+    {
+        const float Gap = .0001f;
+        float a = Mathf.Max(0, m_adsrAttack), d = Mathf.Max(0, m_adsrDecay), s = Mathf.Clamp01(m_adsrSustain), r = Mathf.Max(0, m_adsrRelease), start = m_adsrStart;
+        m_points.Clear();
+        if (a > 0) { m_points.Add(new ZUIEnvelopePoint(0f, start, 1f)); m_points.Add(new ZUIEnvelopePoint(a, peak, 1f)); }
+        else m_points.Add(new ZUIEnvelopePoint(0f, peak, 1f));
+        float held = a + Mathf.Max(d, Gap), end = held + Mathf.Max(r, Gap);
+        m_points.Add(new ZUIEnvelopePoint(held, start + (peak - start) * s, 1f));
+        m_points.Add(new ZUIEnvelopePoint(end, start, 1f));
+        requiresEndPoint = false;
+        m_xMin = 0; m_xMax = end; sustainEnabled = true; sustainPosition = held; m_loopEnabled = false; durationInRows = false; m_enabled = true; m_adsr = true;
+    }
+
     public bool loopEnabled { get => m_loopEnabled; set => m_loopEnabled = value; }
     public int loopMode { get => m_loopMode; set => m_loopMode = value; }
     public float loopStart { get => m_loopStart; set => m_loopStart = value; }
