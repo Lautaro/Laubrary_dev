@@ -183,3 +183,11 @@ Verified by eye: in the walks above the built-ins read as distinct coloured text
 Not verified: the colour picker dragged by a human (its change path and Undo were exercised by calls); the bind menu (Alt+B) lists commands without colours, because the shared menu draws plain text items.
 
 Cleanup for both: the walk windows and their in-memory songs, instruments and clips were closed and destroyed; the temporary walk script was deleted before committing; screenshots stay in the session scratchpad. The owner's ZTracker window was left open and untouched.
+
+## P5 allocation guard counts only its own render (2026-10-13, T-0605)
+
+Cause, reproduced before fixing: the guard compared the editor-wide count of rendered audio blocks before and after its own 64 renders. With the owner's ZTracker window open, its preview renderer adds about 50 blocks a second to the same count, so whenever one of those landed inside the measured loop the check saw 65. Measured with the window open: 200 trials of the old count, 15 wrong; the same 200 trials counted by the engine's own render counter, 0 wrong. The guard now reads the started song's own completed-render counter (one per block it rendered) and checks after every block that the render ran as compiled Burst code (the engine's own witness), with the same 0-bytes allocation requirement; its failure message now names the measured bytes, blocks and managed blocks.
+
+Verified by probe: compilation clean; P5 commands 30/0 three times in a row with the owner's window and its preview running (`MEASURE p5RenderAllocatedBytes=0 nativeBlocks=64 managedBlocksDelta=0` each time).
+
+Not verified: nothing user-facing changed; this is a check fix.

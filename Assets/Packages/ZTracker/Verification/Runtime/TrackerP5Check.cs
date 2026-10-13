@@ -2140,11 +2140,18 @@ namespace Laubrary.ZTracker.Engine
                     using (var e = f.Open())
                     {
                         f.Render(e, 1024);
-                        long native = AudioThreadGuard.Blocks, managed = AudioThreadGuard.ManagedBlocks, before = GC.GetAllocatedBytesForCurrentThread();
+                        // Count only this engine's own renders: the process-wide guard counters also see any other
+                        // renderer that is running (an open ZTracker window's preview), so they are timing-dependent here.
+                        var ticket = e.Snapshot.ticket;
+                        long native = ticket[4], managedDelta = 0, before = GC.GetAllocatedBytesForCurrentThread();
                         for (int block = 0; block < 64; block++)
+                        {
                             e.Render(f.left, f.right, 333, 333);
-                        long bytes = GC.GetAllocatedBytesForCurrentThread() - before, nativeDelta = AudioThreadGuard.Blocks - native, managedDelta = AudioThreadGuard.ManagedBlocks - managed;
-                        Need(bytes == 0 && nativeDelta == 64 && managedDelta == 0 && e.Compiled, "P5 warmed allocation/native guard");
+                            if (!e.Compiled || ticket[3] != 1)
+                                managedDelta++;
+                        }
+                        long bytes = GC.GetAllocatedBytesForCurrentThread() - before, nativeDelta = ticket[4] - native;
+                        Need(bytes == 0 && nativeDelta == 64 && managedDelta == 0 && e.Compiled, "P5 warmed allocation/native guard: bytes=" + bytes + " blocks=" + nativeDelta + " managed=" + managedDelta);
                         report.AppendLine("MEASURE p5RenderAllocatedBytes=" + bytes + " nativeBlocks=" + nativeDelta + " managedBlocksDelta=" + managedDelta);
                     }
                 }
