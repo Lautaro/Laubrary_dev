@@ -239,17 +239,55 @@ namespace Laubrary.ZTracker.Engine
             float output=tone.blendMode==0?a*(1-v.blendCurrent)+b*v.blendCurrent:b*(1-v.blendCurrent)+a*v.blendCurrent;
             float prev=v.phaseA;v.phaseA+=increment;if(v.phaseA>=1)v.phaseA-=math.floor(v.phaseA);v.phaseB+=increment*v.ratioCurrent;if(v.phaseB>=1)v.phaseB-=math.floor(v.phaseB);if(tone.blendMode==2&&v.phaseA<prev)v.phaseB=0;return output;
         }
-        float FM(ref TrackerVoice v,in TrackerTone tone,float increment)
+        /// <summary>
+        /// An FM voice's operator settings for one rendered slice (T-0645). Within a slice the instrument's parameters,
+        /// macros and preset are fixed (they change only between slices), so a setting without a per-note envelope has
+        /// one value for the whole slice and is read once here instead of every sample. A setting with a per-note
+        /// envelope moves every sample; its bit in <see cref="perSample"/> is set and it is still read every sample.
+        /// The values are exactly what the per-sample read returns, so the sound is unchanged.
+        /// </summary>
+        public struct TrackerFmBlock
         {
-            float4 level=default,inc=default;
+            // Per operator (x..w = slots 0..3): the seven operator settings in their parameter order.
+            public float4 ratio, fixedHz, level, attack, decay, sustain, release;
+            public float outputFeedback;
+            public float3 operatorFeedback;
+            // Bit k: parameter FMFeedback+k has a per-note envelope (FMFeedback, the 28 operator settings, the three self-feedbacks).
+            public ulong perSample;
+        }
+        const int FmBlockFirst=(int)TrackerParameter.FMFeedback;
+        TrackerFmBlock FmBlock(in TrackerVoice v)
+        {
+            var b=new TrackerFmBlock();
+            for(int p=FmBlockFirst;p<=(int)TrackerParameter.Op2Feedback;p++)if(HasParameterEnvelope(in v,(TrackerParameter)p))b.perSample|=1ul<<(p-FmBlockFirst);
             for(int op=0;op<4;op++){
-                int p=v.instrument*TrackerParameters.Stride+(int)TrackerParameter.Op0Ratio+op*7;float attack=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+3)),decay=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+4)),sustain=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+5)),release=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+6));
+                int p=(int)TrackerParameter.Op0Ratio+op*7;
+                b.ratio[op]=VoiceParameter(in v,(TrackerParameter)p);b.fixedHz[op]=VoiceParameter(in v,(TrackerParameter)(p+1));b.level[op]=VoiceParameter(in v,(TrackerParameter)(p+2));
+                b.attack[op]=VoiceParameter(in v,(TrackerParameter)(p+3));b.decay[op]=VoiceParameter(in v,(TrackerParameter)(p+4));b.sustain[op]=VoiceParameter(in v,(TrackerParameter)(p+5));b.release[op]=VoiceParameter(in v,(TrackerParameter)(p+6));
+            }
+            b.outputFeedback=VoiceParameter(in v,TrackerParameter.FMFeedback);b.operatorFeedback=FMFeedbackTarget(in v);
+            return b;
+        }
+        /// One FM setting for this sample: the slice's value, or the per-note envelope's value of this sample.
+        float FmValue(in TrackerVoice v,in TrackerFmBlock b,TrackerParameter p,float slice)=>((b.perSample>>((int)p-FmBlockFirst))&1)!=0?VoiceParameter(in v,p):slice;
+        /// Advances the four operator envelopes one sample and returns each operator's level and phase increment.
+        void FmOperators(ref TrackerVoice v,in TrackerFmBlock b,float increment,out float4 level,out float4 inc)
+        {
+            level=default;inc=default;
+            for(int op=0;op<4;op++){
+                int p=(int)TrackerParameter.Op0Ratio+op*7;
+                float attack=FmValue(in v,in b,(TrackerParameter)(p+3),b.attack[op]),decay=FmValue(in v,in b,(TrackerParameter)(p+4),b.decay[op]),sustain=FmValue(in v,in b,(TrackerParameter)(p+5),b.sustain[op]),release=FmValue(in v,in b,(TrackerParameter)(p+6),b.release[op]);
                 if(v.released){if(v.fmStage[op]!=4){v.fmReleaseStart[op]=v.fmLevel[op];v.fmStage[op]=4;}v.fmLevel[op]=math.max(0,v.fmLevel[op]-(release>0?v.fmReleaseStart[op]/(release*state.sampleRate):1));}
                 else if(v.fmStage[op]==0){v.fmLevel[op]+=attack>0?1/(attack*state.sampleRate):1;if(v.fmLevel[op]>=1){v.fmLevel[op]=1;v.fmStage[op]=2;}}
                 else if(v.fmStage[op]==2){v.fmLevel[op]-=decay>0?(1-sustain)/(decay*state.sampleRate):1;if(v.fmLevel[op]<=sustain){v.fmLevel[op]=sustain;v.fmStage[op]=3;}}
-                level[op]=v.fmLevel[op]*VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+2));inc[op]=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+1))>0?VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+1))/state.sampleRate:increment*VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride));
+                float fixedHz=FmValue(in v,in b,(TrackerParameter)(p+1),b.fixedHz[op]);
+                level[op]=v.fmLevel[op]*FmValue(in v,in b,(TrackerParameter)(p+2),b.level[op]);inc[op]=fixedHz>0?fixedHz/state.sampleRate:increment*FmValue(in v,in b,(TrackerParameter)p,b.ratio[op]);
             }
-            float feedback=VoiceParameter(in v,TrackerParameter.FMFeedback)*v.fmPrevious;
+        }
+        float FM(ref TrackerVoice v,in TrackerTone tone,float increment,in TrackerFmBlock block)
+        {
+            FmOperators(ref v,in block,increment,out var level,out var inc);
+            float feedback=FmValue(in v,in block,TrackerParameter.FMFeedback,block.outputFeedback)*v.fmPrevious;
             float a=math.sin(v.fmPhase.x*2*math.PI+feedback)*level.x,b=math.sin(v.fmPhase.y*2*math.PI)*level.y,c=math.sin(v.fmPhase.z*2*math.PI)*level.z,d=math.sin(v.fmPhase.w*2*math.PI)*level.w,output;
             switch(tone.algorithm){
                 case 0:b=math.sin((v.fmPhase.y+a)*2*math.PI)*level.y;c=math.sin((v.fmPhase.z+b)*2*math.PI)*level.z;output=math.sin((v.fmPhase.w+c)*2*math.PI)*level.w;break;
@@ -261,22 +299,12 @@ namespace Laubrary.ZTracker.Engine
             }
             v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);v.fmPrevious=output;return output;
         }
-        // A voice playing one of the ten single-carrier setups (fmAlgorithm 101..110). The
-        // operator envelope loop is a copy of the one in FM() on purpose: the older routings
-        // keep their own function untouched, so their compiled code and output stay
-        // bit-identical to before the setups existed.
-        float FMSetupVoice(ref TrackerVoice v,in TrackerTone tone,float increment)
+        // A voice playing one of the ten single-carrier setups (fmAlgorithm 101..110).
+        float FMSetupVoice(ref TrackerVoice v,in TrackerTone tone,float increment,in TrackerFmBlock block)
         {
-            float4 level=default,inc=default;
-            for(int op=0;op<4;op++){
-                int p=v.instrument*TrackerParameters.Stride+(int)TrackerParameter.Op0Ratio+op*7;float attack=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+3)),decay=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+4)),sustain=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+5)),release=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+6));
-                if(v.released){if(v.fmStage[op]!=4){v.fmReleaseStart[op]=v.fmLevel[op];v.fmStage[op]=4;}v.fmLevel[op]=math.max(0,v.fmLevel[op]-(release>0?v.fmReleaseStart[op]/(release*state.sampleRate):1));}
-                else if(v.fmStage[op]==0){v.fmLevel[op]+=attack>0?1/(attack*state.sampleRate):1;if(v.fmLevel[op]>=1){v.fmLevel[op]=1;v.fmStage[op]=2;}}
-                else if(v.fmStage[op]==2){v.fmLevel[op]-=decay>0?(1-sustain)/(decay*state.sampleRate):1;if(v.fmLevel[op]<=sustain){v.fmLevel[op]=sustain;v.fmStage[op]=3;}}
-                level[op]=v.fmLevel[op]*VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+2));inc[op]=VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+1))>0?VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride+1))/state.sampleRate:increment*VoiceParameter(in v,(TrackerParameter)(p%TrackerParameters.Stride));
-            }
-            float feedback=VoiceParameter(in v,TrackerParameter.FMFeedback)*v.fmPrevious;
-            float output=FMSetup(ref v,tone.algorithm-TrackerFmSetups.Base,level,feedback);
+            FmOperators(ref v,in block,increment,out var level,out var inc);
+            float feedback=FmValue(in v,in block,TrackerParameter.FMFeedback,block.outputFeedback)*v.fmPrevious;
+            float output=FMSetup(ref v,tone.algorithm-TrackerFmSetups.Base,level,feedback,in block);
             v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);v.fmPrevious=output;return output;
         }
         float3 FMFeedbackTarget(in TrackerVoice v)=>new float3(VoiceParameter(in v,TrackerParameter.Op0Feedback),VoiceParameter(in v,TrackerParameter.Op1Feedback),VoiceParameter(in v,TrackerParameter.Op2Feedback));
@@ -285,12 +313,12 @@ namespace Laubrary.ZTracker.Engine
         // and Merge code (setups 4 and 7 match them to float rounding). Each modulator's own
         // feedback is added only when its amount is non-zero, so 0 is bit-identical to
         // having no feedback at all.
-        float FMSetup(ref TrackerVoice v,int setup,float4 level,float feedback)
+        float FMSetup(ref TrackerVoice v,int setup,float4 level,float feedback,in TrackerFmBlock block)
         {
             int r=TrackerFmSetups.Routes(setup);
             // A changed amount glides over a few milliseconds (sample-rate independent)
             // rather than stepping, so live edits on a held note do not click.
-            float3 target=FMFeedbackTarget(in v),amount=v.fmFeedbackAmount;
+            float3 target=new float3(FmValue(in v,in block,TrackerParameter.Op0Feedback,block.operatorFeedback.x),FmValue(in v,in block,TrackerParameter.Op1Feedback,block.operatorFeedback.y),FmValue(in v,in block,TrackerParameter.Op2Feedback,block.operatorFeedback.z)),amount=v.fmFeedbackAmount;
             if(math.any(amount!=target)){amount+=(target-amount)*math.min(1f,1f/(TrackerFmSetups.FeedbackGlideSeconds*state.sampleRate));amount=math.select(amount,target,math.abs(target-amount)<1e-6f);v.fmFeedbackAmount=amount;}
             float3 shift=amount*TrackerFmSetups.MaxFeedbackCycles*.5f*(v.fmFeedbackLast+v.fmFeedbackBefore);
             float pa=v.fmPhase.x;if(amount.x!=0)pa+=shift.x;
