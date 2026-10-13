@@ -266,7 +266,8 @@ namespace Laubrary.ZTracker.Editor
                 {
                     var a = UnityEditor.AssetDatabase.LoadAssetAtPath<ZTrackerInstrument>(UnityEditor.AssetDatabase.GUIDToAssetPath(guid)); if (a == null || a.schemaVersion != 1 || a.model?.parameters == null) continue;
                     var q = a.model.parameters; assets++;
-                    Need(q.legatoVelocity == LegatoVelocity.Follow && q.legatoVelocityScale == 1 && Math.Abs(q.legatoVelocitySeconds - .05f) < 1e-6, "saved " + a.name + " read " + q.legatoVelocity + " " + q.legatoVelocityScale + " " + q.legatoVelocitySeconds);
+                    // Assets under the owner's hands may carry their own legato velocity choices; only report them (the defaults are checked on the older JSON above).
+                    if (q.legatoVelocity != LegatoVelocity.Follow || q.legatoVelocityScale != 1) report.AppendLine("MEASURE saved " + a.name + " has its own legato velocity " + q.legatoVelocity + " " + q.legatoVelocityScale.ToString("0.###") + " (not a default; not a failure)");
                 }
                 report.AppendLine("MEASURE saved instruments read with the new defaults: " + assets);
             });
@@ -310,6 +311,40 @@ namespace Laubrary.ZTracker.Editor
                 double steadyLevel = Rms(poly, 2.6, 2.62), after = Rms(poly, 2.0, 2.02);
                 report.AppendLine("MEASURE after the first note was released: 20 ms into the second " + after.ToString("0.000") + " of " + steadyLevel.ToString("0.000"));
                 Need(after < steadyLevel * .25, "the second note joined a released note's envelope (" + after.ToString("0.000") + ")");
+            });
+            // The same through live keys (computer keyboard or MIDI): Mono legato takes the held key's voice over, Poly keeps the chord.
+            float[] LiveChord(bool poly)
+            {
+                var ins = SlideInstrument(SlideSource.Synth); var q = ins.model.parameters;
+                q.waveA = 0; q.waveB = 0; q.blend = 0; q.attack = .4f; q.decay = 0; q.sustain = 1; q.release = .005f; q.volume = .5f;
+                q.legatoEnabled = true; q.legatoSlides = true; q.legatoPoly = poly; q.glideSeconds = .05f;
+                var song = TrackerEngineCheck.FixtureSong(ins, 3, 16);
+                var output = new float[SlideRate * 2];
+                var l = new NativeArray<float>(1024, Allocator.Persistent); var r = new NativeArray<float>(1024, Allocator.Persistent);
+                try
+                {
+                    using (var e = new TrackerOffline(TrackerPreparedSong.Prepare(song, SlideRate)))
+                    {
+                        for (int at = 0; at < output.Length; at += 1024)
+                        {
+                            if (at == 0) e.LiveInput.Write(TrackerLiveEvent.NoteOn(0, 0, 0, 60, 100, 1));
+                            if (at >= SlideRate && at - 1024 < SlideRate) e.LiveInput.Write(TrackerLiveEvent.NoteOn(0, 0, 0, 67, 100, 1));
+                            int n = Math.Min(1024, output.Length - at); e.Render(l, r, n, n); for (int k = 0; k < n; k++) output[at + k] = l[k];
+                        }
+                    }
+                }
+                finally { l.Dispose(); r.Dispose(); }
+                return output;
+            }
+            Check("Poly legato on live keys: a held key and a second key sound together; Mono legato takes the first over", () =>
+            {
+                var mono = LiveChord(false); var poly = LiveChord(true);
+                double monoLow = Power(mono, 261.6256, 1.3, 1.7), monoHigh = Power(mono, 391.9954, 1.3, 1.7), polyLow = Power(poly, 261.6256, 1.3, 1.7), polyHigh = Power(poly, 391.9954, 1.3, 1.7);
+                double before = Rms(poly, .9, 1.0), polyAfter = Rms(poly, 1.0, 1.02), monoAfter = Rms(mono, 1.0, 1.02);
+                report.AppendLine("MEASURE live keys 60 then 67: mono has 261 Hz " + monoLow.ToString("0.000") + " and 392 Hz " + monoHigh.ToString("0.000") + "; poly has " + polyLow.ToString("0.000") + " and " + polyHigh.ToString("0.000") + "; 20 ms into the second key: mono " + monoAfter.ToString("0.000") + ", poly " + polyAfter.ToString("0.000") + " (before " + before.ToString("0.000") + ")");
+                Need(monoLow < .05 && monoHigh > .15, "mono legato: expected the first key's voice to move to the second pitch");
+                Need(polyLow > .15 && polyHigh > .15, "poly legato: expected both keys to sound (261 Hz " + polyLow.ToString("0.000") + ", 392 Hz " + polyHigh.ToString("0.000") + ")");
+                Need(polyAfter > before * 1.3, "poly legato: the second key did not start at the running level");
             });
             report.AppendLine("TOTAL passed=" + pass + " failed=" + fail);
             return report.ToString();

@@ -68,13 +68,14 @@ namespace Laubrary.ZTracker.Engine
             else
             {
                 if (slot.active != 0) LiveReleaseSlot(key);
-                // Explicit synth legato is monophonic within this live route. Reuse
+                // Explicit synth legato is monophonic within this live route (Poly legato is not: a chord keeps its own columns,
+                // and each added note joins the running envelopes, T-0633). Reuse
                 // its held column; the old key's note-off cannot release the new cohort.
                 long latest=-1;int predecessor=-1;
                 for(int n=0;n<TrackerLiveRing.NoteSlots;n++)
                 {
                     var candidate=live.slots[n];if(candidate.active==0||candidate.held==0||candidate.track!=track||candidate.column>=count||candidate.order<=latest)continue;
-                    for(int i=0;i<state.voices.Length;i++){var voice=state.voices[i];if(voice.active&&!voice.released&&voice.cohort==candidate.cohort&&voice.instrument==e.instrument&&state.tones[voice.sample].legatoEnvelopes){column=candidate.column;latest=candidate.order;predecessor=n;break;}}
+                    for(int i=0;i<state.voices.Length;i++){var voice=state.voices[i];if(voice.active&&!voice.released&&voice.cohort==candidate.cohort&&voice.instrument==e.instrument&&state.tones[voice.sample].legatoEnvelopes&&!state.tones[voice.sample].legatoPoly){column=candidate.column;latest=candidate.order;predecessor=n;break;}}
                 }
                 if(predecessor>=0){live.slots[predecessor].active=0;live.slots[predecessor].held=0;}
                 int start = math.clamp((int)e.column, 0, count - 1);
