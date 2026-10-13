@@ -150,6 +150,7 @@ namespace Laubrary.ZTracker.Editor
             entry.envelope = envelope;
         }
 
+        readonly System.Collections.Generic.Dictionary<string, bool> envelopeOpen = new System.Collections.Generic.Dictionary<string, bool>();
         VisualElement ParameterValue(string field, float value, Action<float> apply, string name, InstrumentParameters parameters, string key, MusicalRange? presentation = null)
         {
             var control = ParameterValue(field, value, apply, name, () => parameters.GetParameterEnvelope(key), env => parameters.SetParameterEnvelope(key, env), presentation, defaultValue: ParameterDefault(field, key), parameterKey: key);
@@ -323,6 +324,10 @@ namespace Laubrary.ZTracker.Editor
             control = Z.Value(r.label, ui, new ZuiValueControl.Options { adsr = adsr, lfo = lfo, absMin = r.min, absMax = r.max, staticDefault = (defaultValue ?? ParameterDefault(field, field)) * r.scale, decimals = r.decimals, logarithmic = r.logarithmic, controlWidth = 170, allowMinMax = false, allowSteps = false, allowOscillation = false, preserveCurveOnModeSwitch = true, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true, valueUnit = r.unit ?? "", editableMaximum = editableMaximum, maximumLimit = editableMaximum ? maximumLimit : float.PositiveInfinity, xAxisLabel = rows ? "Song rows" : "Seconds", yAxisLabel = r.label, yAxisLegend = true, showAxisLegends = EnvelopeAxisLegends, xTickLabel = Ticks, decorateEnvelope = Decorate },
                 r.tip + " Right-click for a per-note envelope. Every new note restarts it; held loops leave on note-off. On the curve: drag the loop and hold markers; right-click the curve's background for its display options.", Publish, () => BeginInstrumentGesture(r.label));
             control.name = name;
+            // An opened curve stays open when the page is rebuilt (Undo, a mode switch elsewhere): the control is new each time,
+            // so its open state is kept here per instrument, parameter and control (T-0651).
+            string openKey = (instrument != null ? instrument.GetInstanceID() : 0) + ":" + (parameterKey ?? field) + ":" + name;
+            if (ui.mode == ZUIValue.Mode.Curve && envelopeOpen.TryGetValue(openKey, out var wasOpen) && wasOpen) control.IsExpanded = true;
             host.Add(control);
             if (playheads && Laubrary.ZTracker.Engine.TrackerParameters.Resolve(parameterKey ?? field, out var adsrParameter))
             {
@@ -346,7 +351,7 @@ namespace Laubrary.ZTracker.Editor
                 timing.Add(InstrumentChoice("Direction", Math.Max(0, original.loopMode - loopOffset), new[] { "Forward", "Ping-pong" }, "Forward jumps back to the loop start at its end; Ping-pong runs back and forth. The envelope continues forward after note-off.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; env.loopMode = v + loopOffset; setEnvelope(env); }, name + "-loop-direction"));
             timing.Add(InstrumentToggle("Sustain", original != null && original.sustainEnabled, "Hold the envelope at the dashed S marker on the curve until note-off, then play the rest of it.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; env.sustainEnabled = v; if (v && (env.sustainPosition <= 0 || env.sustainPosition > Last(env))) env.sustainPosition = Last(env) * .5f; env.sustainPosition = Mathf.Clamp(env.sustainPosition, 0, Last(env)); setEnvelope(env); }, name + "-sustain", true));
             host.Add(timing);
-            void LayoutMode() { bool curve = ui.mode == ZUIValue.Mode.Curve; bool expanded = curve && control.IsExpanded; timing.style.display = expanded ? DisplayStyle.Flex : DisplayStyle.None; host.style.width = expanded ? 380 : curve || ui.mode == ZUIValue.Mode.Adsr ? 260 : 170;
+            void LayoutMode() { bool curve = ui.mode == ZUIValue.Mode.Curve; bool expanded = curve && control.IsExpanded; if (curve) envelopeOpen[openKey] = expanded; timing.style.display = expanded ? DisplayStyle.Flex : DisplayStyle.None; host.style.width = expanded ? 380 : curve || ui.mode == ZUIValue.Mode.Adsr ? 260 : 170;
                 // In a column grid (the Amplifier's Volume and Pan) an ADSR needs its full size, so its cell takes the whole row.
                 var cell = host.parent; if (cell?.parent != null && cell.parent.ClassListContains("tracker-instrument-columns")) { bool wide = ui.mode == ZUIValue.Mode.Adsr; if (cell.ClassListContains("tracker-instrument-wide") != wide) { cell.EnableInClassList("tracker-instrument-wide", wide); (cell.parent.userData as Action)?.Invoke(); } } }
             control.ModeChanged += LayoutMode; control.ExpansionChanged += LayoutMode; LayoutMode(); host.RegisterCallback<AttachToPanelEvent>(_ => LayoutMode());

@@ -287,6 +287,15 @@ namespace Laubrary.ZTracker.Editor
                     report.AppendLine("MEASURE ADSR mode: LFO row " + volume.LfoRow.worldBound.width + "x" + volume.LfoRow.worldBound.height + " px");
                     Mode(volume, ZUIValue.Mode.Static); Rebuild(); volume = Value("synth-volume"); Need(volume.LfoRow == null && Env().lfo, "Static shows the LFO or lost it");
                 });
+                Check("An opened curve stays open when the page is rebuilt (Undo), and a collapsed one stays collapsed (T-0651)", () =>
+                {
+                    Mode(Value("synth-volume"), ZUIValue.Mode.Curve); window.BuildPane(); Layout(); var volume = Value("synth-volume");
+                    Need(!volume.IsExpanded, "A new curve should start collapsed");
+                    volume.IsExpanded = true; Layout();
+                    window.BuildPane(); Layout(); volume = Value("synth-volume"); Need(volume.IsExpanded, "The opened curve folded again after a page rebuild");
+                    window.BuildPane(); Layout(); Need(Value("synth-volume").IsExpanded, "The opened curve folded after a second rebuild");
+                    Value("synth-volume").IsExpanded = false; Layout(); window.BuildPane(); Layout(); Need(!Value("synth-volume").IsExpanded, "A collapsed curve opened itself after a rebuild");
+                });
             }
             finally
             {
