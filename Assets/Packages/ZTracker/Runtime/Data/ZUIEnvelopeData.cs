@@ -42,6 +42,9 @@ public class ZUIEnvelopeData
     // exits any loop; each voice owns its cursor in the prepared renderer.
     public bool sustainEnabled;
     public float sustainPosition;
+    // Times (xMax, points, loop, sustain) are song rows instead of seconds, so the envelope follows the song's tempo.
+    // False on everything saved before rows existed.
+    public bool durationInRows;
 
     public ZUIEnvelopeData() { }
 

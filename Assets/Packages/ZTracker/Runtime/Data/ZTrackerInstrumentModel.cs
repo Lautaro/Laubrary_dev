@@ -15,6 +15,8 @@ namespace Laubrary.ZTracker.Model
     public enum ModulationTarget { Volume, Pan, Pitch, Cutoff, Resonance, Drive }
     public enum ModulationDeviceKind { AHDSR, Multipoint, LFO, Velocity, KeyTracking, Fader, Stepper }
     public enum ModulationOperation { Add, Multiply, Replace }
+    // How a legato note treats the new note's velocity (T-0628). Follow is 0 so instruments saved before it keep jumping.
+    public enum LegatoVelocity { Follow, Ignore, Slide }
 
     [Serializable] public sealed class Mapping
     {
@@ -148,6 +150,14 @@ namespace Laubrary.ZTracker.Model
         public float arpeggioSpeed = .05f;
         public bool glideEnabled, glideLegato;
         public bool legatoEnabled;
+        // Legato slides the pitch of an overlapping note over glideSeconds (T-0627). False on instruments saved before
+        // that, whose Legato jumped to the new pitch; choosing Legato or editing Glide ms sets it.
+        public bool legatoSlides;
+        // What Legato does with the new note's velocity (T-0628). Follow (the value saved before this existed) jumps to it.
+        public LegatoVelocity legatoVelocity;
+        public float legatoVelocitySeconds = .05f;
+        // Share of the velocity change that applies, 0..1 (Follow and Slide).
+        public float legatoVelocityScale = 1;
         public int transpose;
         public float glideSeconds = .1f;
         public bool arpeggioSpeedIsPerNote = true;

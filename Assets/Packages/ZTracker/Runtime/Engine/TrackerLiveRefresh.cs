@@ -38,7 +38,8 @@ namespace Laubrary.ZTracker.Engine
                 // They do not alter native memory topology or invalidate held oscillator phases.
                 q.waveA=q.waveB=q.blendMode=q.fmAlgorithm=q.instFilterMode=0;
                 q.enumDomain=SoundEnumDomain.NativeDirect;
-                q.instFilterEnabled=q.glideEnabled=q.glideLegato=q.legatoEnabled=q.blendEnvelope=false; q.transpose=0;
+                q.instFilterEnabled=q.glideEnabled=q.glideLegato=q.legatoEnabled=q.legatoSlides=q.blendEnvelope=false; q.transpose=0;
+                q.legatoVelocity=LegatoVelocity.Follow;q.legatoVelocitySeconds=q.legatoVelocityScale=0;
                 q.blendAttack=q.blendDecay=q.blendSustain=q.blendRelease=q.vibratoRandomness=q.instDelaySend=q.instReverbSend=0;
                 // The renderer always has four native FM slots, including when the
                 // authored subtractive instrument has not initialized its operators.
@@ -68,7 +69,9 @@ namespace Laubrary.ZTracker.Engine
         {
             if(envelope==null)return;
             envelope.loopStart=envelope.loopEnd=0;
-            envelope.sustainPosition=0;
+            envelope.sustainPosition=0;envelope.durationInRows=false;
+            // Loop and sustain switches, direction and length are read from the new envelope on every rendered sample.
+            envelope.loopEnabled=envelope.sustainEnabled=false;envelope.loopMode=0;envelope.xMin=envelope.xMax=envelope.yMin=envelope.yMax=0;
             if(envelope.points!=null)foreach(var point in envelope.points){point.time=point.value=0;point.exponent=1;}
         }
         static void Expand<T>(ref NativeArray<T> values,int size) where T:unmanaged

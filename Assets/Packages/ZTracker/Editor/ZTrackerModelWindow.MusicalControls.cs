@@ -132,7 +132,7 @@ namespace Laubrary.ZTracker.Editor
 
         VisualElement ParameterValue(string field, float value, Action<float> apply, string name, InstrumentParameters parameters, string key)
         {
-            var control = ParameterValue(field, value, apply, name, () => parameters.GetParameterEnvelope(key), env => parameters.SetParameterEnvelope(key, env), defaultValue: ParameterDefault(field, key));
+            var control = ParameterValue(field, value, apply, name, () => parameters.GetParameterEnvelope(key), env => parameters.SetParameterEnvelope(key, env), defaultValue: ParameterDefault(field, key), parameterKey: key);
             // The instrument's own typed parameter: right-click also offers a command id when this instrument is in the song.
             var asset = instrument;
             if (asset != null && Data != null && Data.instruments.Contains(asset) && ReferenceEquals(asset.model?.parameters, parameters) && Laubrary.ZTracker.Engine.TrackerParameters.Resolve(key, out var parameter))
@@ -140,10 +140,11 @@ namespace Laubrary.ZTracker.Editor
             return control;
         }
 
-        VisualElement ParameterValue(string field, float value, Action<float> apply, string name, Func<ZUIEnvelopeData> getEnvelope, Action<ZUIEnvelopeData> setEnvelope, MusicalRange? presentation = null, float? defaultValue = null)
+        VisualElement ParameterValue(string field, float value, Action<float> apply, string name, Func<ZUIEnvelopeData> getEnvelope, Action<ZUIEnvelopeData> setEnvelope, MusicalRange? presentation = null, float? defaultValue = null, string parameterKey = null, bool playheads = true)
         {
             var r = presentation ?? Musical(field);
             var original = getEnvelope();
+            bool rows = original != null && original.durationInRows;
             var ui = new ZUIValue(value * r.scale) { mode = original != null && original.enabled && original.points != null && original.points.Count > 0 ? ZUIValue.Mode.Curve : ZUIValue.Mode.Static, yMin = r.min, yMax = r.max, duration = original == null ? 1 : Math.Max(.001f, original.xMax) };
             if (original != null && original.points != null && original.points.Count > 0)
                 foreach (var p in original.points) ui.points.Add(new ZUIEnvelopePoint(p.time / ui.duration, p.value * r.scale, p.exponent));
@@ -164,37 +165,138 @@ namespace Laubrary.ZTracker.Editor
                 if (env.enabled)
                 {
                     // Repair a malformed list only in this detached copy, after an explicit edit.
-                    if (env.points == null) env = new ZUIEnvelopeData(env.xMin, env.xMax, env.yMin, env.yMax, false) { enabled = true, requiresEndPoint = env.requiresEndPoint, loopEnabled = env.loopEnabled, loopMode = env.loopMode, loopStart = env.loopStart, loopEnd = env.loopEnd, sustainEnabled = env.sustainEnabled, sustainPosition = env.sustainPosition };
+                    if (env.points == null) env = new ZUIEnvelopeData(env.xMin, env.xMax, env.yMin, env.yMax, false) { enabled = true, requiresEndPoint = env.requiresEndPoint, loopEnabled = env.loopEnabled, loopMode = env.loopMode, loopStart = env.loopStart, loopEnd = env.loopEnd, sustainEnabled = env.sustainEnabled, sustainPosition = env.sustainPosition, durationInRows = env.durationInRows };
                     float durationRatio = ui.duration / Math.Max(.001f, env.xMax);
                     env.loopStart *= durationRatio; env.loopEnd *= durationRatio; env.sustainPosition *= durationRatio;
                     env.requiresEndPoint = false;
                     env.xMin = 0; env.xMax = ui.duration; env.yMin = r.min / r.scale; env.yMax = r.max / r.scale;
                     env.points.Clear();
                     foreach (var p in ui.points) env.points.Add(new ZUIEnvelopePoint(p.time * ui.duration, p.value / r.scale, p.exponent));
-                    float last = env.points.Count == 0 ? ui.duration : env.points.Max(p => p.time);
-                    env.sustainPosition = Mathf.Clamp(env.sustainPosition, 0, last);
-                    env.loopEnd = Mathf.Clamp(env.loopEnd, 0, last);
-                    env.loopStart = Mathf.Clamp(env.loopStart, 0, Math.Max(0, env.loopEnd - .0001f));
-                    if (env.loopEnd <= env.loopStart) env.loopEnabled = false;
+                    ClampMarkers(env);
                 }
                 // Switching to Static keeps the curve available for a later switch back.
                 setEnvelope(env); EndInstrumentGesture(); RefreshSynthConditionalControls(rootVisualElement);
+                ShowMarkers(control?.CurveEnvelope);
             }
-            control = Z.Value(r.label, ui, new ZuiValueControl.Options { absMin = r.min, absMax = r.max, staticDefault = (defaultValue ?? ParameterDefault(field, field)) * r.scale, decimals = r.decimals, logarithmic = r.logarithmic, controlWidth = 170, allowMinMax = false, allowSteps = false, allowOscillation = false, preserveCurveOnModeSwitch = true, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true, valueUnit = r.unit ?? "", xAxisLabel = "Note progress", yAxisLabel = r.label }, r.tip + " Right-click for a per-note envelope. Every new note restarts it; held loops leave on note-off.", Publish, () => BeginInstrumentGesture(r.label));
+            float Last(ZUIEnvelopeData env) => env.points == null || env.points.Count == 0 ? env.xMax : env.points.Max(p => p.time);
+            void ClampMarkers(ZUIEnvelopeData env)
+            {
+                // The renderer refuses a loop or a hold past the last point; keep them on the curve.
+                float last = Last(env);
+                env.sustainPosition = Mathf.Clamp(env.sustainPosition, 0, last);
+                env.loopEnd = Mathf.Clamp(env.loopEnd, 0, last);
+                env.loopStart = Mathf.Clamp(env.loopStart, 0, Math.Max(0, env.loopEnd - .0001f));
+                if (env.loopEnd <= env.loopStart) env.loopEnabled = false;
+            }
+            int loopOffset = Instrument.parameters.envelopeEnumDomain == SoundEnumDomain.SavedAuthoring ? 1 : 0;
+            // The loop band and the hold marker drawn on the curve, from the saved envelope.
+            void ShowMarkers(ZuiEnvelope canvas)
+            {
+                if (canvas == null) return; var env = getEnvelope(); float d = env == null ? 1 : Math.Max(.0001f, env.xMax);
+                canvas.SetLoop(env != null && env.loopEnabled, env == null ? 0 : env.loopStart / d, env == null ? 1 : env.loopEnd / d, env != null && env.loopMode - loopOffset == 1);
+                canvas.SetSustain(env != null && env.sustainEnabled, env == null ? 0 : env.sustainPosition / d);
+            }
+            string Ticks(float f) => EnvelopeTimeText(f * ui.duration, rows);
+            void Decorate(ZuiEnvelope canvas)
+            {
+                canvas.name = name + "-curve";
+                ShowMarkers(canvas);
+                var c = canvas.configuration;
+                c.onMarkerDragStarted = marker => BeginInstrumentGesture(marker == 2 ? r.label + " sustain point" : r.label + " loop point");
+                c.onMarkerMoved = (marker, t01) =>
+                {
+                    var env = getEnvelope()?.DeepCopy(); if (env == null) return;
+                    float at = t01 * env.xMax; if (env.durationInRows) at = Mathf.Round(at);
+                    if (marker == 0) env.loopStart = Math.Min(at, env.loopEnd - (env.durationInRows ? 1 : .0001f)); else if (marker == 1) env.loopEnd = Math.Max(at, env.loopStart + (env.durationInRows ? 1 : .0001f)); else env.sustainPosition = at;
+                    env.loopStart = Math.Max(0, env.loopStart);
+                    ClampMarkers(env); setEnvelope(env); EndInstrumentGesture(); ShowMarkers(canvas);
+                };
+                c.onMarkerDragEnded = () => ShowMarkers(canvas);
+                c.onEmptyContext = world => ShowEnvelopeMenu(canvas, getEnvelope, setEnvelope, r.label);
+                if (!playheads) return;
+                // One playhead per sounding note of this instrument, read from the renderers' fixed records ~30 times a second.
+                string key = parameterKey ?? field; if (!Laubrary.ZTracker.Engine.TrackerParameters.Resolve(key, out var parameter)) return;
+                var positions = new float[64]; var faded = new bool[64]; var normalized = new float[64];
+                canvas.schedule.Execute(() =>
+                {
+                    var env = getEnvelope(); int count = env == null || !env.enabled ? 0 : ReadPlayheads(instrument, (int)parameter, positions, faded);
+                    float d = env == null ? 1 : Math.Max(.0001f, env.xMax);
+                    for (int i = 0; i < count; i++) normalized[i] = positions[i] / d;
+                    canvas.SetPlayheads(normalized, faded, count);
+                }).Every(33);
+            }
+            control = Z.Value(r.label, ui, new ZuiValueControl.Options { absMin = r.min, absMax = r.max, staticDefault = (defaultValue ?? ParameterDefault(field, field)) * r.scale, decimals = r.decimals, logarithmic = r.logarithmic, controlWidth = 170, allowMinMax = false, allowSteps = false, allowOscillation = false, preserveCurveOnModeSwitch = true, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true, valueUnit = r.unit ?? "", xAxisLabel = rows ? "Song rows" : "Seconds", yAxisLabel = r.label, yAxisLegend = true, showAxisLegends = EnvelopeAxisLegends, xTickLabel = Ticks, decorateEnvelope = Decorate },
+                r.tip + " Right-click for a per-note envelope. Every new note restarts it; held loops leave on note-off. On the curve: drag the loop and hold markers; right-click the curve's background for its display options.", Publish, () => BeginInstrumentGesture(r.label));
             control.name = name;
             host.Add(control);
             var timing = Flow(); timing.name = name + "-timing";
-            timing.Add(Named(Z.MicroSlider("Duration s", ui.duration, .01f, 10, "Duration of one envelope pass in seconds; each new note starts at zero. Loop and sustain positions scale with the duration.", v => { BeginInstrumentGesture(r.label + " duration"); ui.duration = v; Publish(); }, 170, defaultValue: new ZUIEnvelopeData().xMax, decimals: 2, logarithmic: true), name + "-duration"));
-            timing.Add(InstrumentToggle("Loop", original != null && original.loopEnabled, "Repeat the envelope while the note is held; note-off leaves the loop.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; float last = env.points.Select(p => p.time).DefaultIfEmpty(0).Max(); env.loopEnabled = v && last > 0; if (env.loopEnd <= env.loopStart || env.loopEnd > last) { env.loopStart = 0; env.loopEnd = last; } if (env.loopMode == 0 && Instrument.parameters.envelopeEnumDomain == SoundEnumDomain.SavedAuthoring) env.loopMode = 1; setEnvelope(env); }, name + "-loop", true));
-            int loopOffset = Instrument.parameters.envelopeEnumDomain == SoundEnumDomain.SavedAuthoring ? 1 : 0;
-            timing.Add(InstrumentChoice("Direction", original == null ? 0 : Math.Max(0, original.loopMode - loopOffset), new[] { "Forward", "Ping-pong" }, "Direction of the held loop. The envelope continues forward after note-off.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; env.loopMode = v + loopOffset; setEnvelope(env); }, name + "-loop-direction"));
-            timing.Add(InstrumentToggle("Sustain", original != null && original.sustainEnabled, "Hold at the sustain point until note-off, then continue through the envelope tail.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; env.sustainEnabled = v; env.sustainPosition = Mathf.Clamp(env.sustainPosition, 0, env.points.Select(p => p.time).DefaultIfEmpty(0).Max()); setEnvelope(env); }, name + "-sustain", true));
-            timing.Add(InstrumentDial("Sustain %", original == null ? 50 : original.sustainPosition / ui.duration * 100, 0, 100, "Hold position as a percentage of envelope duration; the remaining curve plays after note-off.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; float last = env.points.Select(p => p.time).DefaultIfEmpty(ui.duration).Max(); env.sustainPosition = Math.Min(last, ui.duration * v / 100); setEnvelope(env); }, name + "-sustain-position", 0, defaultValue: new ZUIEnvelopeData().sustainPosition * 100));
-            timing.Add(Named(Z.MicroMinMax("Loop %", original == null ? 0 : original.loopStart / ui.duration * 100, original == null ? 100 : original.loopEnd / ui.duration * 100, 0, 100, "Held loop start and end as percentages of the envelope duration.", (a, b) => InstrumentEdit("envelope loop range", () => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; float last = env.points.Select(p => p.time).DefaultIfEmpty(ui.duration).Max(); env.loopEnd = Math.Min(last, Math.Max(.0001f, ui.duration * b / 100)); env.loopStart = Math.Min(Math.Max(0, env.loopEnd - .0001f), ui.duration * a / 100); setEnvelope(env); }), 170, lowDefault: new ZUIEnvelopeData().loopStart * 100, highDefault: new ZUIEnvelopeData().loopEnd * 100), name + "-loop-range"));
+            float defaultDuration = rows ? EnvelopeDefaultRows : new ZUIEnvelopeData().xMax;
+            timing.Add(Named(rows
+                ? Z.MicroSlider("Duration rows", ui.duration, 1, 256, "Length of one envelope pass in song rows, so it follows the song's tempo; each new note starts at zero. Loop and hold positions scale with it. Double-click resets to " + EnvelopeDefaultRows + " rows.", v => { BeginInstrumentGesture(r.label + " duration"); ui.duration = Mathf.Max(1, Mathf.Round(v)); Publish(); }, 150, defaultValue: defaultDuration, decimals: 0, logarithmic: true)
+                : Z.MicroSlider("Duration s", ui.duration, .01f, 10, "Length of one envelope pass in seconds; each new note starts at zero. Loop and hold positions scale with it. Double-click resets to " + defaultDuration + " s.", v => { BeginInstrumentGesture(r.label + " duration"); ui.duration = v; Publish(); }, 150, defaultValue: defaultDuration, decimals: 2, logarithmic: true), name + "-duration"));
+            timing.Add(InstrumentChoice("Time in", rows ? 1 : 0, new[] { "Seconds", "Rows" }, "Measure the envelope in seconds, or in song rows so it follows the song's tempo (a tempo change speeds it up or slows it down). Switching keeps its length at the song's current tempo.",
+                v => { var env = getEnvelope()?.DeepCopy(); if (env == null || env.durationInRows == (v == 1)) return; ConvertEnvelopeUnit(env, v == 1); setEnvelope(env); }, name + "-unit"));
+            timing.Add(InstrumentToggle("Loop", original != null && original.loopEnabled, "Repeat part of the envelope while the note is held: the shaded band on the curve, between its two markers. Note-off leaves the loop.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; float last = Last(env); env.loopEnabled = v && last > 0; if (env.loopEnd <= env.loopStart || env.loopEnd > last) { env.loopStart = 0; env.loopEnd = last; } if (env.loopMode == 0 && Instrument.parameters.envelopeEnumDomain == SoundEnumDomain.SavedAuthoring) env.loopMode = 1; setEnvelope(env); }, name + "-loop", true));
+            if (original != null && original.loopEnabled)
+                timing.Add(InstrumentChoice("Direction", Math.Max(0, original.loopMode - loopOffset), new[] { "Forward", "Ping-pong" }, "Forward jumps back to the loop start at its end; Ping-pong runs back and forth. The envelope continues forward after note-off.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; env.loopMode = v + loopOffset; setEnvelope(env); }, name + "-loop-direction"));
+            timing.Add(InstrumentToggle("Sustain", original != null && original.sustainEnabled, "Hold the envelope at the dashed S marker on the curve until note-off, then play the rest of it.", v => { var env = getEnvelope()?.DeepCopy(); if (env == null) return; env.sustainEnabled = v; if (v && (env.sustainPosition <= 0 || env.sustainPosition > Last(env))) env.sustainPosition = Last(env) * .5f; env.sustainPosition = Mathf.Clamp(env.sustainPosition, 0, Last(env)); setEnvelope(env); }, name + "-sustain", true));
             host.Add(timing);
             void LayoutMode() { bool curve = ui.mode == ZUIValue.Mode.Curve; bool expanded = curve && control.IsExpanded; timing.style.display = expanded ? DisplayStyle.Flex : DisplayStyle.None; host.style.width = expanded ? 380 : curve ? 260 : 170; }
             control.ModeChanged += LayoutMode; control.ExpansionChanged += LayoutMode; LayoutMode();
             return host;
+        }
+
+        const float EnvelopeDefaultRows = 8;
+        const string AxisLegendsPref = "ZTracker.EnvelopeAxisLegends";
+        static bool EnvelopeAxisLegends { get => UnityEditor.EditorPrefs.GetBool(AxisLegendsPref, true); set => UnityEditor.EditorPrefs.SetBool(AxisLegendsPref, value); }
+
+        /// "250 ms", "1.5 s" or "4 rows": a position on an envelope's time axis.
+        static string EnvelopeTimeText(float time, bool rows)
+        {
+            if (rows) { float r = Mathf.Round(time * 10) / 10; return r.ToString(r == Mathf.Round(r) ? "0" : "0.#") + (Mathf.Abs(r - 1) < .001f ? " row" : " rows"); }
+            return time < 1 ? Mathf.RoundToInt(time * 1000) + " ms" : time.ToString(time < 10 ? "0.##" : "0.#") + " s";
+        }
+
+        /// Seconds and rows at the song's tempo (120 BPM and 4 lines per beat without a song).
+        double RowsPerSecond => Data == null ? 8 : Data.bpm * Math.Max(1, Data.linesPerBeat) / 60.0;
+
+        /// Switches an envelope between seconds and song rows, keeping its length at the current tempo.
+        void ConvertEnvelopeUnit(ZUIEnvelopeData env, bool toRows)
+        {
+            float factor = (float)(toRows ? RowsPerSecond : 1 / RowsPerSecond);
+            float duration = Math.Max(toRows ? 1 : .01f, env.xMax * factor); if (toRows) duration = Mathf.Max(1, Mathf.Round(duration));
+            float scale = duration / Math.Max(.0001f, env.xMax);
+            if (env.points != null) foreach (var p in env.points) p.time *= scale;
+            env.loopStart *= scale; env.loopEnd *= scale; env.sustainPosition *= scale; env.xMax = duration; env.durationInRows = toRows;
+        }
+
+        /// The envelope's own context menu (right-click on the curve's background): display options.
+        void ShowEnvelopeMenu(VisualElement anchor, Func<ZUIEnvelopeData> getEnvelope, Action<ZUIEnvelopeData> setEnvelope, string label)
+        {
+            var menu = Z.Menu(anchor).Width(200).Section(label + " envelope");
+            menu.Toggle("Axis legends", "Show what the axes measure: time (seconds or song rows) along the bottom and the value up the side, on every instrument envelope.", EnvelopeAxisLegends, v =>
+            {
+                EnvelopeAxisLegends = v;
+                rootVisualElement.Query<ZuiValueControl>().ForEach(c => { var e = c.CurveEnvelope; if (e != null && e.name != null && e.name.EndsWith("-curve", StringComparison.Ordinal)) c.SetAxisLegends(v); });
+            });
+            menu.Show();
+        }
+
+        readonly float[] playheadPart = new float[64]; readonly bool[] playheadPartFaded = new bool[64];
+        /// Where each sounding note of <paramref name="asset"/> is on its envelope for <paramref name="parameter"/>, from
+        /// every renderer this window owns (the song's and the instrument preview's).
+        int ReadPlayheads(ZTrackerInstrument asset, int parameter, float[] positions, bool[] faded)
+        {
+            if (asset == null) return 0; int count = 0; var part = playheadPart; var partFaded = playheadPartFaded;
+            void From(Laubrary.ZTracker.Engine.TrackerSapGenerator renderer, int index)
+            {
+                if (renderer == null || index < 0) return;
+                int n = renderer.ReadEnvelopeHeads(index, parameter, -1, part, partFaded);
+                for (int i = 0; i < n && count < positions.Length; i++) { positions[count] = part[i]; faded[count] = partFaded[i]; count++; }
+            }
+            From(host, Data == null ? -1 : Data.instruments.IndexOf(asset));
+            if (midiPreviewInstrument == asset) From(midiPreviewHost, 0);
+            return count;
         }
 
         VisualElement FixedAdsr(string title, object owner, string prefix = "", string name = null)

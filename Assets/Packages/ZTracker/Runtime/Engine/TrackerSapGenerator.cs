@@ -96,6 +96,14 @@ namespace Laubrary.ZTracker.Engine
             if(ControlContext.builtIn.SendMessage(instance,ref command)!=Response.Handled){reason="Live command was not accepted";return false;}
             next.Published=true;owned.Add(next);current=next;return true;
         }
+        /// Playheads for an editor (T-0629): where each sounding note of <paramref name="instrument"/> is on its envelope for
+        /// <paramref name="parameter"/>, one entry per note (unison members share one). Reads the renderer's fixed records
+        /// without locking; a value may be one slice old. Returns the count written to <paramref name="positions"/>.
+        public int ReadEnvelopeHeads(int instrument,int parameter,int parameterSet,float[] positions,bool[] released)
+        {
+            if(current==null||current.Disposed)return 0;
+            return TrackerEnvelopeHeads.Read(current.state.envelopeHeads,instrument,parameter,parameterSet,positions,released);
+        }
         public long EventOverflow=>hasRing?ring.OverflowCount:0;
         public bool ReadEvent(out TrackerEvent value){if(!hasRing){value=default;return false;}return ring.TryRead(out value);}
         // Song clock (see TrackerClockRow). Non-consuming: reading never competes with the event consumer above.
@@ -176,6 +184,24 @@ namespace Laubrary.ZTracker.Engine
             public void Dispose(ControlContext context,ref TrackerRealtime realtime){Interlocked.Exchange(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(disposed))[0],1);}
         }
         internal static bool ControlDisposed(NativeArray<long> ticket)=>ticket.IsCreated&&Volatile.Read(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(ticket))[0])==1;
+    }
+    /// <summary>Reads the renderer's per-voice envelope positions (see <see cref="TrackerEnvelopeHead"/>).</summary>
+    public static unsafe class TrackerEnvelopeHeads
+    {
+        public static int Read(NativeArray<TrackerEnvelopeHead> heads,int instrument,int parameter,int parameterSet,float[] positions,bool[] released)
+        {
+            if(!heads.IsCreated||positions==null||parameter<0||parameter>=TrackerParameters.Stride)return 0;
+            var ptr=(TrackerEnvelopeHead*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(heads);int count=0;
+            for(int i=0;i<heads.Length&&count<positions.Length;i++)
+            {
+                var head=ptr[i];if(head.active==0||head.instrument!=instrument||head.parameterSet!=parameterSet)continue;
+                float position=head.position[parameter];if(float.IsNaN(position))continue;
+                bool seen=false;for(int j=0;j<i;j++)if(ptr[j].active!=0&&ptr[j].cohort==head.cohort&&ptr[j].instrument==instrument&&!float.IsNaN(ptr[j].position[parameter])){seen=true;break;}
+                if(seen)continue;
+                positions[count]=position;if(released!=null&&count<released.Length)released[count]=head.released!=0;count++;
+            }
+            return count;
+        }
     }
     /// <summary>Shared generator retirement and real-frame quit drain. Refuses new publications once shutdown starts.</summary>
     internal static class TrackerSapRegistry

@@ -11,7 +11,7 @@ namespace Laubrary.Zui
     /// Ignore and calling <see cref="PointerDown"/> / <see cref="PointerMove"/> / <see cref="PointerUp"/> /
     /// <see cref="KeyDown"/> itself, which report whether they used the event. Standalone, the element wires them itself.
     ///
-    /// Not ported: markers (loop/trim markers), which no Toolkit user needs yet.
+    /// Markers: a loop region and a sustain position (see <see cref="ZuiEnvelopeConfiguration"/>), drawn and dragged here.
     public class ZuiSkinEnvelope : VisualElement
     {
         public List<ZUIEnvelopePoint> points;
@@ -52,7 +52,7 @@ namespace Laubrary.Zui
         /// that is not selected for editing is shown. Input is still refused when the runtime says the curve is not editable.</summary>
         public bool showHandles = true;
 
-        int _dragPoint = -1, _dragLine = -1, _dragExponent = -1, _hoverPoint = -1, _hoverLine = -1;
+        int _dragPoint = -1, _dragLine = -1, _dragExponent = -1, _hoverPoint = -1, _hoverLine = -1, _dragMarker = -1;
         bool _boxSelecting, _pressed, _shift;
         Vector2 _boxStart, _pointer = new Vector2(float.NaN, float.NaN);
         readonly List<int> _selected = new List<int>();
@@ -227,6 +227,19 @@ namespace Laubrary.Zui
             if (l > 0) _hoverLine = l;
         }
 
+        /// The marker under the pointer (0 loop start, 1 loop end, 2 sustain), or -1. A marker is its full-height line.
+        int HitMarker(Rect r, Vector2 m)
+        {
+            if (!configuration.markersEditable || m.y < r.y - 4f || m.y > r.yMax + 4f) return -1;
+            int best = -1; float bestDistance = 5f;
+            void Try(int id, bool shown, float t01) { if (!shown) return; float d = Mathf.Abs(m.x - (r.x + r.width * Mathf.Clamp01(t01))); if (d <= bestDistance) { best = id; bestDistance = d; } }
+            Try(0, configuration.loopShown, configuration.loopStart01); Try(1, configuration.loopShown, configuration.loopEnd01); Try(2, configuration.sustainShown, configuration.sustain01);
+            return best;
+        }
+
+        /// <summary>The marker (0 loop start, 1 loop end, 2 sustain) under <paramref name="m"/> (local position), or -1.</summary>
+        public int MarkerAt(Vector2 m) { Prepare(); return ValidPlot(Plot) ? HitMarker(Plot, m) : -1; }
+
         // ─────────────────────────── input (host-callable) ───────────────────────────
 
         /// <summary>
@@ -276,6 +289,13 @@ namespace Laubrary.Zui
                 if (clickCount == 2) return RemovePoint(hit);
                 BeginDrag(hit); Focus(); Repaint(); return true;
             }
+            // A marker (loop start, loop end, sustain) is dragged along the time axis; a point under the press won above.
+            if (button == 0 && !shift)
+            {
+                int marker = HitMarker(r, m);
+                if (marker >= 0) { _dragMarker = marker; _pressed = true; configuration.onMarkerDragStarted?.Invoke(marker); Focus(); Repaint(); return true; }
+            }
+            if (button == 1 && !shift && configuration.onEmptyContext != null && r.Contains(m)) { configuration.onEmptyContext(this.LocalToWorld(m)); return true; }
             if (!r.Contains(m)) return false;
             int line = HitLine(r, m);
             if (line > 0 && shift && button == 0 && rt.allowSegmentDrag)
@@ -383,6 +403,16 @@ namespace Laubrary.Zui
             if (_pressed && CanEdit)
             {
                 float xRange = rt.xMax - rt.xMin, yRange = rt.yMax - rt.yMin;
+                if (_dragMarker >= 0)
+                {
+                    float t01 = Mathf.Clamp01((m.x - r.x) / r.width);
+                    // The loop keeps a little width; its ends never cross.
+                    if (_dragMarker == 0) { t01 = Mathf.Max(0f, Mathf.Min(t01, configuration.loopEnd01 - .005f)); configuration.loopStart01 = t01; }
+                    else if (_dragMarker == 1) { t01 = Mathf.Min(1f, Mathf.Max(t01, configuration.loopStart01 + .005f)); configuration.loopEnd01 = t01; }
+                    else configuration.sustain01 = t01;
+                    configuration.onMarkerMoved?.Invoke(_dragMarker, t01);
+                    Repaint(); return true;
+                }
                 if (_pendingMultiDrag && delta != Vector2.zero)
                 {
                     _pendingMultiDrag = false; _multiDrag = true; BeginGesture();
@@ -428,6 +458,7 @@ namespace Laubrary.Zui
         public void PointerUp()
         {
             if (_pendingMultiDrag) { _selected.Clear(); SelectionChanged(); }
+            if (_dragMarker >= 0) { _dragMarker = -1; configuration.onMarkerDragEnded?.Invoke(); }
             _pressed = _boxSelecting = _multiDrag = _pendingMultiDrag = _gestureRecorded = false;
             _dragPoint = _dragLine = _dragExponent = -1;
             Repaint();
@@ -460,7 +491,7 @@ namespace Laubrary.Zui
 
         public void ResetState()
         {
-            _dragPoint = _dragLine = _dragExponent = _hoverPoint = _hoverLine = -1;
+            _dragPoint = _dragLine = _dragExponent = _hoverPoint = _hoverLine = _dragMarker = -1;
             _boxSelecting = _pressed = _multiDrag = _pendingMultiDrag = _gestureRecorded = false;
             _selected.Clear(); SelectionChanged(); Repaint();
         }
@@ -803,17 +834,81 @@ namespace Laubrary.Zui
                     ctx.DrawText(text, new Vector2(x + w > plot.xMax ? x - w : x + 2f, plot.y + 1f), style.markerLabelSize, style.frameLabelColor);
                 }
             }
+            if (configuration.loopShown)
+            {
+                float x0 = plot.x + plot.width * Mathf.Clamp01(configuration.loopStart01), x1 = plot.x + plot.width * Mathf.Clamp01(configuration.loopEnd01);
+                var loop = style.curveColor;
+                FillRect(painter, new Rect(x0, plot.y, Mathf.Max(0f, x1 - x0), plot.height), new Color(loop.r, loop.g, loop.b, _dragMarker == 0 || _dragMarker == 1 ? .16f : .09f));
+                for (int id = 0; id < 2; id++)
+                {
+                    float x = id == 0 ? x0 : x1;
+                    painter.strokeColor = new Color(loop.r, loop.g, loop.b, _dragMarker == id ? 1f : .75f); painter.lineWidth = _dragMarker == id ? 2f : 1.25f;
+                    painter.BeginPath(); painter.MoveTo(new Vector2(x, plot.y)); painter.LineTo(new Vector2(x, plot.yMax)); painter.Stroke();
+                    // A bracket at the top and bottom shows which way the loop lies.
+                    float dir = id == 0 ? 1f : -1f;
+                    painter.BeginPath(); painter.MoveTo(new Vector2(x + dir * 5f, plot.y)); painter.LineTo(new Vector2(x, plot.y)); painter.Stroke();
+                    painter.BeginPath(); painter.MoveTo(new Vector2(x + dir * 5f, plot.yMax)); painter.LineTo(new Vector2(x, plot.yMax)); painter.Stroke();
+                }
+                // Forward: an arrow back to the loop start; ping-pong: arrows both ways.
+                if (x1 - x0 > 16f)
+                {
+                    float y = plot.y + 4f, mid = (x0 + x1) * .5f, half = Mathf.Min(10f, (x1 - x0) * .3f);
+                    painter.strokeColor = new Color(loop.r, loop.g, loop.b, .85f); painter.lineWidth = 1.25f;
+                    painter.BeginPath(); painter.MoveTo(new Vector2(mid - half, y)); painter.LineTo(new Vector2(mid + half, y)); painter.Stroke();
+                    painter.BeginPath(); painter.MoveTo(new Vector2(mid - half + 3f, y - 2.5f)); painter.LineTo(new Vector2(mid - half, y)); painter.LineTo(new Vector2(mid - half + 3f, y + 2.5f)); painter.Stroke();
+                    if (configuration.loopPingPong) { painter.BeginPath(); painter.MoveTo(new Vector2(mid + half - 3f, y - 2.5f)); painter.LineTo(new Vector2(mid + half, y)); painter.LineTo(new Vector2(mid + half - 3f, y + 2.5f)); painter.Stroke(); }
+                }
+            }
+            if (configuration.sustainShown)
+            {
+                float x = plot.x + plot.width * Mathf.Clamp01(configuration.sustain01); var c = new Color(1f, .78f, .35f, _dragMarker == 2 ? 1f : .8f);
+                painter.strokeColor = c; painter.lineWidth = _dragMarker == 2 ? 2f : 1.25f;
+                for (float y = plot.y; y < plot.yMax; y += 6f) { painter.BeginPath(); painter.MoveTo(new Vector2(x, y)); painter.LineTo(new Vector2(x, Mathf.Min(plot.yMax, y + 3.5f))); painter.Stroke(); }
+                ctx.DrawText("S", new Vector2(x + 2f, plot.y + 1f), style.markerLabelSize, c);
+            }
+            if (configuration.playheads01 != null)
+                for (int i = 0; i < configuration.playheadCount && i < configuration.playheads01.Length; i++)
+                {
+                    float t = configuration.playheads01[i]; if (float.IsNaN(t) || t < 0f || t > 1f) continue;
+                    bool faded = configuration.playheadsFaded != null && i < configuration.playheadsFaded.Length && configuration.playheadsFaded[i];
+                    float x = plot.x + plot.width * t;
+                    painter.strokeColor = new Color(1f, 1f, 1f, faded ? .35f : .85f); painter.lineWidth = 1.5f;
+                    painter.BeginPath(); painter.MoveTo(new Vector2(x, plot.y)); painter.LineTo(new Vector2(x, plot.yMax)); painter.Stroke();
+                }
+            if (configuration.xTickLabel != null && configuration.xTickCount > 0)
+            {
+                // Under the plot, at the ends and evenly between; the first is left-aligned and the last right-aligned.
+                int n = configuration.xTickCount; float lastRight = float.NegativeInfinity;
+                for (int i = 0; i <= n; i++)
+                {
+                    float f = i / (float)n, x = plot.x + plot.width * f; string text = configuration.xTickLabel(f); if (string.IsNullOrEmpty(text)) continue;
+                    float w = text.Length * TickLabelSize * 0.58f;
+                    float left = i == 0 ? x : i == n ? x - w : x - w * .5f;
+                    if (left < lastRight + 4f) continue;
+                    painter.strokeColor = style.frameEdgeColor; painter.lineWidth = 1f;
+                    painter.BeginPath(); painter.MoveTo(new Vector2(x, plot.yMax)); painter.LineTo(new Vector2(x, plot.yMax + 3f)); painter.Stroke();
+                    ctx.DrawText(text, new Vector2(left, plot.yMax + 3f), TickLabelSize, style.frameLabelColor);
+                    lastRight = left + w;
+                }
+            }
             if (!float.IsNaN(configuration.playhead01))
             {
                 float x = plot.x + plot.width * Mathf.Clamp01(configuration.playhead01);
                 painter.strokeColor = new Color(1f, 1f, 1f, 0.85f); painter.lineWidth = 1.5f;
                 painter.BeginPath(); painter.MoveTo(new Vector2(x, plot.y)); painter.LineTo(new Vector2(x, plot.yMax)); painter.Stroke();
             }
-            if (!string.IsNullOrEmpty(configuration.xAxisLabel))
+            if (!configuration.showAxisLegends) return;
+            // Under the tick labels when the padding below the plot has room for both; otherwise inside the plot's foot.
+            if (!string.IsNullOrEmpty(configuration.xAxisLabel) && configuration.xTickLabel != null && contentRect.yMax - plot.yMax >= style.markerLabelSize + style.axisLabelSize + 6f)
+                ctx.DrawText(configuration.xAxisLabel, new Vector2(plot.center.x - configuration.xAxisLabel.Length * style.axisLabelSize * 0.305f, plot.yMax + style.markerLabelSize + 5f), style.axisLabelSize, style.axisLabelColor);
+            else if (!string.IsNullOrEmpty(configuration.xAxisLabel))
                 ctx.DrawText(configuration.xAxisLabel, new Vector2(plot.center.x - configuration.xAxisLabel.Length * style.axisLabelSize * 0.305f, plot.yMax - style.axisLabelSize - 2f), style.axisLabelSize, style.axisLabelColor);
             if (!string.IsNullOrEmpty(configuration.yAxisLabel))
                 ctx.DrawText(configuration.yAxisLabel, new Vector2(plot.x + 3f, plot.center.y - style.axisLabelSize * 0.67f), style.axisLabelSize, style.axisLabelColor);
         }
+
+        /// Size of the time-axis tick labels: one step larger than the frame-marker labels, so a time reads at a glance.
+        const float TickLabelSize = 10f;
 
         /// <summary>A positioned value tag beside the hovered or selected point.</summary>
         void UpdateTag()

@@ -54,6 +54,7 @@ namespace Laubrary.ZTracker.Engine
             var command=new TrackerCommand{kind=TrackerCommandKind.PreserveSwap,replacement=next.state};realtime->Apply(in command);
             prepared.DisposeAfterQuiet();next.Published=true;prepared=next;return true;
         }
+        public int ReadEnvelopeHeads(int instrument,int parameter,int parameterSet,float[] positions,bool[] released){RequireAlive();return TrackerEnvelopeHeads.Read(realtime->state.envelopeHeads,instrument,parameter,parameterSet,positions,released);}
         public bool ReadEvent(out TrackerEvent value){RequireAlive();return realtime->events.TryRead(out value);}
         public void Render(NativeArray<float> left,NativeArray<float> right,int frames,int blockFrames=1024)
         {

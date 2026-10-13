@@ -62,6 +62,7 @@ namespace Laubrary.ZTracker.Engine
                 if(synth&&!subtractive&&(q.fmAlgorithm<0||q.fmAlgorithm>7)&&TrackerFmSetups.SetupOf(q.fmAlgorithm)==0)throw new ArgumentException("Unknown FM algorithm");
                 var tone=new TrackerTone{kind=synth?(data.synthMode==SynthMode.FM?2:1):0,waveA=subtractive?CompileWave(q.waveA,q.enumDomain):0,waveB=subtractive?CompileWave(q.waveB,q.enumDomain):0,blendMode=subtractive?q.blendMode:b?.mode??0,members=subtractive?q.unisonVoices:1,pcmB=-1,envelopes=envs.Count,algorithm=CompiledFmAlgorithm(data),glide=q.glideEnabled,legato=q.glideLegato,legatoEnvelopes=synth&&q.legatoEnabled,transposeCents=synth?q.transpose*100f:0,arpPerNote=q.arpeggioSpeedIsPerNote,baseGlobalVolume=synth?q.volume:data.sampler.volume,baseGlobalPan=synth?q.pan:data.sampler.pan,baseGlobalTune=synth?q.fineTune:data.sampler.fineTuneCents,blendEnvelope=b?.envelopeEnabled??(subtractive&&q.blendEnvelope),blendAttack=b?.attack??q.blendAttack,blendDecay=b?.decay??q.blendDecay,blendSustain=b?.sustain??q.blendSustain,blendRelease=b?.release??q.blendRelease};
                 if(tone.blendMode<0||tone.blendMode>3)throw new ArgumentException("Unknown blend mode");
+                tone.legatoSlide=q.legatoSlides;tone.legatoVelocity=(int)q.legatoVelocity;tone.legatoVelocitySeconds=math.max(0,q.legatoVelocitySeconds);tone.legatoVelocityScale=math.saturate(q.legatoVelocityScale);
                 for(int m=0;m<sm.modCount;m++){var mod=mods[sm.modStart+m];if(mod.parameterEnvelope)tone.parameterEnvelopeSlots[(int)mod.parameter]=(byte)(m+1);}
                 tone.baseBlend=b?.amount??q.blend;tone.basePM=b?.pmDepth??q.pmDepth;tone.localVolume=synth?1:sm.localVolume;tone.localPan=synth?0:sm.localPan;tone.vibratoRandomness=math.saturate(q.vibratoRandomness);
                 if(synth&&!subtractive&&q.fmAlgorithm>5&&q.fmAlgorithm<=7)diagnostics.Add("FM_ALGORITHM_FALLBACK authored="+q.fmAlgorithm+" compiled=5 slot="+sm.instrument);
@@ -133,7 +134,7 @@ namespace Laubrary.ZTracker.Engine
             if(env.Count>4096)throw new ArgumentException("Envelope capacity");float prev=-1;
             foreach(var p in env.points){if(!math.isfinite(p.time)||!math.isfinite(p.value)||!math.isfinite(p.exponent)||p.time<=prev||p.exponent<=0)throw new ArgumentException("Malformed tone envelope");points.Add(new TrackerModPoint{time=p.time,value=p.value,exponent=p.exponent});prev=p.time;}
             m.pointCount=env.Count;m.loopStart=env.loopStart;m.loopEnd=env.loopEnd;m.loopEnabled=env.loopEnabled;
-            m.sustainEnabled=env.sustainEnabled;m.sustainPosition=env.sustainPosition;
+            m.sustainEnabled=env.sustainEnabled;m.sustainPosition=env.sustainPosition;m.rows=env.durationInRows;
             if(m.sustainEnabled&&(!math.isfinite(env.sustainPosition)||env.sustainPosition<0||env.sustainPosition>prev))throw new ArgumentException("Invalid parameter envelope sustain");
             if(m.loopEnabled){int mode=domain==SoundEnumDomain.NativeDirect?env.loopMode:env.loopMode-1;if(mode<0||mode>1||!math.isfinite(m.loopStart)||!math.isfinite(m.loopEnd)||m.loopEnd<=m.loopStart||m.loopStart<0||m.loopEnd>prev)throw new ArgumentException("Malformed tone loop");m.loop=mode==1?SampleLoop.PingPong:SampleLoop.Forward;}
             return m;

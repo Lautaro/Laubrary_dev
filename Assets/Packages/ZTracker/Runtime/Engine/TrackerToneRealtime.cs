@@ -81,17 +81,33 @@ namespace Laubrary.ZTracker.Engine
             for(int n=1;n<count;n++){var b=state.points[start+n];if(time<=(float)b.time){var a=state.points[start+n-1];float t=(time-(float)a.time)/((float)b.time-(float)a.time);if(exponent)t=math.pow(t,b.exponent);return a.value+(b.value-a.value)*t;}}
             return state.points[start+count-1].value;
         }
-        float ToneCurve(in TrackerMod m,float time,in TrackerVoice voice)
+        float ToneCurve(in TrackerMod m,in TrackerVoice voice)=>PointCurve(m.points,m.pointCount,(float)ToneCurvePosition(in m,in voice),true);
+        /// Where a voice is on one of the synth's own envelopes, in the envelope's own unit (seconds, or song rows for an
+        /// envelope measured in rows). The sound and the editor's playheads both read it.
+        double ToneCurvePosition(in TrackerMod m,in TrackerVoice voice)
         {
+            double time=m.rows?voice.envRows:voice.envTime;
             if(voice.released&&(m.loopEnabled||m.sustainEnabled)){
-                float releasedAt=voice.releaseAge/(float)state.sampleRate;
-                float releasePosition=m.sustainEnabled?math.min(releasedAt,(float)m.sustainPosition):releasedAt;
-                if(m.loopEnabled&&releasePosition>(float)m.loopEnd){float width=(float)(m.loopEnd-m.loopStart);float phase=(releasePosition-(float)m.loopStart)%width;if(m.loop==SampleLoop.PingPong&&((int)((releasePosition-(float)m.loopStart)/width)&1)!=0)phase=width-phase;releasePosition=(float)m.loopStart+phase;}
-                return PointCurve(m.points,m.pointCount,releasePosition+math.max(0,time-releasedAt),true);
+                double releasedAt=m.rows?voice.releaseRows:voice.releaseAge/(double)state.sampleRate;
+                double releasePosition=m.sustainEnabled?math.min(releasedAt,m.sustainPosition):releasedAt;
+                if(m.loopEnabled&&releasePosition>m.loopEnd)releasePosition=ToneLoop(in m,releasePosition);
+                return releasePosition+math.max(0,time-releasedAt);
             }
-            if(m.sustainEnabled)time=math.min(time,(float)m.sustainPosition);
-            if(m.loopEnabled&&time>(float)m.loopEnd){float width=(float)(m.loopEnd-m.loopStart);float phase=(time-(float)m.loopStart)%width;if(m.loop==SampleLoop.PingPong&&((int)((time-(float)m.loopStart)/width)&1)!=0)phase=width-phase;time=(float)m.loopStart+phase;}
-            return PointCurve(m.points,m.pointCount,time,true);
+            return TonePosition(in m,time);
+        }
+        /// Song rows per rendered sample at the current tempo: how far an envelope measured in rows moves each sample.
+        double RowsPerSample=>state.bpm*state.linesPerBeat/(60d*state.sampleRate);
+        /// Where a held note is on one of the synth's own envelopes: held at the sustain point, wrapped into the loop.
+        static double TonePosition(in TrackerMod m,double time)
+        {
+            if(m.sustainEnabled)time=math.min(time,m.sustainPosition);
+            return m.loopEnabled&&time>m.loopEnd?ToneLoop(in m,time):time;
+        }
+        static double ToneLoop(in TrackerMod m,double time)
+        {
+            double width=m.loopEnd-m.loopStart,phase=(time-m.loopStart)%width;
+            if(m.loop==SampleLoop.PingPong&&((long)((time-m.loopStart)/width)&1)!=0)phase=width-phase;
+            return m.loopStart+phase;
         }
         void InitTone(ref TrackerVoice v,in TrackerTone tone,in TrackerSample sample,int member,int previousNote,bool held)
         {
@@ -101,12 +117,16 @@ namespace Laubrary.ZTracker.Engine
             v.vibratoSmooth=v.arpSmooth=1;v.vibratoFade=VoiceParameter(in v,TrackerParameter.VibratoFadeIn)>0?0:1;
             if(tone.kind!=0){double cents=tone.baseGlobalTune+tone.transposeCents+(double)v.memberSpread*v.detuneCurrent;if(math.abs(cents)<12000){float freq=440*math.pow(2f,(v.note-69)*(1f/12f));float fine=math.pow(2f,(float)cents*(1f/1200f));v.step=math.asfloat(math.asint(freq*fine))/(double)state.sampleRate;}else v.step=SafeInitialStep(440d/state.sampleRate,(v.note-69)/12d+cents/1200d);}
             if(tone.pcmB>=0){var clip=state.clips[tone.pcmB];float ne=(v.note-69)*(1f/12f),be=(tone.baseNoteB-69)*(1f/12f),fe=tone.fineTuneB*(1f/1200f);double boundedB=SafeInitialStep(clip.frequency/(double)state.sampleRate,(v.note-tone.baseNoteB+(double)tone.fineTuneB/100)/12d);v.stepB=math.abs(tone.fineTuneB)>12000?boundedB:sample.legacyPan?(math.pow(2f,(ne-be)+fe)*math.asfloat(0x3f7fffff))*(clip.frequency/(double)state.sampleRate):math.pow(2d,(v.note-tone.baseNoteB+tone.fineTuneB/100)/12d)*(clip.frequency/(double)state.sampleRate);}
-            if(tone.glide&&(!tone.legato||held)&&previousNote!=v.note)v.glideCurrent=math.pow(2d,(previousNote-v.note)/12d);else v.glideCurrent=1;
+            if(tone.glide&&(!tone.legato||held)&&previousNote!=v.note)StartGlide(ref v,previousNote-v.note);else {v.glideSemis=0;v.glideCurrent=1;}
             float speed=PointCurve(tone.arpPoints,tone.arpPointCount,0,false);v.arpStep=math.max(1,speed*state.sampleRate/(tone.arpPerNote?1:math.max(1,tone.arpNoteCount)));
             if(tone.arpNoteCount>=2){float first=state.points[tone.arpNotes].value;v.step*=math.pow(2d,first/12d);}
             // A new note starts at the current feedback amount; only later edits glide.
             if(tone.kind==2)v.fmFeedbackAmount=FMFeedbackTarget(in v);
             // Main ADSR remains per voice. Macros alter its rates without touching the saved asset.
+        }
+        static void StartGlide(ref TrackerVoice v,double semitones)
+        {
+            v.glideSemis=semitones;v.glideSpan=math.abs(semitones);v.glideCurrent=semitones==0?1:math.exp2(semitones/12d);
         }
         static uint Seed(uint cohort,uint member,uint oscillator){uint s=cohort*0x9e3779b9u+member*0x85ebca6bu+oscillator*0xc2b2ae35u;s^=s>>16;s*=0x7feb352du;s^=s>>15;return s==0?1:s;}
         static float Noise(ref uint rng){rng^=rng<<13;rng^=rng>>17;rng^=rng<<5;return (rng&0xffffff)/8388608f-1;}
@@ -117,7 +137,15 @@ namespace Laubrary.ZTracker.Engine
         double ModulatedStep(ref TrackerVoice v,in TrackerTone tone,float pitch)
         {
             double step=v.step;int ii=v.instrument;
-            if(tone.glide){double seconds=VoiceParameter(in v,TrackerParameter.GlideSeconds);v.glideCurrent+=(1-v.glideCurrent)*(seconds>0?1-math.exp(-1/(seconds*state.sampleRate)):1);step*=v.glideCurrent;}
+            // Glide (and a sliding legato) covers its whole distance at a constant rate in semitones, so it arrives in
+            // exactly the glide time (T-0627). It used to approach the note exponentially with the glide time as its
+            // time constant, which took about three times the stated time to get within 5%.
+            if(v.glideSemis!=0){
+                double seconds=VoiceParameter(in v,TrackerParameter.GlideSeconds),move=seconds>0?v.glideSpan/(seconds*state.sampleRate):double.MaxValue;
+                // A slide shorter than one sample is a jump: this sample already plays the new note.
+                if(math.abs(v.glideSemis)<=move&&seconds*state.sampleRate<1){v.glideSemis=0;v.glideCurrent=1;}
+                else {step*=v.glideCurrent;if(math.abs(v.glideSemis)<=move){v.glideSemis=0;v.glideCurrent=1;}else {v.glideSemis-=v.glideSemis>0?move:-move;v.glideCurrent=math.exp2(v.glideSemis/12d);}}
+            }
             double cadence=state.playing?state.sampleRate*60d/(state.bpm*state.linesPerBeat*state.ticksPerLine):3528;
             if(tone.arpNoteCount>=2){v.arpTime+=1f/state.sampleRate;v.arpCounter++;if(v.arpCounter>=v.arpStep){v.arpCounter-=v.arpStep;v.arpIndex=(v.arpIndex+1)%tone.arpNoteCount;float speed=PointCurve(tone.arpPoints,tone.arpPointCount,v.arpTime,false);v.arpStep=math.max(1,speed*state.sampleRate/(tone.arpPerNote?1:tone.arpNoteCount));}
                 float note=state.points[tone.arpNotes+v.arpIndex].value-state.points[tone.arpNotes].value;double target=math.pow(2f,note/12f);v.arpSmooth+=(target-v.arpSmooth)/math.max(1,cadence);step*=v.arpSmooth;
@@ -150,8 +178,8 @@ namespace Laubrary.ZTracker.Engine
         {
             int ii=v.instrument;float blend=Written(ii,TrackerParameter.Blend)?VoiceParameter(in v,TrackerParameter.Blend):tone.baseBlend,pw=VoiceParameter(in v,TrackerParameter.PulseWidth),ratio=VoiceParameter(in v,TrackerParameter.WaveBRatio),pm=Written(ii,TrackerParameter.PMDepth)?VoiceParameter(in v,TrackerParameter.PMDepth):tone.basePM,detune=VoiceParameter(in v,TrackerParameter.UnisonDetune);
             if(tone.blendEnvelope&&v.blendStage!=5){if(v.released){if(v.blendStage!=4){v.blendStage=4;v.blendReleaseStart=v.blendLevel;}v.blendLevel=math.max(0,v.blendLevel-(tone.blendRelease>0?1/(tone.blendRelease*state.sampleRate):1));if(v.blendLevel<=0)v.blendStage=5;}else if(v.blendStage==0){v.blendLevel+=tone.blendAttack>0?1/(tone.blendAttack*state.sampleRate):1;if(v.blendLevel>=1){v.blendLevel=1;v.blendStage=2;}}else if(v.blendStage==2){v.blendLevel-=tone.blendDecay>0?(1-tone.blendSustain)/(tone.blendDecay*state.sampleRate):1;if(v.blendLevel<=tone.blendSustain){v.blendLevel=tone.blendSustain;v.blendStage=3;}}v.blendCurrent=v.blendLevel;}
-            for(int n=0;n<5;n++){var env=state.toneEnvelopes[tone.envelopes+n];if(env.pointCount==0)continue;float value=ToneCurve(in env,v.envTime,in v);switch(n){case 0:blend=value;break;case 1:pw=value;break;case 2:ratio=value;break;case 3:pm=value;break;case 4:detune=value;break;}}
-            float smooth=1/(.005f*state.sampleRate);v.blendCurrent+=(blend-v.blendCurrent)*smooth;v.pulseCurrent+=(pw-v.pulseCurrent)*smooth;v.ratioCurrent+=(ratio-v.ratioCurrent)*smooth;v.pmCurrent+=(pm-v.pmCurrent)*smooth;v.detuneCurrent+=(detune-v.detuneCurrent)*smooth;v.envTime+=1f/state.sampleRate;
+            for(int n=0;n<5;n++){var env=state.toneEnvelopes[tone.envelopes+n];if(env.pointCount==0)continue;float value=ToneCurve(in env,in v);switch(n){case 0:blend=value;break;case 1:pw=value;break;case 2:ratio=value;break;case 3:pm=value;break;case 4:detune=value;break;}}
+            float smooth=1/(.005f*state.sampleRate);v.blendCurrent+=(blend-v.blendCurrent)*smooth;v.pulseCurrent+=(pw-v.pulseCurrent)*smooth;v.ratioCurrent+=(ratio-v.ratioCurrent)*smooth;v.pmCurrent+=(pm-v.pmCurrent)*smooth;v.detuneCurrent+=(detune-v.detuneCurrent)*smooth;v.envTime+=1d/state.sampleRate;v.envRows+=RowsPerSample;
         }
         float Synth(ref TrackerVoice v,in TrackerTone tone,float increment)
         {

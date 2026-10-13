@@ -212,7 +212,7 @@ namespace Laubrary.ZTracker.Engine
                 NoteOn(cell.track,cell.column,instrument,cell.note,math.clamp((int)math.floor(col.volume*127+.5f),0,127),cell.parameterSet);
                 if(state.columns[ci].cohort==previous.cohort){previous.pendingCell=-1;previous.due=-1;state.columns[ci]=previous;return;}
             }
-            else for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.active&&v.cohort==col.cohort){if(cell.volume>=0)v.volume=col.volume;if(cell.pan>=0)v.pan=col.pan;state.voices[i]=v;}}
+            else for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.active&&v.cohort==col.cohort){if(cell.volume>=0){v.volume=col.volume;v.volumeRemaining=0;}if(cell.pan>=0)v.pan=col.pan;state.voices[i]=v;}}
             col=state.columns[ci];col.localsPending=false;state.columns[ci]=col;
             InitializeColumn(ci,cell.note>=0&&!glide);
         }
@@ -224,7 +224,7 @@ namespace Laubrary.ZTracker.Engine
         }
         void Release(int i)
         {
-            var v=state.voices[i];if(!v.active||v.released)return;var s=state.samples[v.sample];float release=Written(v.instrument,TrackerParameter.Release)?VoiceParameter(in v,TrackerParameter.Release):s.release;v.released=true;v.releaseAge=v.age;v.releaseStart=v.envelope;v.releaseStep=release>0?v.envelope/(release*state.sampleRate):1;v.stage=4;
+            var v=state.voices[i];if(!v.active||v.released)return;var s=state.samples[v.sample];float release=Written(v.instrument,TrackerParameter.Release)?VoiceParameter(in v,TrackerParameter.Release):s.release;v.released=true;v.releaseAge=v.age;v.releaseRows=v.envRows;v.releaseStart=v.envelope;v.releaseStep=release>0?v.envelope/(release*state.sampleRate):1;v.stage=4;
             if(s.releaseExitsLoop&&s.loop!=SampleLoop.Off)v.direction=1;
             var tone=state.tones[v.sample];
             if(tone.releaseExitsLoopB&&tone.loopB!=SampleLoop.Off)v.directionB=1;
@@ -259,8 +259,11 @@ namespace Laubrary.ZTracker.Engine
                     var held=state.voices[i];if(!held.active||held.cohort!=previousCohort||held.track!=track||held.column!=column)continue;
                     var tone=state.tones[held.sample];double before=held.step;
                     held.step=SafeInitialStep(before,(note-held.note)/12d);
-                    held.glideCurrent=tone.glide?held.glideCurrent*before/held.step:1;
-                    held.note=note;held.velocity=velocity;held.volume=col.volume;held.pan=col.pan;held.cohort=col.cohort;
+                    // The pitch slides from where it is now to the new note over the glide time (Glide or a sliding Legato),
+                    // or jumps (a Legato saved before legato slid).
+                    if(tone.glide||tone.legatoSlide)StartGlide(ref held,held.glideSemis+math.log2(before/held.step)*12);else {held.glideSemis=0;held.glideCurrent=1;}
+                    LegatoLevel(ref held,in tone,col.volume,velocity);
+                    held.note=note;held.pan=col.pan;held.cohort=col.cohort;
                     state.voices[i]=held;
                 }
                 Emit(TrackerEventKind.NoteOn,track,column,note,instrument);return;
@@ -297,6 +300,25 @@ namespace Laubrary.ZTracker.Engine
             }
             col.previousNote=note;col.hasPreviousNote=true;state.columns[ci]=col;
             Emit(TrackerEventKind.NoteOn,track,column,note,instrument);
+        }
+        // A legato note's velocity (T-0628): Follow jumps to it, Ignore keeps the held note's level, Slide moves there over
+        // the slide time; Follow and Slide apply the scale's share of the change. Follow at full scale assigns exactly as
+        // before this existed, so older sounds are unchanged.
+        void LegatoLevel(ref TrackerVoice held,in TrackerTone tone,float volume,int velocity)
+        {
+            if(tone.legatoVelocity==1)return;
+            float scale=tone.legatoVelocityScale;
+            float targetVolume=scale>=1?volume:held.volume+(volume-held.volume)*scale;
+            int targetVelocity=scale>=1?velocity:math.clamp((int)math.round(held.velocity+(velocity-held.velocity)*scale),0,127);
+            int frames=tone.legatoVelocity==2?(int)math.round(tone.legatoVelocitySeconds*state.sampleRate):0;
+            if(frames<1){held.volume=targetVolume;held.velocity=targetVelocity;held.volumeRemaining=0;return;}
+            held.volumeFrom=held.volume;held.volumeTarget=targetVolume;held.velocityFrom=held.velocity;held.velocityTarget=targetVelocity;held.volumeSpan=held.volumeRemaining=frames;
+        }
+        static void AdvanceLegatoLevel(ref TrackerVoice v)
+        {
+            v.volumeRemaining--;float t=1-v.volumeRemaining/(float)v.volumeSpan;
+            v.volume=v.volumeRemaining==0?v.volumeTarget:math.lerp(v.volumeFrom,v.volumeTarget,t);
+            v.velocity=v.volumeRemaining==0?v.velocityTarget:(int)math.round(math.lerp(v.velocityFrom,v.velocityTarget,t));
         }
         int ChooseVoice(long newCohort=0)
         {
@@ -357,7 +379,7 @@ namespace Laubrary.ZTracker.Engine
             int active=0;for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active){var voice=state.voices[i];bool follower=false;if(state.tones[voice.sample].members>1)for(int j=0;j<i;j++)if(state.voices[j].active&&state.voices[j].cohort==voice.cohort&&state.voices[j].sample==voice.sample){follower=true;break;}if(!follower)active++;}
             float target=state.legacyMix&&active>1?1/math.sqrt((float)active):1;float scale=state.normalization,scaleStep=(target-scale)/count;
             for(int i=0;i<state.voices.Length;i++){
-                var v=state.voices[i];if(!v.active)continue;var s=state.samples[v.sample];var tone=state.tones[v.sample];var clip=s.pcm>=0?state.clips[s.pcm]:default;
+                var v=state.voices[i];if(!v.active){if(i<state.envelopeHeads.Length&&state.envelopeHeads[i].active!=0){var idle=state.envelopeHeads[i];idle.active=0;state.envelopeHeads[i]=idle;}continue;}var s=state.samples[v.sample];var tone=state.tones[v.sample];var clip=s.pcm>=0?state.clips[s.pcm]:default;
                 if(Written(v.instrument,TrackerParameter.Attack))s.attack=VoiceParameter(in v,TrackerParameter.Attack);
                 if(Written(v.instrument,TrackerParameter.Decay))s.decay=VoiceParameter(in v,TrackerParameter.Decay);
                 if(Written(v.instrument,TrackerParameter.Sustain))s.sustain=VoiceParameter(in v,TrackerParameter.Sustain);
@@ -368,6 +390,7 @@ namespace Laubrary.ZTracker.Engine
                 for(int f=0;f<count;f++){
                     if(s.drumGateSeconds>0&&!v.released&&v.age>=s.drumGateSeconds*state.sampleRate){state.voices[i]=v;Release(i);v=state.voices[i];}
                     if(!v.active)break;Envelope(ref v,in s);if(!v.active)break;
+                    if(v.volumeRemaining>0)AdvanceLegatoLevel(ref v);
                     float volume=1,pan=0,pitch=0,cutoff=s.cutoff,resonance=s.resonance,drive=1;
                     volume=s.orderedVolume?1:v.envelope;EvaluateMods(i,ref v,in s,ref volume,ref pan,ref pitch,ref cutoff,ref resonance,ref drive);
                     if(HasParameterEnvelope(in v,TrackerParameter.FilterCutoff))cutoff=VoiceParameter(in v,TrackerParameter.FilterCutoff);
@@ -397,10 +420,22 @@ namespace Laubrary.ZTracker.Engine
                     if(tone.kind==0){double previous=v.position;v.position+=math.pow(2d,math.clamp(h,-20,20))*v.direction;AdvancePcm(ref v,in s,in clip);AdvanceB(ref v,in tone,in s,previous);}
                 }
                 state.voices[i]=v;
+                PublishEnvelopeHead(i,in v);
             }
             // Preserve native voice-slice normalization, independently of chain-control partitions.
             for(int f=0;f<count;f++){scale+=scaleStep;for(int t=0;t<state.trackCount;t++){int a=t*state.maxFrames+offset+f;state.left[a]*=scale;state.right[a]*=scale;}for(int b=0;b<state.busCount;b++){int a=b*state.maxFrames+offset+f;state.busLeft[a]*=scale;state.busRight[a]*=scale;}}
             state.normalization=target;
+        }
+        // The parameter each of the synth's own five envelopes drives, in their compiled order.
+        static TrackerParameter ToneEnvelopeParameter(int n)=>n==0?TrackerParameter.Blend:n==1?TrackerParameter.PulseWidth:n==2?TrackerParameter.WaveBRatio:n==3?TrackerParameter.PMDepth:TrackerParameter.UnisonDetune;
+        unsafe void PublishEnvelopeHead(int index,in TrackerVoice v)
+        {
+            if(index>=state.envelopeHeads.Length)return;
+            var head=state.envelopeHeads[index];var tone=state.tones[v.sample];
+            head.active=v.active?(byte)1:(byte)0;head.released=v.released?(byte)1:(byte)0;head.cohort=v.cohort;head.instrument=v.instrument;head.parameterSet=tone.parameterSet;
+            for(int p=0;p<TrackerParameters.Stride;p++){int slot=tone.parameterEnvelopeSlots[p];head.position[p]=slot!=0?(float)state.modulationState[v.modulationOffset+slot-1].position:float.NaN;}
+            if(tone.kind!=0||tone.pcmB>=0)for(int n=0;n<5;n++){var env=state.toneEnvelopes[tone.envelopes+n];if(env.pointCount>0)head.position[(int)ToneEnvelopeParameter(n)]=(float)ToneCurvePosition(in env,in v);}
+            state.envelopeHeads[index]=head;
         }
         void Envelope(ref TrackerVoice v,in TrackerSample s)
         {
@@ -456,8 +491,10 @@ namespace Laubrary.ZTracker.Engine
                         else value=m.sustain;ms.position+=1d/state.sampleRate;ms.seeked=false;break;
                     case ModulationDeviceKind.Multipoint:
                         if(ms.finished&&!m.parameterEnvelope)break;
-                        if(ms.direction==0){ms.direction=m.loop==SampleLoop.Backward?-1:1;if(!ms.seeked&&m.loop==SampleLoop.Backward&&m.loopEnabled)ms.position=m.loopEnd-1d/state.sampleRate;}
-                        if(m.advanceFirst)ms.position+=1d/state.sampleRate;
+                        // One sample of envelope time: seconds, or song rows at the tempo of the moment (T-0629).
+                        double dt=m.rows?RowsPerSample:1d/state.sampleRate;
+                        if(ms.direction==0){ms.direction=m.loop==SampleLoop.Backward?-1:1;if(!ms.seeked&&m.loop==SampleLoop.Backward&&m.loopEnabled)ms.position=m.loopEnd-dt;}
+                        if(m.advanceFirst)ms.position+=dt;
                         double pos=ms.position;
                         if(!v.released&&m.sustainEnabled)pos=math.min(pos,m.sustainPosition);
                         if(!v.released&&m.loopEnabled){double width=m.loopEnd-m.loopStart;
@@ -465,7 +502,7 @@ namespace Laubrary.ZTracker.Engine
                             else if(m.loop==SampleLoop.Backward&&pos<m.loopStart){double loopPhase=(pos-m.loopStart)%width;if(loopPhase<0)loopPhase+=width;pos=m.loopStart+loopPhase;}
                             else if(m.loop==SampleLoop.PingPong&&((ms.direction>0&&pos>m.loopEnd)||(ms.direction<0&&pos<m.loopStart))){double loopPhase=(ms.direction>0?pos-m.loopStart:2*width-(pos-m.loopStart))%(2*width);if(loopPhase<0)loopPhase+=2*width;pos=loopPhase<=width?m.loopStart+loopPhase:m.loopEnd-(loopPhase-width);ms.direction=loopPhase<width?1:-1;}
                         }
-                        value=Curve(in m,pos);ms.position=pos+(m.advanceFirst?0:1d/state.sampleRate*(v.released?1:ms.direction));
+                        value=Curve(in m,pos);ms.position=pos+(m.advanceFirst?0:dt*(v.released?1:ms.direction));
                         if(!v.released&&m.sustainEnabled)ms.position=math.min(ms.position,m.sustainPosition);if(!m.loopEnabled&&!m.sustainEnabled&&m.pointCount>0&&pos>=state.points[m.points+m.pointCount-1].time)ms.finished=true;ms.seeked=false;break;
                     case ModulationDeviceKind.LFO:
                         if(s.legacyPan&&state.tones[v.sample].kind==0&&m.target==ModulationTarget.Pitch&&m.advanceFirst&&(VoiceParameterActive(in v,TrackerParameter.VibratoDepth)||VoiceParameterActive(in v,TrackerParameter.VibratoRate)||VoiceParameterActive(in v,TrackerParameter.VibratoFadeIn)))continue;

@@ -32,6 +32,12 @@ namespace Laubrary.ZTracker.Engine
         public int loopStartB, loopEndB;
         public bool releaseExitsLoopB, blendEnvelope, glide, legato, legatoEnvelopes, arpPerNote;
         public float transposeCents, fineTuneB, blendAttack, blendDecay, blendSustain, blendRelease, baseGlobalVolume, baseGlobalPan, baseGlobalTune, baseBlend, basePM, localVolume, localPan, vibratoRandomness;
+        // Legato (T-0627/T-0628): whether an overlapping note slides its pitch over the glide time, and what happens to
+        // the held note's level: 0 follows the new note's velocity, 1 ignores it, 2 slides to it over legatoVelocitySeconds;
+        // legatoVelocityScale is the share of the velocity change that applies (follow and slide).
+        public bool legatoSlide;
+        public int legatoVelocity;
+        public float legatoVelocitySeconds, legatoVelocityScale;
     }
     public static class TrackerParameters
     {

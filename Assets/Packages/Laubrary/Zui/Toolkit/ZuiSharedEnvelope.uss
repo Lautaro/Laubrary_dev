@@ -86,6 +86,21 @@
     --zui-envelope-padding-left: 10;
     --zui-envelope-value-label-size: 12;
 }
+/* Time-axis tick labels under the curve need their own line above the caption. */
+.zui-value__physical-envelope--ticks {
+    --zui-envelope-padding-bottom: 33;
+}
+.zui-value__curve-yaxis {
+    position: absolute;
+    left: 10px;
+    top: 0;
+    height: 14px;
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    color: var(--zui-control-text);
+    -unity-text-align: middle-left;
+}
 .zui-value__curve-scale {
     height: 140px;
     flex-shrink: 0;

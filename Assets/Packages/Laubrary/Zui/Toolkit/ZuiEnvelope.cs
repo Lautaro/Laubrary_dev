@@ -131,5 +131,39 @@ namespace Laubrary.Zui
             configuration.playhead01 = t01;
             MarkDirtyRepaint();
         }
+
+        /// One playhead per playing instance (0..1 across the span); <paramref name="faded"/> marks ones drawn fainter
+        /// (for example released notes). Repaints only when something moved. View state only.
+        public void SetPlayheads(float[] t01, bool[] faded, int count)
+        {
+            bool changed = count != configuration.playheadCount;
+            for (int i = 0; !changed && i < count; i++) changed = configuration.playheads01 == null || configuration.playheads01[i] != t01[i] || (configuration.playheadsFaded?[i] ?? false) != (faded != null && faded[i]);
+            if (!changed) return;
+            if (configuration.playheads01 == null || configuration.playheads01.Length < count) { configuration.playheads01 = new float[Mathf.Max(8, count)]; configuration.playheadsFaded = new bool[configuration.playheads01.Length]; }
+            for (int i = 0; i < count; i++) { configuration.playheads01[i] = t01[i]; configuration.playheadsFaded[i] = faded != null && faded[i]; }
+            configuration.playheadCount = count;
+            MarkDirtyRepaint();
+        }
+
+        /// Show (or hide) a loop region between two draggable markers, positions 0..1 across the span.
+        public void SetLoop(bool shown, float start01, float end01, bool pingPong)
+        {
+            configuration.loopShown = shown; configuration.loopStart01 = start01; configuration.loopEnd01 = end01; configuration.loopPingPong = pingPong;
+            MarkDirtyRepaint();
+        }
+
+        /// Show (or hide) a draggable sustain marker at 0..1 across the span.
+        public void SetSustain(bool shown, float position01)
+        {
+            configuration.sustainShown = shown; configuration.sustain01 = position01;
+            MarkDirtyRepaint();
+        }
+
+        /// Whether the axis captions are drawn (a view preference).
+        public bool ShowAxisLegends
+        {
+            get => configuration.showAxisLegends;
+            set { configuration.showAxisLegends = value; MarkDirtyRepaint(); }
+        }
     }
 }

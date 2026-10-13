@@ -88,6 +88,18 @@ namespace Laubrary.Zui
             // author sees which colour each value produces. Null (default) = unchanged. The func receives values
             // in the curve's own [yMin..yMax] range, so a caller must map from the same range its curve edits.
             public Func<float, Color> yColorFor = null;
+            /// Labels under the curve editor's time axis: one pass's progress (0..1) to text, such as seconds or song
+            /// rows. Null (default) = none.
+            public Func<float, string> xTickLabel = null;
+            /// For a physical-unit curve: also caption the vertical axis (yAxisLabel, above the curve's top-left corner),
+            /// beside the time caption under it.
+            public bool yAxisLegend = false;
+            /// Whether the curve editor's axis captions are shown (a view preference a host's menu can switch;
+            /// see SetAxisLegends).
+            public bool showAxisLegends = true;
+            /// Called with the curve editor every time it is built (curve mode, expanded), so a host can add markers,
+            /// playheads or a context menu (ZuiEnvelope.SetLoop / SetSustain / SetPlayheads, configuration.onEmptyContext).
+            public Action<ZuiEnvelope> decorateEnvelope = null;
 
             public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
@@ -138,6 +150,19 @@ namespace Laubrary.Zui
         /// curve and open to a full-width editor — and a host packing controls into a flowing row has no
         /// other way to tell those apart.
         public ZUIValue Value => _v;
+
+        /// The curve editor while it is shown (curve mode, expanded), otherwise null.
+        public ZuiEnvelope CurveEnvelope => _env;
+
+        /// Show or hide the curve editor's axis captions (view state; it lasts until the control is rebuilt with its options).
+        public void SetAxisLegends(bool shown)
+        {
+            _opt.showAxisLegends = shown;
+            if (_env == null) return;
+            _env.ShowAxisLegends = shown;
+            _env.Query<Label>(className: "zui-value__curve-axis").ForEach(l => l.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None);
+            _env.Query<Label>(className: "zui-value__curve-yaxis").ForEach(l => l.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None);
+        }
 
         /// True when this control draws a CURVE rather than a single row, so a host packing a flow knows it
         /// earns a line of its own instead of being squeezed beside a radio with its label left stranded.
@@ -462,13 +487,22 @@ namespace Laubrary.Zui
             if (physical)
             {
                 _env.AddToClassList("zui-value__physical-envelope");
+                if (_opt.xTickLabel != null) _env.AddToClassList("zui-value__physical-envelope--ticks");
                 if (!string.IsNullOrEmpty(_opt.xAxisLabel))
                 {
                     var axis = new Label(_opt.xAxisLabel) { pickingMode = PickingMode.Ignore, tooltip = "Progress through one envelope pass." };
                     axis.AddToClassList("zui-value__curve-axis");
                     _env.Add(axis);
                 }
+                if (_opt.yAxisLegend && !string.IsNullOrEmpty(_opt.yAxisLabel))
+                {
+                    var axis = new Label(_opt.yAxisLabel) { pickingMode = PickingMode.Ignore };
+                    axis.AddToClassList("zui-value__curve-yaxis");
+                    _env.Add(axis);
+                }
             }
+            _env.configuration.xTickLabel = _opt.xTickLabel;
+            SetAxisLegends(_opt.showAxisLegends);
             _env.style.width = StyleKeyword.Auto;
             _env.style.flexGrow = 1f;
             _env.style.flexShrink = 1f;
@@ -498,6 +532,7 @@ namespace Laubrary.Zui
             _inputsHost.style.marginLeft = 4f;
             envRow.Add(_inputsHost);
             _content.Add(envRow);
+            _opt.decorateEnvelope?.Invoke(_env);
             if (st.showInputs) RebuildInputsRow();
 
             if (!_opt.hideCurveTiming) AddTimingRow();

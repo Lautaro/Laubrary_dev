@@ -256,12 +256,7 @@ namespace Laubrary.ZTracker.Editor
             }
             else BuildFm(source, q);
             BuildNumericFields(source, q, new[] { "fineTune", "transpose" }, "synth");
-            int noteMode = (q.glideEnabled ? 1 : 0) | (q.legatoEnabled ? 2 : 0);
-            var glideTime = NumberForField("glideSeconds", q.glideSeconds, v => q.glideSeconds = v, "synth-glideSeconds");
-            // Leave room for all four note modes inside a normal two-column workspace.
-            glideTime.style.width = 140; glideTime.style.minWidth = 140;
-            glideTime.SetEnabled(q.glideEnabled);
-            source.Add(Flow(InstrumentChoice("Notes", noteMode, new[] { "None", "Glide", "Legato", "Both" }, "Glide slides pitch between notes. Legato keeps the envelope running across overlapping notes. Both combines them; None starts each note normally.", v => { q.glideEnabled = (v & 1) != 0; q.legatoEnabled = (v & 2) != 0; q.glideLegato = false; }, "synth-note-mode"), glideTime));
+            BuildNoteMode(source, q);
             BuildNumericFields(source, q, new[] { "vibratoDepth", "vibratoRate", "vibratoFadeIn", "vibratoRandomness" }, "synth");
             var amp = InstrumentSection(columns, "Amplifier", "amplifier", "Note loudness, stereo position and fixed amplitude stages.");
             var ampParts = InstrumentColumns(amp, "amplifier-parts", 340);
@@ -297,7 +292,7 @@ namespace Laubrary.ZTracker.Editor
                 var f = owner.GetType().GetField(name); if (f == null) continue;
                 bool integer = f.FieldType == typeof(int); float value = Convert.ToSingle(f.GetValue(owner)); Action<float> apply = v => { f.SetValue(owner, integer ? (object)(int)v : v); if (name == "unisonVoices" || name == "vibratoDepth") RefreshSynthConditionalControls(rootVisualElement); };
                 if (owner is InstrumentParameters q && CanEnvelope(name)) row.Add(ParameterValue(name, value, apply, prefix + "-" + name, q, name));
-                else if (owner is ZTrackerInstrument.InstrumentPreset preset && CanEnvelope(name)) row.Add(PresetCommandMenu(ParameterValue(name, value, apply, prefix + "-" + name, () => PresetEnvelope(preset, name), env => SetPresetEnvelope(preset, name, env), defaultValue: DeclaredDefault(preset, name)), name));
+                else if (owner is ZTrackerInstrument.InstrumentPreset preset && CanEnvelope(name)) row.Add(PresetCommandMenu(ParameterValue(name, value, apply, prefix + "-" + name, () => PresetEnvelope(preset, name), env => SetPresetEnvelope(preset, name, env), defaultValue: DeclaredDefault(preset, name), playheads: false), name));
                 else row.Add(NumberForField(name, value, apply, prefix + "-" + name, DeclaredDefault(owner, name)));
             }
             root.Add(row);

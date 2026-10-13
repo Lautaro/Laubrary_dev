@@ -164,6 +164,8 @@ namespace Laubrary.ZTracker.Engine
         public int points, pointCount, shape;
         public double sustainPosition, loopStart, loopEnd;
         public bool sustainEnabled, loopEnabled;
+        // Times (points, loop, sustain) are song rows, so the envelope follows the song's tempo (T-0629).
+        public bool rows;
         public SampleLoop loop;
         public float fadeSeconds, randomness;
         public bool advanceFirst, primaryEnvelope;
@@ -179,7 +181,12 @@ namespace Laubrary.ZTracker.Engine
         public float volume, pan, envelope, releaseStart, releaseStep, amplitude;
         public float fL1, fL2, fR1, fR2, xL1, xL2, xR1, xR2;
         public float b0, b1, b2, a1, a2, filterCutoff, filterQ;
-        public float phaseA, phaseB, syncFilter, blendCurrent, pmCurrent, ratioCurrent, pulseCurrent, detuneCurrent, envTime;
+        public float phaseA, phaseB, syncFilter, blendCurrent, pmCurrent, ratioCurrent, pulseCurrent, detuneCurrent;
+        // Seconds since the note started, for the synth's own per-note envelopes. A double: a float clock drifted by up to
+        // 0.7% once a note had been held a few seconds, which put envelope loops out of time (T-0629).
+        public double envTime;
+        // The same clock in song rows at the tempo of the moment, and where it stood at note-off (envelopes in rows).
+        public double envRows, releaseRows;
         public float memberSpread, memberGain, blendLevel, blendReleaseStart, arpTime;
         public int blendStage, arpIndex, directionB;
         public double positionB, stepB, glideCurrent, arpCounter, arpStep;
@@ -196,6 +203,25 @@ namespace Laubrary.ZTracker.Engine
         public float commandPitch, commandGain, commandArp, commandVibrato, commandTremolo, commandPan, phaseV, phaseT, phaseN, retriggerGain;
         public int regionStart, regionEnd, selectedStart;
         public bool explicitStart;
+        // Instrument glide (T-0627): semitones still to travel (signed) and the size of the whole slide, which is
+        // covered at a constant rate in exactly the glide time. glideCurrent is 2^(glideSemis/12).
+        public double glideSemis, glideSpan;
+        // Legato velocity slide (T-0628): level and velocity move from From to Target over Span samples.
+        public float volumeFrom, volumeTarget;
+        public int volumeRemaining, volumeSpan, velocityFrom, velocityTarget;
+    }
+    /// <summary>
+    /// Where one voice is on each of its per-note parameter envelopes, published by the renderer once per rendered slice so
+    /// an editor can draw one playhead per sounding note (T-0629). Fixed size, written in place: no allocation and no
+    /// managed work on the audio side. A position is in the envelope's own unit (seconds or song rows); NaN where the
+    /// parameter has no envelope on this voice.
+    /// </summary>
+    public unsafe struct TrackerEnvelopeHead
+    {
+        public long cohort;
+        public int instrument, parameterSet;
+        public byte active, released;
+        public fixed float position[TrackerParameters.Stride];
     }
     public struct TrackerColumn
     {
@@ -296,6 +322,7 @@ namespace Laubrary.ZTracker.Engine
         public NativeArray<TrackerModPoint> points;
         public NativeArray<TrackerModState> modulationState;
         public NativeArray<TrackerVoice> voices;
+        public NativeArray<TrackerEnvelopeHead> envelopeHeads;
         public NativeArray<TrackerTone> tones;
         public NativeArray<float> parameterBase, parameterDirect, parameterLive;
         public NativeArray<byte> parameterWritten;

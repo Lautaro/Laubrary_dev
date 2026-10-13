@@ -159,6 +159,7 @@ namespace Laubrary.ZTracker.Model
             if (data.modulation == null || data.fxChains == null || data.externalParameters == null || data.archivedMacros == null || data.sampler.samples == null || data.sampler.zones == null) return "Instrument collections missing";
             var q=data.parameters;
             if(!Enum.IsDefined(typeof(SoundEnumDomain),q.enumDomain)||!Enum.IsDefined(typeof(SoundEnumDomain),q.envelopeEnumDomain)||!Finite(q.glideSeconds)||q.glideSeconds<0||q.glideSeconds>3600||!Finite(q.arpeggioSpeed)||q.arpeggioSpeed<=0)return "Invalid glide/arpeggio parameters";
+            if(!Enum.IsDefined(typeof(LegatoVelocity),q.legatoVelocity)||!Finite(q.legatoVelocitySeconds)||q.legatoVelocitySeconds<0||q.legatoVelocitySeconds>3600||!Finite(q.legatoVelocityScale)||q.legatoVelocityScale<0||q.legatoVelocityScale>1)return "Invalid legato velocity parameters";
             var speedError=Points(q.arpeggioSpeedPoints,false,true);if(speedError!=null)return speedError;
             if (!Finite(data.sampler.volume) || !Finite(data.sampler.pan) || !Finite(data.sampler.fineTuneCents)) return "Invalid sampler globals";
             foreach (var sample in data.sampler.samples)

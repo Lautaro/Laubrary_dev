@@ -91,8 +91,10 @@ namespace Laubrary.ZTracker.Editor
                 {
                     q.glideEnabled = false; q.legatoEnabled = false; q.glideLegato = false; q.glideSeconds = .37f;
                     Undo.ClearUndo(instrumentAsset); window.BuildPane(); Layout();
+                    Need(!Visible(Find("synth-glideSeconds")), "Glide time should be hidden in None mode (it does nothing there)");
+                    Need(window.rootVisualElement.Q("synth-legato-velocity") == null, "Legato velocity shown in None mode");
+                    ChooseMode("Glide");
                     var mode = FlowItem(Find("synth-note-mode")); var time = FlowItem(Find("synth-glideSeconds"));
-                    Need(Visible(time) && !time.enabledSelf, "Glide time should be visible but disabled in None mode");
                     bool sameFlow = ReferenceEquals(mode.parent, time.parent);
                     bool sameY = Math.Abs(mode.worldBound.yMin - time.worldBound.yMin) < 2;
                     bool noOverlap = mode.worldBound.xMax <= time.worldBound.xMin + 1;
@@ -103,12 +105,12 @@ namespace Laubrary.ZTracker.Editor
                         "; flow=" + (mode.parent != null ? mode.parent.worldBound.ToString() : "<none>") +
                         "; modeItem=" + mode.worldBound + " modeControl=" + Find("synth-note-mode").worldBound +
                         "; timeItem=" + time.worldBound + " timeControl=" + Find("synth-glideSeconds").worldBound);
-                    ChooseMode("Glide");
                     Need(q.glideEnabled && !q.legatoEnabled && Math.Abs(q.glideSeconds - .37f) < .00001f, "Glide choice changed the wrong flags or glide time");
-                    Need(Find("synth-glideSeconds").enabledSelf, "Glide time did not enable with Glide mode");
+                    Need(Visible(Find("synth-glideSeconds")) && Find("synth-glideSeconds").enabledSelf, "Glide time not shown with Glide mode");
                     ChooseMode("Legato");
-                    Need(!q.glideEnabled && q.legatoEnabled && Math.Abs(q.glideSeconds - .37f) < .00001f, "Legato choice changed Glide or its time");
-                    Need(!Find("synth-glideSeconds").enabledSelf, "Glide time stayed enabled in Legato-only mode");
+                    Need(!q.glideEnabled && q.legatoEnabled && q.legatoSlides && Math.Abs(q.glideSeconds - .37f) < .00001f, "Legato choice changed Glide or its time, or did not make legato slide");
+                    Need(Visible(Find("synth-glideSeconds")) && Find("synth-glideSeconds").enabledSelf, "Glide time (the legato slide time) not shown in Legato mode");
+                    Need(Visible(Find("synth-legato-velocity")), "Legato velocity not shown in Legato mode");
                     ChooseMode("Both");
                     Need(q.glideEnabled && q.legatoEnabled && Math.Abs(q.glideSeconds - .37f) < .00001f, "Both choice did not set both flags while preserving time");
                     Undo.PerformUndo(); Layout();
