@@ -63,6 +63,7 @@ namespace Laubrary.ZTracker.Engine
         void EmitDeviceParameter(int at)
         {
             var p = state.deviceParameters[at];
+            if (state.rowReverse.active && p.kind == 5) return; // fixed reverse deadline owns timing
             if (p.dynamic)
             {
                 EmitDynamic(at);

@@ -68,7 +68,7 @@ namespace Laubrary.ZTracker.Engine
 
         void BeginPatternHistory()
         {
-            if (!state.rewind.history.IsCreated || state.rewind.phase != TrackerRewindPhase.Idle || state.row != 0) return;
+            if (!state.rewind.history.IsCreated || state.rewind.phase != TrackerRewindPhase.Idle || state.rowReverse.active || state.row != 0) return;
             state.rewind.count = 0; state.rewind.started = true; state.rewind.exhausted = false;
             state.rewind.order = state.sequenceIndex;
         }
@@ -79,7 +79,7 @@ namespace Laubrary.ZTracker.Engine
             int total = math.isfinite(seconds) && seconds >= .1f && seconds <= 10 ? (int)math.round(seconds * state.sampleRate) : 0;
             int slow = math.min(state.sampleRate / 2, total / 4);
             if (total == 0) result = TrackerRewindResult.InvalidDuration;
-            else if (state.rewind.phase != TrackerRewindPhase.Idle) result = TrackerRewindResult.Busy;
+            else if (state.rewind.phase != TrackerRewindPhase.Idle || state.rowReverse.active) result = TrackerRewindResult.Busy;
             else if (!state.rewind.history.IsCreated) result = TrackerRewindResult.Disabled;
             else if (!state.playing) result = TrackerRewindResult.NotPlaying;
             else if (!state.rewind.started || state.rewind.count < 2) result = TrackerRewindResult.EmptyHistory;

@@ -14,6 +14,8 @@ namespace Laubrary.ZTracker
     {
         /// <summary>Index into the song's order list (the sequence), and the row inside that slot's pattern.</summary>
         public int Order, Row;
+        /// <summary>+1 for ordinary sequencing, -1 for descending rows. Within-row tick/fraction still advance.</summary>
+        public int Direction;
         /// <summary>Id of the pattern playing at <see cref="Order"/> (look it up in <see cref="ZTrackerSongClock.Song"/>).</summary>
         public string PatternId;
         public double Bpm;
@@ -236,6 +238,7 @@ namespace Laubrary.ZTracker
             p = new ZTrackerSongPosition
             {
                 Order = row.sequence, Row = row.row,
+                Direction = row.direction == TrackerPlaybackDirection.Reverse ? -1 : 1,
                 PatternId = song != null && row.sequence >= 0 && row.sequence < song.sequence.Count ? song.sequence[row.sequence].patternId : null,
                 Bpm = row.bpm, LinesPerBeat = lpb, TicksPerLine = tpl,
                 LineInBeat = row.row % lpb, BeatInPattern = row.row / lpb,

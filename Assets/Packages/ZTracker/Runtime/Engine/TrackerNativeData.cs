@@ -9,13 +9,14 @@ using Unity.Mathematics;
 
 namespace Laubrary.ZTracker.Engine
 {
-    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic, Started, SongLooped, TempoChanged, RewindStarted, RewindCompleted, RewindRefused }
+    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic, Started, SongLooped, TempoChanged, RewindStarted, RewindCompleted, RewindRefused, RowReverseStarted, RowReverseCompleted, RowReverseRefused }
     public enum TrackerRuntimeDiagnostic { SeekUnreachable=1, PitchLimit=2, InvalidPitch=3, BreakClamped=4, EmptyMemory=5, DelayOutsideRow=6, CutOutsideRow=7, GlideNoTarget=8, ExclusiveNoWeight=9, SharedFxStop=10, InvalidClock=11, ClockLimit=12, SliceOutside=13, GlideWithoutVoice=14, GlideInstrumentChanged=15, InstrumentUnresolved=16, SeekVoiceStateDiscarded=17, SampleDomainUnsupported=18, RouteCycle=19, StopExpandsSendContributors=20 }
     public struct TrackerEvent
     {
         public TrackerEventKind kind;
         public long samplePosition;
         public double bpm;
+        public TrackerPlaybackDirection direction;
         public int sequence, pattern, row, tick, track, column, note, instrument, payload;
     }
     /// <summary>
@@ -30,6 +31,7 @@ namespace Laubrary.ZTracker.Engine
         public int sequence, pattern, row, linesPerBeat, ticksPerLine, holdRemaining;
         public long occurrence;
         public byte held;
+        public TrackerPlaybackDirection direction;
     }
     /// <summary>Where the renderer has got to: the transport position at the end of the last rendered block.</summary>
     public struct TrackerClockHead
@@ -38,6 +40,7 @@ namespace Laubrary.ZTracker.Engine
         public int sampleRate;
         public byte playing, paused;
         public TrackerRewindStatus rewind;
+        public TrackerRowReverseStatus rowReverse;
     }
     /// <summary>One audio producer and one main-thread consumer. Storage outlives graph instances and prepared swaps.</summary>
     public unsafe struct TrackerEventRing : IDisposable
@@ -75,7 +78,7 @@ namespace Laubrary.ZTracker.Engine
             Volatile.Write(ref slot.serial, serial);
             Volatile.Write(ref counters[3], serial + 1);
         }
-        public void PublishHead(long position, int sampleRate, bool playing, bool paused, TrackerRewindStatus rewind = default)
+        public void PublishHead(long position, int sampleRate, bool playing, bool paused, TrackerRewindStatus rewind = default, TrackerRowReverseStatus rowReverse = default)
         {
             if (clockHead == null) return;
             long version = counters[4];
@@ -83,6 +86,7 @@ namespace Laubrary.ZTracker.Engine
             clockHead->position = position; clockHead->sampleRate = sampleRate; clockHead->blocks++;
             clockHead->playing = playing ? (byte)1 : (byte)0; clockHead->paused = paused ? (byte)1 : (byte)0;
             clockHead->rewind = rewind;
+            clockHead->rowReverse = rowReverse;
             Volatile.Write(ref counters[4], version + 2);
         }
         // ---- Song clock, read on the main thread (any number of readers, nothing consumed) ----
@@ -296,6 +300,7 @@ namespace Laubrary.ZTracker.Engine
     public unsafe struct TrackerState
     {
         public TrackerRewindState rewind;
+        public TrackerRowReverseState rowReverse;
         public NativeArray<float> pcm, left, right, busLeft, busRight, outputLeft, outputRight, faderGain, faderPan;
         public NativeArray<TrackerPcm> clips;
         public NativeArray<TrackerSample> samples;
@@ -365,7 +370,7 @@ namespace Laubrary.ZTracker.Engine
         public long rowSerial;
         public bool dynamicLanding;
     }
-    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap, TempoOverride, TrackTranspose, TrackDetune, DynamicParameterSet, Rewind }
+    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap, TempoOverride, TrackTranspose, TrackDetune, DynamicParameterSet, Rewind, ReverseRows }
     public struct TrackerCommand
     {
         public TrackerCommandKind kind;
@@ -380,6 +385,8 @@ namespace Laubrary.ZTracker.Engine
         public static TrackerCommand ClearTempoOverride() => SetTempo(0);
         /// <summary>Requests tape playback of this pattern pass's actual rendered mix, then resumes at row zero.</summary>
         public static TrackerCommand RequestRewind(float seconds = 3f) => new TrackerCommand { kind = TrackerCommandKind.Rewind, value = seconds };
+        /// <summary>Retrigger rows N..1 in descending order with normal forward voice playback, then land on row zero.</summary>
+        public static TrackerCommand RequestReverseRows(float seconds = 3f) => new TrackerCommand { kind = TrackerCommandKind.ReverseRows, value = seconds };
         /// <summary>Independent additive semitone offset (-120..120) for active and future track voices.</summary>
         public static TrackerCommand SetTrackTranspose(int track, int semitones) => new TrackerCommand { kind = TrackerCommandKind.TrackTranspose, a = track, b = semitones };
         /// <summary>Independent additive cents offset (-1200..1200); does not replace authored fine tune.</summary>

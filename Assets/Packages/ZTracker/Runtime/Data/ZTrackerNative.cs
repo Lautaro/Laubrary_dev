@@ -46,4 +46,6 @@ public struct ZTrackerEventData
     public string trackId;
     public int noteColumn;
     public int sequenceIndex;
+    /// <summary>+1 for ordinary sequencing, -1 for reverse row traversal. Sample timestamps stay monotonic.</summary>
+    public int direction;
 }

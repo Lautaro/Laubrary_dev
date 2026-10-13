@@ -132,6 +132,22 @@ namespace Laubrary.ZTracker
         /// <summary>Coherent status of the bounded rendered-mix history and any tape operation.</summary>
         public TrackerRewindStatus RewindStatus => generator != null && generator.TryGetRewindStatus(out var status) ? status : default;
         public bool IsRewinding => RewindStatus.IsRewinding;
+        /// <summary>Reverse sequencing status, including monotonic completion/refusal/cancellation counters.</summary>
+        public TrackerRowReverseStatus RowReverseStatus => generator != null && generator.TryGetRowReverseStatus(out var status) ? status : default;
+        public bool IsReversingRows => RowReverseStatus.active;
+        /// <summary>Queues rows N..1 backwards within the current pattern, with each row's audio running forward.
+        /// Duration is normalized to 0.1..10 seconds (default 3); row zero is refused. Tempo/pitch offsets and gates
+        /// survive landing. Requests during tape or another reverse traversal are refused by the audio thread.</summary>
+        public bool RequestReverseRows(float seconds = 3f)
+        {
+            if (!IsPlaying) { LastError = "Playback unavailable"; return false; }
+            if (float.IsNaN(seconds) || seconds < .1f || seconds > 10) { LastError = "Reverse duration must be 0.1 through 10 seconds"; return false; }
+            if (IsRewinding || IsReversingRows) { LastError = "A reverse transport is already in progress"; return false; }
+            if (Clock.TryGetRendered(out var position) && position.Row == 0) { LastError = "Already at the pattern start"; return false; }
+            bool sent = SendCommand(TrackerCommand.RequestReverseRows(seconds));
+            LastError = sent ? null : "Reverse row request could not be queued";
+            return sent;
+        }
         /// <summary>Queues a tape rewind (0.1..10 seconds, default 3). History must have been enabled before Play.
         /// The audio thread revalidates at delivery; observe RewindStatus/result or engine events for completion or
         /// refusal. Pausing freezes the effect. Completion seeks to the same order's row zero and clears game controls.</summary>
@@ -140,6 +156,7 @@ namespace Laubrary.ZTracker
             var status = RewindStatus;
             if (!IsPlaying) { LastError = "Playback unavailable"; return false; }
             if (float.IsNaN(seconds) || seconds < .1f || seconds > 10) { LastError = "Rewind duration must be 0.1 through 10 seconds"; return false; }
+            if (IsReversingRows) { LastError = "Reverse row sequencing is already in progress"; return false; }
             if (!status.CanRewind) { LastError = status.IsRewinding ? "Rewind already in progress" : "No complete current-pattern history; wait for the next pattern start"; return false; }
             int slow = Math.Min(status.sampleRate / 2, Mathf.RoundToInt(seconds * status.sampleRate) / 4);
             if (status.historyFrames > status.capacityFrames - slow) { LastError = "Current pattern history exceeds the bounded rewind buffer"; return false; }
@@ -220,7 +237,7 @@ namespace Laubrary.ZTracker
                     if (catalogs.Count == 0) { LastError = "Event catalog boundary missing"; continue; }
                     catalog = catalogs.Dequeue(); continue;
                 }
-                var mapped = new ZTrackerEventData { samplePosition = (ulong)Math.Max(0, ev.samplePosition), sequenceIndex = ev.sequence, patternIndex = ev.pattern, rowIndex = ev.row, channelIndex = ev.track, noteColumn = ev.column, noteValue = ev.note, instrumentID = ev.instrument, intParam = ev.payload,
+                var mapped = new ZTrackerEventData { samplePosition = (ulong)Math.Max(0, ev.samplePosition), direction = ev.direction == TrackerPlaybackDirection.Reverse ? -1 : 1, sequenceIndex = ev.sequence, patternIndex = ev.pattern, rowIndex = ev.row, channelIndex = ev.track, noteColumn = ev.column, noteValue = ev.note, instrumentID = ev.instrument, intParam = ev.payload,
                     trackId = ev.track >= 0 && ev.track < catalog.tracks.Length ? catalog.tracks[ev.track] : null };
                 switch (ev.kind)
                 {

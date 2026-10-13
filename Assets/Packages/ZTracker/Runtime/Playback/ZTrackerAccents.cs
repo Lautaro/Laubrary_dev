@@ -79,6 +79,12 @@ namespace Laubrary.ZTracker
             var song = clock?.Song;
             var here = clock?.PatternAt(p.Order);
             if (song == null || here == null) return;
+            if (p.Direction < 0)
+            {
+                RowsIn(clock, p.Order, source, p.LinesPerBeat, scratch);
+                foreach (int r in scratch) result.Add(r);
+                return;
+            }
             int prev = PreviousOrder(song, p.Order), next = NextOrder(song, p.Order);
             var before = clock.PatternAt(prev);
             if (before != null) { RowsIn(clock, prev, source, p.LinesPerBeat, scratch); foreach (int r in scratch) result.Add(r - before.lineCount); }
@@ -95,17 +101,18 @@ namespace Laubrary.ZTracker
             hit.HasClock = true; hit.Position = p;
             var song = clock.Song; var here = clock.PatternAt(p.Order);
             if (song == null || here == null) return hit;
-            double at = p.Row + p.RowFraction, best = double.MaxValue;
+            int direction = p.Direction < 0 ? -1 : 1;
+            double best = double.MaxValue;
             int prev = PreviousOrder(song, p.Order), next = NextOrder(song, p.Order);
             var before = clock.PatternAt(prev);
             void Consider(int order, int row, double position)
             {
-                double offset = at - position;
+                double offset = (p.Row - position) * direction + p.RowFraction;
                 if (Math.Abs(offset) < Math.Abs(best)) { best = offset; hit.AccentOrder = order; hit.AccentRow = row; hit.HasAccent = true; }
             }
-            if (before != null) { RowsIn(clock, prev, source, p.LinesPerBeat, scratch); foreach (int r in scratch) Consider(prev, r, r - before.lineCount); }
+            if (direction > 0 && before != null) { RowsIn(clock, prev, source, p.LinesPerBeat, scratch); foreach (int r in scratch) Consider(prev, r, r - before.lineCount); }
             RowsIn(clock, p.Order, source, p.LinesPerBeat, scratch); foreach (int r in scratch) Consider(p.Order, r, r);
-            RowsIn(clock, next, source, p.LinesPerBeat, scratch); foreach (int r in scratch) Consider(next, r, r + here.lineCount);
+            if (direction > 0) { RowsIn(clock, next, source, p.LinesPerBeat, scratch); foreach (int r in scratch) Consider(next, r, r + here.lineCount); }
             if (!hit.HasAccent) return hit;
             hit.OffsetRows = best;
             hit.OffsetMs = best * p.DurationMs;
@@ -139,11 +146,19 @@ namespace Laubrary.ZTracker
             return true;
         }
 
-        /// <summary>The row after <paramref name="row"/> where the track's next note or note-off starts, or the slot's length.</summary>
-        public static int NextEventRow(ZTrackerSongClock clock, int order, int row, int trackIndex)
+        /// <summary>The next note/Off row in the sequencing direction. Forward ends at the slot length; reverse at row zero.</summary>
+        public static int NextEventRow(ZTrackerSongClock clock, int order, int row, int trackIndex, int direction = 1)
         {
             var song = clock?.Song; var pattern = clock?.PatternAt(order);
             var track = FindPatternTrack(song, pattern, trackIndex);
+            if (direction < 0)
+            {
+                int previous = 0;
+                if (track != null) foreach (var line in track.lines)
+                    if (line.line >= 0 && line.line < row && line.line > previous)
+                        foreach (var cell in line.notes) if (cell != null && !cell.inactive && (cell.note == NoteKind.Note || cell.note == NoteKind.Off)) { previous = line.line; break; }
+                return previous;
+            }
             if (pattern == null) return row + 1;
             if (track != null)
                 foreach (var line in track.lines)

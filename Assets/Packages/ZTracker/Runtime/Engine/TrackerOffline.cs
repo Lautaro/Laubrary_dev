@@ -44,6 +44,10 @@ namespace Laubrary.ZTracker.Engine
         public long EventOverflow{get{RequireAlive();return realtime->events.OverflowCount;}}
         public TrackerState Snapshot{get{RequireAlive();return realtime->state;}}
         public TrackerRewindStatus RewindStatus{get{RequireAlive();return realtime->RewindStatus();}}
+        public TrackerRowReverseStatus RowReverseStatus{get{RequireAlive();return realtime->RowReverseStatus();}}
+        public long ClockRowsWritten{get{RequireAlive();return realtime->events.ClockRowsWritten;}}
+        public bool TryReadClockRow(long serial,out TrackerClockRow value){RequireAlive();return realtime->events.TryReadClockRow(serial,out value);}
+        public bool TryReadClockHead(out TrackerClockHead value){RequireAlive();return realtime->events.TryReadClockHead(out value);}
         public void SetMacro(int instrument,int macro,float value)=>SendCommand(TrackerCommand.SetMacro(instrument,macro,value));
         public void TargetMacro(int instrument,int macro,float value,float step)=>SendCommand(TrackerCommand.TargetMacro(instrument,macro,value,step));
         public float ObserveMacro(int instrument,int macro){RequireAlive();if(instrument<0||instrument>=realtime->state.instrumentCount||macro<0||macro>=8)throw new ArgumentOutOfRangeException();return realtime->state.macros[instrument*8+macro].value;}

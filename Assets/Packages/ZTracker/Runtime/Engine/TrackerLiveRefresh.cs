@@ -137,6 +137,8 @@ namespace Laubrary.ZTracker.Engine
             // Recording resumes at the next pattern start; an active tape operation is explicitly cancelled.
             next.rewind.completed=old.rewind.completed;next.rewind.refused=old.rewind.refused;
             next.rewind.result=old.rewind.phase!=TrackerRewindPhase.Idle?TrackerRewindResult.Cancelled:old.rewind.result;
+            next.rowReverse=old.rowReverse;
+            if(next.rowReverse.active){next.rowReverse.active=false;next.rowReverse.result=TrackerRowReverseResult.Cancelled;next.rowReverse.cancelled++;next.liveTimingPending=true;}
             next.playing=old.playing;next.paused=old.paused;next.held=old.held;next.holdRemaining=old.holdRemaining;next.rowPending=old.rowPending;next.loopSong=old.loopSong;next.normalization=old.normalization;next.rowOccurrence=old.rowOccurrence;next.rowSerial=old.rowSerial;next.dynamicLanding=old.dynamicLanding;next.automationTime=old.automationTime;next.automationDeadline=old.automationDeadline;
             SapRenderTicket.Enter(old.ticket);SapRenderTicket.Exit(old.ticket,0,true);state=next;EvaluateParameters();
             // Sustain and release slopes are cached by held voices rather than read anew
