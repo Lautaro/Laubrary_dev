@@ -156,7 +156,7 @@ namespace Laubrary.ZTracker.Editor
                 {
                     Cleanup(); ins = ColdSynth(fm,legacy); song = ColdSong(ins); before = JsonUtility.ToJson(ins);
                     window = CreateInstance<ZTrackerModelWindow>(); window.song = song; window.instrument = ins; window.entryInstrument = 0; window.pane = 0; window.editMode = false; window.midiSimulatedOnly = true;
-                    window.titleContent = new GUIContent("ZTracker cold playback check"); window.position = new Rect(120,120,1100,760); window.Show(); window.CreateGUI();
+                    window.titleContent = new GUIContent("ZTracker cold playback check"); window.Show(); window.position = new Rect(120,120,1100,760); window.CreateGUI();
                     window.midiRouter.Channel = -1; window.midiRouter.OctaveShift = 0;
                     if (window.host != null || window.midiPreviewHost != null) throw new Exception("Fixture was warmed during setup");
                     if (stoppedByConfiguration) { window.EnsurePreview(); window.host.ReconfigureOutput(false); }

@@ -34,7 +34,7 @@ namespace Laubrary.ZTracker.Editor
                 instrumentAsset.model.parameters.type = InstrumentType.FM;
                 songAsset.model = TrackerEngineCheck.FixtureSong(instrumentAsset);
                 window.song = songAsset; window.instrument = instrumentAsset; window.pane = 3;
-                window.position = new Rect(160, 120, 1100, 760); window.Show(); window.CreateGUI();
+                window.Show(); window.position = new Rect(160, 120, 1100, 760); window.CreateGUI();
                 void Layout()
                 {
                     var panel = window.rootVisualElement.panel;

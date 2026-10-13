@@ -35,7 +35,7 @@ namespace Laubrary.ZTracker.Editor
             window.position = new Rect(120, 120, 1250, 800);
             try
             {
-                window.Show(); window.CreateGUI();
+                window.Show(); window.position = new Rect(120, 120, 1250, 800); window.CreateGUI();
                 void Layout()
                 {
                     var panel = window.rootVisualElement.panel;

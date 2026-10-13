@@ -19,7 +19,7 @@ namespace Laubrary.ZTracker.Editor
             LiveSynthUiCheckReport="RUNNING";var previous=focusedWindow;
             var asset=LiveSynthAsset();var song=ColdSong(asset);var window=CreateInstance<ZTrackerModelWindow>();
             window.song=song;window.instrument=asset;window.entryInstrument=0;window.pane=3;window.midiSimulatedOnly=true;
-            window.position=new Rect(120,120,1100,760);window.Show();window.CreateGUI();
+            window.Show();window.position=new Rect(120,120,1100,760);window.CreateGUI();
             TrackerSapGenerator original=null;double energy=0;long frames=0;int step=0;
             double deadline=EditorApplication.timeSinceStartup+.15;
             EditorApplication.CallbackFunction update=null;

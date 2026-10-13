@@ -191,3 +191,13 @@ Cause, reproduced before fixing: the guard compared the editor-wide count of ren
 Verified by probe: compilation clean; P5 commands 30/0 three times in a row with the owner's window and its preview running (`MEASURE p5RenderAllocatedBytes=0 nativeBlocks=64 managedBlocksDelta=0` each time).
 
 Not verified: nothing user-facing changed; this is a check fix.
+
+## Instrument rework (window) check: thumbnail click (2026-10-13, T-0604)
+
+Cause, established by investigation: the failure was state-dependent, not flaky and not a regression. It failed 3 of 3 runs in a row in the current editor; the same commit had passed earlier. The check sized its window before showing it, and showing a new ZTracker window applies the size Unity last remembered for that window type, which earlier narrow check and walk windows change. The window therefore opened at 760×520 instead of 1120×760, the collapsed curve thumbnail sat at y≈668 in a 546-pixel-high panel, and the synthetic click landed on nothing (the panel picked no element there), so the curve never expanded. Demonstrated directly: a window sized to 1120×760 before Show opened at 760×440 after a narrower one had been shown. The open owner window and leftover songs played no part (no element in any window held the pointer).
+
+Fix: the check now sizes its window after Show, and its failure message names where the thumbnail is, the panel size and what the panel picks there. The same before-Show order was corrected in the FM surface, FM setups, Instrument overhaul, Live synth, Pitch controls and Cold playback checks, which could hit the same trap.
+
+Verified by probe: compilation clean; Instrument rework (window) 22/0 twice, run right after a narrow window had been shown; FM surface 3/0, FM setups 32/0, Instrument overhaul 13/0, Live synth 28/0, Pitch controls 4/0, Cold PCM 12/0.
+
+Not verified: nothing user-facing changed; this is a check fix.

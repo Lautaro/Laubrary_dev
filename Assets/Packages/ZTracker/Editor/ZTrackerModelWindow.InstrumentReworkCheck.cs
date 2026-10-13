@@ -23,7 +23,9 @@ namespace Laubrary.ZTracker.Editor
             inst.schemaVersion = songAsset.schemaVersion = 1;
             inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(inst);
             window.song = songAsset; window.instrument = inst; window.pane = 3; window.instrumentTab = 0;
-            window.position = new Rect(160, 120, 1120, 760); window.Show(); window.CreateGUI();
+            // Size the window after Show: Show applies the size Unity last remembered for this window type, which
+            // earlier (narrow) windows change, and the click targets below must lie inside the panel.
+            window.Show(); window.position = new Rect(160, 120, 1120, 760); window.CreateGUI();
             void Need(bool value, string message) { if (!value) throw new Exception(message); }
             void Near(float actual, float expected, string message) => Need(Math.Abs(actual - expected) < .00001f, message + " (" + actual + " != " + expected + ")");
             void Layout()
@@ -344,7 +346,7 @@ namespace Laubrary.ZTracker.Editor
                         var frame = control.Q(className: "zui-value__curve-field");
                         using (var down = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0, mousePosition = frame.worldBound.center })) { down.target = frame; frame.SendEvent(down); }
                         using (var up = PointerUpEvent.GetPooled(new Event { type = EventType.MouseUp, button = 0, mousePosition = frame.worldBound.center })) { up.target = frame; frame.SendEvent(up); }
-                        Layout(); Need(control.IsExpanded, "Clicking thumbnail did not expand its curve");
+                        Layout(); if (!control.IsExpanded) { var picked = frame.panel.Pick(frame.worldBound.center); Need(false, "Clicking thumbnail did not expand its curve (thumbnail at " + frame.worldBound + " in a " + frame.panel.visualTree.worldBound.size + " panel; the panel picks " + (picked == null ? "nothing" : picked.GetType().Name + " '" + picked.name + "'") + " there)"); }
                         var graph = control.Q<ZuiEnvelope>(); var world = graph.LocalToWorld(graph.PointToLocal(0, control.Value.points[0].value));
                         string before = JsonUtility.ToJson(inst.model);
                         using (var down = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0, mousePosition = world, clickCount = 1 })) { down.target = graph; graph.SendEvent(down); }

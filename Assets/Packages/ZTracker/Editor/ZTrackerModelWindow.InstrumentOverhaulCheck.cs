@@ -25,7 +25,7 @@ namespace Laubrary.ZTracker.Editor
             try
             {
                 ins.schemaVersion = songAsset.schemaVersion = 1; ins.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(ins);
-                window.song = songAsset; window.instrument = ins; window.pane = 3; window.position = new Rect(160,120,1400,760); window.Show(); window.CreateGUI();
+                window.song = songAsset; window.instrument = ins; window.pane = 3; window.Show(); window.position = new Rect(160,120,1400,760); window.CreateGUI();
                 void Layout() { var panel = window.rootVisualElement.panel; Need(panel != null, "Panel not attached"); var validate = panel.GetType().GetMethod("ValidateLayout", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public); for (int i = 0; i < 4; i++) validate?.Invoke(panel, null); }
                 Check("responsive columns change from adjacent to stacked on the attached panel", () =>
                 {
