@@ -110,18 +110,45 @@ namespace Laubrary.ZTracker.Model
             return false;
         }
 
-        /// <summary>Default colour of a scope; a definition's own colour (alpha above zero) wins.</summary>
-        public static Color DefaultColor(DynamicScope scope)
+        /// <summary>
+        /// Light background colours a definition is given automatically, picked by its stable identity so the choice
+        /// never changes with a rename, a reorder or a reload. All are light enough for dark text, and none is red,
+        /// which marks an undefined command. Colours are view-only: nothing that plays or saves reads them.
+        /// </summary>
+        public static readonly Color[] AutoColors =
         {
-            switch (scope)
-            {
-                case DynamicScope.Instrument: return new Color(.42f, .78f, .46f);
-                case DynamicScope.Track: return new Color(.40f, .66f, .95f);
-                case DynamicScope.Effect: return new Color(.80f, .55f, .95f);
-                default: return new Color(.95f, .78f, .35f);
-            }
+            new Color32(0x8F, 0xD3, 0xFF, 0xFF), new Color32(0xA6, 0xE3, 0x9A, 0xFF), new Color32(0xF5, 0xD7, 0x6E, 0xFF), new Color32(0xF7, 0xA8, 0xC8, 0xFF),
+            new Color32(0xC5, 0xB3, 0xFF, 0xFF), new Color32(0xFF, 0xB9, 0x7A, 0xFF), new Color32(0x7F, 0xE0, 0xD0, 0xFF), new Color32(0xD9, 0xE3, 0x7A, 0xFF),
+            new Color32(0xE0, 0xB8, 0xF0, 0xFF), new Color32(0xB8, 0xC9, 0xE8, 0xFF),
+        };
+
+        /// <summary>The automatic colour of a definition: one of <see cref="AutoColors"/>, chosen by a hash of its stable identity.</summary>
+        public static Color AutoColor(string uid)
+        {
+            uint h = 2166136261;
+            foreach (char c in uid ?? "") { h ^= c; h *= 16777619; }
+            return AutoColors[h % (uint)AutoColors.Length];
         }
-        public static Color ColorOf(DynamicParameterData p) => p == null ? Color.gray : p.color.a > 0 ? p.color : DefaultColor(p.scope);
+
+        /// <summary>
+        /// The automatic colour a new definition is given and keeps (it is stored with it): its hash colour, or the next
+        /// palette colour no other definition of the song uses yet, so commands are easy to tell apart.
+        /// </summary>
+        public static Color PickColor(SongData song, string uid)
+        {
+            uint h = 2166136261;
+            foreach (char c in uid ?? "") { h ^= c; h *= 16777619; }
+            int start = (int)(h % (uint)AutoColors.Length);
+            for (int k = 0; k < AutoColors.Length; k++)
+            {
+                var candidate = AutoColors[(start + k) % AutoColors.Length];
+                if (song?.dynamicParameters == null || !song.dynamicParameters.Any(p => p != null && p.uid != uid && ColorOf(p) == candidate)) return candidate;
+            }
+            return AutoColors[start];
+        }
+
+        /// <summary>The colour a definition is drawn with: its stored colour, or (a definition saved without one) its hash colour.</summary>
+        public static Color ColorOf(DynamicParameterData p) => p == null ? Color.gray : p.color.a > 0 ? p.color : AutoColor(p.uid);
 
         // ───────────── context ─────────────
 
@@ -130,8 +157,11 @@ namespace Laubrary.ZTracker.Model
         /// song ids everywhere; track ids on their own track; effect ids on the track whose chain holds the effect;
         /// instrument ids where that instrument is playing (selected in one of the track's note columns at or above the
         /// row in this pattern; before any selection in the pattern, every instrument the track uses in the song).
+        /// With <paramref name="sequenceSlot"/> (the slot of the sequence the pattern is played in), a note column that
+        /// has not selected an instrument yet in this pattern keeps the one it selected last in the slots before it, as
+        /// the engine's per-column instrument memory does.
         /// </summary>
-        public static List<DynamicParameterData> InContext(SongData song, string patternId, string trackId, int line)
+        public static List<DynamicParameterData> InContext(SongData song, string patternId, string trackId, int line, int sequenceSlot = -1)
         {
             var result = new List<DynamicParameterData>();
             if (song?.dynamicParameters == null) return result;
@@ -145,7 +175,7 @@ namespace Laubrary.ZTracker.Model
                     case DynamicScope.Track:
                     case DynamicScope.Effect: if (p.target.trackId == trackId) result.Add(p); break;
                     case DynamicScope.Instrument:
-                        if (playing == null) playing = InstrumentsPlaying(song, patternId, trackId, line);
+                        if (playing == null) playing = InstrumentsPlaying(song, patternId, trackId, line, sequenceSlot);
                         if (playing.Contains(p.target.instrumentId)) result.Add(p);
                         break;
                 }
@@ -154,17 +184,27 @@ namespace Laubrary.ZTracker.Model
         }
 
         /// <summary>Instrument identities playing on a row of a track (see <see cref="InContext"/>).</summary>
-        public static HashSet<string> InstrumentsPlaying(SongData song, string patternId, string trackId, int line)
+        public static HashSet<string> InstrumentsPlaying(SongData song, string patternId, string trackId, int line, int sequenceSlot = -1)
         {
             var ids = new HashSet<string>();
             var pattern = song?.patterns?.FirstOrDefault(p => p != null && p.id == patternId);
             var pt = pattern?.tracks?.FirstOrDefault(t => t != null && t.trackId == trackId);
             // The selection a note column holds at this row: the last instrument it named at or above the row.
             var lastPerColumn = new Dictionary<int, int>();
-            if (pt?.lines != null)
-                foreach (var l in pt.lines.Where(l => l != null && l.line <= line && l.notes != null).OrderBy(l => l.line))
-                    foreach (var n in l.notes)
-                        if (n != null && !n.inactive && n.instrumentPresent) lastPerColumn[n.column] = n.instrument;
+            LastSelections(pt, line, lastPerColumn);
+            // A column with no selection yet in this pattern keeps its selection from the slots played before it.
+            if (song?.sequence != null && sequenceSlot >= 0 && sequenceSlot < song.sequence.Count && song.sequence[sequenceSlot]?.patternId == patternId)
+            {
+                var track = song.tracks?.FirstOrDefault(t => t != null && t.id == trackId);
+                int columns = Math.Max(track?.visibleNoteColumns ?? 0, lastPerColumn.Count == 0 ? 0 : lastPerColumn.Keys.Max() + 1);
+                for (int slot = sequenceSlot - 1; slot >= 0 && lastPerColumn.Count < columns; slot--)
+                {
+                    var earlier = song.patterns.FirstOrDefault(p => p != null && p.id == song.sequence[slot]?.patternId);
+                    var found = new Dictionary<int, int>();
+                    LastSelections(earlier?.tracks?.FirstOrDefault(t => t != null && t.trackId == trackId), int.MaxValue, found);
+                    foreach (var pair in found) if (!lastPerColumn.ContainsKey(pair.Key)) lastPerColumn[pair.Key] = pair.Value;
+                }
+            }
             var indices = new HashSet<int>(lastPerColumn.Values);
             if (indices.Count == 0)
                 foreach (var p in song?.patterns ?? new List<PatternData>())
@@ -179,6 +219,14 @@ namespace Laubrary.ZTracker.Model
                 if (asset?.model != null) ids.Add(asset.model.id);
             }
             return ids;
+        }
+
+        static void LastSelections(PatternTrack pt, int line, Dictionary<int, int> lastPerColumn)
+        {
+            if (pt?.lines == null) return;
+            foreach (var l in pt.lines.Where(l => l != null && l.line <= line && l.notes != null).OrderBy(l => l.line))
+                foreach (var n in l.notes)
+                    if (n != null && !n.inactive && n.instrumentPresent) lastPerColumn[n.column] = n.instrument;
         }
 
         // ───────────── edits (callers own the Undo step) ─────────────
@@ -205,6 +253,7 @@ namespace Laubrary.ZTracker.Model
             if (error != null) return null;
             ValidateId(song, id, null, out string normalized);
             var p = new DynamicParameterData { uid = Guid.NewGuid().ToString("N"), id = normalized, name = name.Trim(), scope = scope, target = Copy(target), min = min, max = max };
+            p.color = PickColor(song, p.uid);
             song.dynamicParameters.Add(p);
             return p;
         }

@@ -109,12 +109,12 @@ namespace Laubrary.ZTracker.Editor
         partial void BuildMixer(VisualElement root);
         partial void BuildAutomation(VisualElement root);
         partial void BuildInstrument(VisualElement root);
-        void Change(UnityEngine.Object target,string label,Action edit,bool rebuild,TrackerCommand? command=null)
+        void Change(UnityEngine.Object target,string label,Action edit,bool rebuild,TrackerCommand? command=null,bool live=true)
         {
             if(target==null)return;
             // Complete snapshots restore sparse removals, cropped rows and nested serialized values.
             Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Undo.SetCurrentGroupName("Tracker: "+label);
-            try{CompleteUndo(target,"Tracker: "+label);edit();EditorUtility.SetDirty(target);CollapseUndo(group,target);if(command.HasValue&&host!=null){if(!host.SendCommand(command.Value))lastError="Live update pending: command was not accepted";}else RefreshLive(target as ZTrackerInstrument);if(rebuild)BuildPane();else RefreshCells();}
+            try{CompleteUndo(target,"Tracker: "+label);edit();EditorUtility.SetDirty(target);CollapseUndo(group,target);if(command.HasValue&&host!=null){if(!host.SendCommand(command.Value))lastError="Live update pending: command was not accepted";}else if(live)RefreshLive(target as ZTrackerInstrument);if(rebuild)BuildPane();else RefreshCells();}
             catch(Exception ex){Undo.RevertAllDownToGroup(group);lastError=ex.Message;BuildPane();}
             RefreshTransport();
         }

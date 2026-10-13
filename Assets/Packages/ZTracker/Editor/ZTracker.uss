@@ -34,6 +34,20 @@
 .tracker-fx-overflow { color: rgb(236, 176, 72); font-size: 10px; -unity-text-align: middle-left; background-color: rgba(0, 0, 0, 0); }
 .tracker-fx-title-bound { color: rgb(150, 205, 240); }
 .tracker-cell.tracker-bound-id { color: rgba(200, 200, 200, 0.45); }
-.tracker-cell.tracker-bound-other { color: rgb(236, 176, 72); }
+/* Another command inside a bound column keeps its own colours; an amber rule above and below marks it. */
+.tracker-cell.tracker-bound-other { border-top-width: 1px; border-bottom-width: 1px; border-top-color: rgb(236, 176, 72); border-bottom-color: rgb(236, 176, 72); }
 .tracker-fx-bar { background-color: rgba(120, 190, 235, 0.85); }
 .tracker-cell.tracker-header-glyph-half { height: 10px; min-height: 10px; font-size: 10px; padding: 0; -unity-text-align: middle-center; }
+/* Command suggestions (T-0599): a compact list under (or over) the cell being typed; colours come from the command look (T-0600). */
+.tracker-suggest { padding: 2px; }
+.tracker-suggest__head { flex-direction: row; height: 16px; min-height: 16px; flex-shrink: 0; padding: 0 3px; }
+.tracker-suggest__query { flex-grow: 1; flex-shrink: 1; margin: 0; padding: 0; font-size: 11px; -unity-font-style: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -unity-text-align: middle-left; }
+.tracker-suggest__tally { flex-shrink: 0; margin: 0; padding: 0; font-size: 10px; color: rgba(210, 210, 210, 0.6); -unity-text-align: middle-right; }
+.tracker-suggest__row { flex-direction: row; height: 18px; min-height: 18px; flex-shrink: 0; align-items: center; padding: 0 3px; border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; }
+.tracker-suggest__row--hl { background-color: rgba(83, 163, 210, 0.45); }
+.tracker-suggest__chip { width: 24px; min-width: 24px; height: 15px; margin: 0 5px 0 0; padding: 0; font-size: 11px; -unity-font-style: bold; -unity-text-align: middle-center; background-color: rgb(40, 40, 40); border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; }
+.tracker-suggest__name { flex-grow: 1; flex-shrink: 1; margin: 0; padding: 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -unity-text-align: middle-left; }
+.tracker-suggest__scope { flex-shrink: 0; width: 62px; margin: 0 0 0 4px; padding: 0; font-size: 10px; color: rgba(210, 210, 210, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -unity-text-align: middle-right; }
+.tracker-suggest__more { height: 14px; margin: 0; padding: 0 3px; font-size: 10px; color: rgba(210, 210, 210, 0.6); }
+/* Song › Commands colour swatch. */
+.tracker-command-color { width: 34px; min-width: 34px; height: 18px; margin: 0 4px 0 2px; }

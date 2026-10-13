@@ -219,6 +219,37 @@ namespace Laubrary.ZTracker.Editor
             SongEdit("remove command", () => ZTrackerCommandRegistry.Remove(Data, ZTrackerCommandRegistry.FindByUid(Data, uid)), true);
         }
 
+        // ───────────── command colours (view only) ─────────────
+
+        IVisualElementScheduledItem colorCommit;
+        string colorCommitUid; Color colorCommitValue;
+
+        /// The colour picker reports every drag step: show each at once on the chip, record one Undo step once it settles.
+        void PreviewCommandColor(string uid, Label chip, Color c)
+        {
+            c.a = 1;
+            CommandColors.Paint(chip, new CommandLook(true, true, true, CommandKind.None, c, null));
+            if (colorCommitUid != null && colorCommitUid != uid) CommitCommandColor();
+            colorCommitUid = uid; colorCommitValue = c;
+            if (colorCommit == null) colorCommit = rootVisualElement.schedule.Execute(CommitCommandColor);
+            colorCommit.ExecuteLater(250);
+        }
+
+        void CommitCommandColor()
+        {
+            colorCommit?.Pause(); colorCommit = null;
+            string uid = colorCommitUid; colorCommitUid = null;
+            if (uid != null) SetCommandColor(uid, colorCommitValue, rebuild: false);
+        }
+
+        /// Sets a command's colour (clear = automatic) as one Undo step. Colours are view-only, so the playing song is not touched.
+        internal void SetCommandColor(string uid, Color c, bool rebuild = true)
+        {
+            var p = ZTrackerCommandRegistry.FindByUid(Data, uid);
+            if (p == null || p.color == c) return;
+            Change(song, "command colour", () => ZTrackerCommandRegistry.FindByUid(Data, uid).color = c, rebuild, live: false);
+        }
+
         // ───────────── Song › Commands ─────────────
 
         void BuildCommandList(VisualElement root)
@@ -246,18 +277,21 @@ namespace Laubrary.ZTracker.Editor
                 var definition = p;
                 var t = targets.FirstOrDefault(x => x.scope == p.scope && ZTrackerCommandRegistry.SameTarget(x.target, p.target));
                 int uses = ZTrackerCommandRegistry.Uses(Data, p.id);
-                var chip = Z.Text(p.id, tooltip: p.id + " — " + p.scope + " command, used in " + uses + " pattern cell" + (uses == 1 ? "" : "s") + ".");
+                var chip = Z.Text(p.id, tooltip: p.id + " — " + p.scope + " command, used in " + uses + " pattern cell" + (uses == 1 ? "" : "s") + ". Drawn as dark text on its colour wherever it appears; the colour stays with it through a rename. Double-click for an automatic colour no other command uses.");
                 chip.AddToClassList("tracker-command-chip");
+                chip.name = "command-chip-" + p.id;
                 chip.style.width = 28; chip.style.unityTextAlign = TextAnchor.MiddleCenter; chip.style.unityFontStyleAndWeight = FontStyle.Bold;
-                var color = ZTrackerCommandRegistry.ColorOf(p);
-                chip.style.backgroundColor = color; chip.style.color = new Color(.08f, .08f, .08f);
+                CommandColors.Paint(chip, new CommandLook(true, true, true, CommandKind.None, ZTrackerCommandRegistry.ColorOf(p), p));
                 chip.style.borderTopLeftRadius = chip.style.borderTopRightRadius = chip.style.borderBottomLeftRadius = chip.style.borderBottomRightRadius = 3;
+                chip.RegisterCallback<PointerDownEvent>(e => { if (e.button == 0 && e.clickCount == 2) SetCommandColor(definition.uid, ZTrackerCommandRegistry.PickColor(Data, definition.uid)); });
+                var swatch = Named(Z.Color(ZTrackerCommandRegistry.ColorOf(p), "Colour of " + p.id + " in the pattern, bound columns and suggestions (view only: it never changes what plays). Double-click the id chip for an automatic colour.", c => PreviewCommandColor(definition.uid, chip, c), showAlpha: false), "command-color-" + p.id);
+                swatch.AddToClassList("tracker-command-color");
                 var nameLabel = Z.Text(p.name, tooltip: "Friendly name of " + p.id + ".");
                 nameLabel.style.width = 140; nameLabel.style.overflow = Overflow.Hidden; nameLabel.style.textOverflow = TextOverflow.Ellipsis; nameLabel.style.whiteSpace = WhiteSpace.NoWrap;
                 string where = t?.label ?? "⚠ Target removed";
                 var targetLabel = Z.Text(where, tooltip: t != null ? "What " + p.id + " sets." : "The setting this command pointed at no longer exists; " + p.id + " does nothing until it is removed.");
                 targetLabel.style.width = 210; targetLabel.style.overflow = Overflow.Hidden; targetLabel.style.textOverflow = TextOverflow.Ellipsis; targetLabel.style.whiteSpace = WhiteSpace.NoWrap;
-                var row = Flow(chip, nameLabel, targetLabel);
+                var row = Flow(chip, swatch, nameLabel, targetLabel);
                 if (t != null)
                 {
                     float defaultLow = t.min, defaultHigh = t.max;

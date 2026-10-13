@@ -198,7 +198,7 @@ namespace Laubrary.ZTracker.Model
         public DynamicScope scope;
         public ParameterTarget target = new ParameterTarget();
         public float min, max = 1;
-        // Alpha zero means "use the scope's default colour".
+        // Alpha zero means "use the automatic colour" (ZTrackerCommandRegistry.AutoColor). View-only.
         public Color color = Color.clear;
     }
     [Serializable] public sealed class SequenceSlot
