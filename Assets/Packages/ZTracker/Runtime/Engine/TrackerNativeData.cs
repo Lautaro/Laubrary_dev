@@ -441,6 +441,8 @@ namespace Laubrary.ZTracker.Engine
         public long transportOrigin;
         public long samplePosition, cohort;
         public float normalization;
+        // Output safety limiter (T-0635): how far below unity its gain is now (0 = not limiting).
+        public float limiterReduction;
         public bool playing, rowPending, loopSong, beatTicks, legacyMix;
         public bool paused, held, silentReplay;
         public int holdRemaining, opCount, deviceCount, deviceParameterCount, automationCount;

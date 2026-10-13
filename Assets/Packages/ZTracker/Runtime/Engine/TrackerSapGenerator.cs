@@ -121,6 +121,16 @@ namespace Laubrary.ZTracker.Engine
         {
             get{long total=retiredFrames;foreach(var p in owned)if(!p.Disposed&&p.state.ticket.IsCreated)total+=Volatile.Read(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket))[1]);return total;}
         }
+        /// <summary>The loudest output sample (before the output limiter) since the last call, and clears it: the level
+        /// meter's feed. A value above 1 means the output limiter was holding the mix down.</summary>
+        public float TakeOutputPeak()
+        {
+            float peak=0;
+            foreach(var p in owned){if(p.Disposed||!p.state.ticket.IsCreated||p.state.ticket.Length<=TrackerRealtime.PeakSlot)continue;
+                long bits=Interlocked.Exchange(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket))[TrackerRealtime.PeakSlot],0);
+                float value=math.asfloat((int)bits);if(value>peak)peak=value;}
+            return peak;
+        }
         public long RenderedBlocks { get{long total=retiredBlocks;foreach(var p in owned)if(!p.Disposed)total+=Volatile.Read(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket))[4]);return total;} }
         public double RenderedEnergy { get{double total=retiredEnergy;foreach(var p in owned)if(!p.Disposed)total+=math.asdouble(Volatile.Read(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket))[5]));return total;} }
         public bool RenderCompiled { get{if(!retiredCompiled)return false;bool rendered=retiredFrames>0;foreach(var p in owned)if(!p.Disposed){var ptr=(long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket);long frames=Volatile.Read(ref ptr[1]);if(frames>0){rendered=true;if(Volatile.Read(ref ptr[3])!=1)return false;}}return rendered;} }
@@ -233,6 +243,8 @@ namespace Laubrary.ZTracker.Engine
         static readonly List<Retained> retained=new List<Retained>();
         static SapQuitDrain drain;
         static bool installed;
+        // Set once a script reload has begun: nothing kept for a later Tick survives it (T-0637).
+        static bool reloading;
         static int lastFrame=-1;
         public static bool RefuseNewRendering=>drain.RefuseNewRendering;
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] static void Init(){drain=default;lastFrame=-1;Install();}
@@ -240,18 +252,6 @@ namespace Laubrary.ZTracker.Engine
 #if UNITY_EDITOR
             EditorApplication.update+=Tick;
             EditorApplication.playModeStateChanged+=ResetAfterPlayMode;
-#endif
-        }
-#if UNITY_EDITOR
-        // Set once a script reload has begun: nothing kept for a later Tick survives it (T-0637).
-        static bool reloading;
-        // Back in edit mode the application is not quitting. With Enter Play Mode Options' domain reload switched off
-        // nothing else resets this static, and a leftover drain refused every editor preview ("Assigned scriptable
-        // generator returned an invalid instance" on Play in the ZTracker window).
-        static void ResetAfterPlayMode(PlayModeStateChange state){if(state==PlayModeStateChange.EnteredEditMode){drain=default;lastFrame=-1;}}
-#endif
-        public static void Register(TrackerSapGenerator host){Install();hosts.Add(host);}
-        public static void Unregister(TrackerSapGenerator host){hosts.Remove(host);}
             AssemblyReloadEvents.beforeAssemblyReload+=BeforeReload;
 #endif
         }
@@ -266,14 +266,7 @@ namespace Laubrary.ZTracker.Engine
             foreach(var bundle in retained)ReleaseForReload(bundle);
             retained.Clear();
         }
-        public static void Retain(List<TrackerPreparedSong> songs,TrackerEventRing ring,bool hasRing,TrackerLiveRing live,GeneratorInstance instance,bool hasInstance,IntPtr controlDisposed)
-        {
-            var bundle=new Retained{songs=new List<TrackerPreparedSong>(songs),ring=ring,hasRing=hasRing,live=live,instance=instance,hasInstance=hasInstance,controlDisposed=controlDisposed};
-            if(reloading){ReleaseForReload(bundle);return;}
-            retained.Add(bundle);EnsurePump();
-        }
-        /// <summary>Bundles still waiting for the graph (diagnostics and checks).</summary>
-        internal static int RetainedCount=>retained.Count;
+#endif
         static void ReleaseForReload(Retained bundle)
         {
             if(bundle.hasInstance){
@@ -288,6 +281,23 @@ namespace Laubrary.ZTracker.Engine
             foreach(var p in bundle.songs)p.DisposeAfterQuiet();
             if(bundle.hasRing)bundle.ring.Dispose();bundle.live.Dispose();TrackerAckCell.Free(bundle.controlDisposed);
             bundle.songs.Clear();bundle.hasRing=false;bundle.live=default;
+        }
+#if UNITY_EDITOR
+        // Back in edit mode the application is not quitting. With Enter Play Mode Options' domain reload switched off
+        // nothing else resets this static, and a leftover drain refused every editor preview ("Assigned scriptable
+        // generator returned an invalid instance" on Play in the ZTracker window).
+        static void ResetAfterPlayMode(PlayModeStateChange state){if(state==PlayModeStateChange.EnteredEditMode){drain=default;lastFrame=-1;}}
+#endif
+        public static void Register(TrackerSapGenerator host){Install();hosts.Add(host);}
+        public static void Unregister(TrackerSapGenerator host){hosts.Remove(host);}
+        public static void Retain(List<TrackerPreparedSong> songs,TrackerEventRing ring,bool hasRing,TrackerLiveRing live,GeneratorInstance instance,bool hasInstance,IntPtr controlDisposed)
+        {
+            var bundle=new Retained{songs=new List<TrackerPreparedSong>(songs),ring=ring,hasRing=hasRing,live=live,instance=instance,hasInstance=hasInstance,controlDisposed=controlDisposed};
+            if(reloading){ReleaseForReload(bundle);return;}
+            retained.Add(bundle);EnsurePump();
+        }
+        /// <summary>Bundles still waiting for the graph (diagnostics and checks).</summary>
+        internal static int RetainedCount=>retained.Count;
         // The drain is a standalone-player workaround (T-0503). The editor quitting, or leaving Play mode, is handled by the
         // generators' own reload/mode hooks, so it never starts a drain that would outlive Play mode.
         static bool WantsQuit(){if(Application.isEditor)return true;if(drain.complete)return true;if(!drain.draining){drain.Begin(Time.realtimeSinceStartupAsDouble);foreach(var host in hosts)if(host!=null)host.Silence();EnsurePump();}return false;}

@@ -188,8 +188,9 @@ namespace Laubrary.ZTracker.Engine
             var seq=new List<TrackerSequence>();var mutes=new List<byte>();foreach(var slot in song.sequence){seq.Add(new TrackerSequence{pattern=pmap[slot.patternId],muteOffset=mutes.Count});for(int i=0;i<tracks.Count;i++)mutes.Add(slot.mutedTrackIds.Contains(song.tracks[i].id)?(byte)1:(byte)0);}
             state.patterns=Native(patterns);state.rows=Native(rows);state.cells=Native(cells);state.commands=Native(cmds);state.authoredEvents=Native(events);state.sequence=Native(seq);state.sequenceMutes=Native(mutes);
             if(chains.Count>16384||chains.Sum(c=>(long)c.layout.stateFloats)>33554432)throw new ArgumentException("Chain count/state exceeds 16384 chains / 128 MiB");state.chainCount=chains.Count;state.chains=(TrackerChain*)UnsafeUtility.Malloc(Math.Max(1,chains.Count)*(long)sizeof(TrackerChain),16,Allocator.Persistent);for(int i=0;i<chains.Count;i++)state.chains[i]=chains[i];
-            // Three lifetime counters, actual render-path BurstDiscard witness, completed render count.
-            state.ticket=new NativeArray<long>(6,Allocator.Persistent);
+            // Three lifetime counters, actual render-path BurstDiscard witness, completed render count, rendered energy,
+            // and the loudest output sample since the editor's level meter last took it (float bits, T-0635).
+            state.ticket=new NativeArray<long>(TrackerRealtime.PeakSlot+1,Allocator.Persistent);
         }
         static int Output(TrackData t,Dictionary<string,int> map,int master)=>t.kind==TrackKind.Master?-1:t.outputTrackId!=""?map[t.outputTrackId]:t.parentGroupId!=""?map[t.parentGroupId]:master;
         internal static float CombinePan(float a,float b){float r=(a+1)*.5f;r=b<0?r*(1+b):r+(1-r)*b;return r*2-1;}

@@ -98,6 +98,7 @@ namespace Laubrary.ZTracker.Editor
             controlScroll=new ScrollView { name="workspace-sidebar" };controls=new VisualElement();controlScroll.Add(controls);
             stage=new VisualElement();stage.style.flexGrow=1;stage.style.minWidth=0;stage.style.minHeight=0;stage.name="tracker-stage";var workspace=Z.Split("tracker.model.workspace.compact",188,controlScroll,stage);workspace.style.flexGrow=1;workspace.style.minHeight=0;root.Add(workspace);
             help=Z.Text("",tooltip:"Meaning of the command under the pattern cursor.");help.name="command-help";help.AddToClassList("tracker-status-line");root.Add(help);
+            root.Add(LevelMeter());
             BuildPane();pumpSchedule=root.schedule.Execute(Pump).Every(30);
         }
         void Upgrade()

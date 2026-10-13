@@ -256,21 +256,21 @@ public static class ZoundsGainTrimTidyMeterCheck {
 
         // ─────────── 3: the level meter's arithmetic ───────────
         {
-            var st = LevelMeterMath.Cleared;
-            LevelMeterMath.Step(ref st, 0.5f, 10.0, 0.03f, true, 4f, 0.0);
+            var st = Laubrary.Zui.ZuiLevelMeterMath.Cleared;
+            Laubrary.Zui.ZuiLevelMeterMath.Step(ref st, 0.5f, 10.0, 0.03f, true, 4f, 0.0);
             Check(Mathf.Abs(st.maxDb + 6.0206f) < 1e-3f && Mathf.Abs(st.holdDb + 6.0206f) < 1e-3f && st.hasMax, "3. a peak of 0.5 reads -6.02 dB, held and kept");
-            for (int i = 1; i <= 60; i++) LevelMeterMath.Step(ref st, 0f, 10.0 + i * 0.03, 0.03f, true, 4f, i * 0.03);
+            for (int i = 1; i <= 60; i++) Laubrary.Zui.ZuiLevelMeterMath.Step(ref st, 0f, 10.0 + i * 0.03, 0.03f, true, 4f, i * 0.03);
             float at18 = st.holdDb;
-            for (int i = 61; i <= 80; i++) LevelMeterMath.Step(ref st, 0f, 10.0 + i * 0.03, 0.03f, true, 4f, i * 0.03);
+            for (int i = 61; i <= 80; i++) Laubrary.Zui.ZuiLevelMeterMath.Step(ref st, 0f, 10.0 + i * 0.03, 0.03f, true, 4f, i * 0.03);
             Check(Mathf.Abs(at18 + 6.0206f) < 1e-3f && st.holdDb < -6.5f && st.hasMax && Mathf.Abs(st.maxDb + 6.0206f) < 1e-3f,
                   "3. the mark holds for two seconds (" + at18.ToString("0.00") + " dB at 1.8 s) then falls (" + st.holdDb.ToString("0.00") + " dB at 2.4 s); the number stays");
-            LevelMeterMath.Step(ref st, 0f, 15.0, 0.03f, true, 4f, 5.0);
+            Laubrary.Zui.ZuiLevelMeterMath.Step(ref st, 0f, 15.0, 0.03f, true, 4f, 5.0);
             Check(!st.hasMax, "3. once nothing has been triggered for the idle time (5 s of 4), the number clears");
-            var st2 = LevelMeterMath.Cleared;
-            LevelMeterMath.Step(ref st2, 1.2f, 1.0, 0.03f, false, 4f, 50.0);
-            LevelMeterMath.Step(ref st2, 0f, 1.03, 0.03f, false, 4f, 50.0);
+            var st2 = Laubrary.Zui.ZuiLevelMeterMath.Cleared;
+            Laubrary.Zui.ZuiLevelMeterMath.Step(ref st2, 1.2f, 1.0, 0.03f, false, 4f, 50.0);
+            Laubrary.Zui.ZuiLevelMeterMath.Step(ref st2, 0f, 1.03, 0.03f, false, 4f, 50.0);
             Check(st2.hasMax && st2.maxDb > 1.5f, "3. with the idle reset off the number stays (" + st2.maxDb.ToString("+0.00") + " dB, above 0: clipping)");
-            Check(Mathf.Approximately(LevelMeterMath.Position(LevelMeterMath.FloorDb), 0f) && Mathf.Approximately(LevelMeterMath.Position(LevelMeterMath.TopDb), 1f), "3. the bar spans -60 to +6 dB");
+            Check(Mathf.Approximately(Laubrary.Zui.ZuiLevelMeterMath.Position(Laubrary.Zui.ZuiLevelMeterMath.FloorDb), 0f) && Mathf.Approximately(Laubrary.Zui.ZuiLevelMeterMath.Position(Laubrary.Zui.ZuiLevelMeterMath.TopDb), 1f), "3. the bar spans -60 to +6 dB");
         }
 
         // ─────────── 4: the windows ───────────

@@ -395,6 +395,7 @@ namespace Laubrary.ZTracker.Engine
                     RenderVoices(offset,n);Mix(offset,n);CaptureMix(offset,n);SlowMix(offset,n);RowReverseGain(offset,n);state.samplePosition+=n;offset+=n;TurnRowReverse();CompleteRowReverse();
                 }else {int n=RewindSliceLimit(frames-offset);if(state.dynamicCount>0){n=DynamicSliceLimit(n);AdvanceDynamic(n);}RenderVoices(offset,n);Mix(offset,n);if(state.rewind.phase==TrackerRewindPhase.Slowing){CaptureMix(offset,n);SlowMix(offset,n);state.samplePosition+=n;}offset+=n;}
             }
+            LimitOutput(frames);
 #if UNITY_EDITOR || ZTRACKER_PROOF
             double energy=0;for(int f=0;f<frames;f++)energy+=(double)state.outputLeft[f]*state.outputLeft[f]+(double)state.outputRight[f]*state.outputRight[f];
             state.ticket[5]=math.aslong(math.asdouble(state.ticket[5])+energy);
@@ -409,6 +410,34 @@ namespace Laubrary.ZTracker.Engine
             events.PublishRow(new TrackerClockRow{start=state.transportOrigin+state.rowStart,duration=state.rowDuration,bpm=state.bpm,direction=RowDirection,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,linesPerBeat=state.linesPerBeat,ticksPerLine=state.ticksPerLine,holdRemaining=state.holdRemaining,occurrence=state.rowOccurrence,held=held?(byte)1:(byte)0});
         }
         [BurstDiscard] void MarkManagedRender(){state.ticket[3]=-1;}
+        /// <summary>Render-ticket slot holding the loudest output sample (float bits) since a meter last took it.</summary>
+        public const int PeakSlot=6;
+        /// <summary>Seconds for the output limiter to recover two thirds of the way back to unity gain.</summary>
+        public const float LimiterReleaseSeconds=.1f;
+        // Output safety limiter (T-0635). Notes are summed with no headroom management, so many loud notes at once (a
+        // chord, the onsets of several FM voices whose operators all start in phase) can add up past full scale; the
+        // output device then clips them flat, which is heard as a click or crackle. Above full scale the gain drops at
+        // once to exactly what keeps the loudest sample at full scale, and recovers smoothly afterwards. Below full scale
+        // it does nothing at all (no multiplication), so anything that never exceeded full scale renders bit-identically.
+        // The meter's peak is taken before the limiter, so it shows when the mix is too hot.
+        void LimitOutput(int frames)
+        {
+            // The reduction (1 - gain) is what decays, so its last part keeps full precision instead of stalling a hair
+            // below unity gain; under a millionth it is exactly 0 again.
+            float reduction=state.limiterReduction,peak=0,keep=math.exp(-1f/(LimiterReleaseSeconds*state.sampleRate));
+            for(int f=0;f<frames;f++)
+            {
+                float l=state.outputLeft[f],r=state.outputRight[f],a=math.max(math.abs(l),math.abs(r));
+                if(a>peak)peak=a;
+                if(reduction>0){reduction*=keep;if(reduction<1e-6f)reduction=0;}
+                float g=1-reduction;
+                // One step below 1/a when rounding would leave the loudest sample a hair above full scale.
+                if(a*g>1){g=1/a;if(a*g>1)g=math.asfloat(math.asint(g)-1);reduction=1-g;}
+                if(reduction>0){state.outputLeft[f]=l*g;state.outputRight[f]=r*g;}
+            }
+            state.limiterReduction=reduction;
+            if(state.ticket.Length>PeakSlot&&math.isfinite(peak)&&peak>math.asfloat((int)state.ticket[PeakSlot]))state.ticket[PeakSlot]=math.asint(peak);
+        }
         void ApplyDue(double before,bool inclusive=true)
         {
             // Distinct fractional deadlines can share Q's frame; retain their exact order before column ties.

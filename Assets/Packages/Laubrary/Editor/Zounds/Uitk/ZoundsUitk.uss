@@ -874,11 +874,7 @@
 .zs-root .zs-wave-surface__grip:hover { background-color: rgba(255,255,255,0.2); }
 .zs-root .zs-wave-surface__notice { left: 6px; right: 6px; top: 6px; }
 .zs-root .zs-wave-surface--trim-hot { cursor: resize-horizontal; }
-/* The level meter along the bottom edge of the Klip editor, the Zequence editor and the Zounds window (2026-10-09). */
-.zs-root .zs-level-meter { flex-direction: row; flex-shrink: 0; height: 12px; margin: 2px 4px 2px 4px; align-items: center; }
-.zs-root .zs-level-meter__bar { flex-grow: 1; height: 8px; }
-.zs-root .zs-level-meter__readout { width: 84px; flex-shrink: 0; font-size: 10px; -unity-text-align: middle-right; color: rgb(190,190,200); padding: 0; margin: 0; }
-.zs-root .zs-level-meter__readout--hot { color: rgb(255,95,80); }
+/* The level meter (Klip editor, Zequence editor, Zounds window) is ZUI's ZuiLevelMeter and styles itself (T-0635). */
 
 /* The shared edit-verb buttons (EditVerbsTK, 2026-10-10): an icon, then a short label, centred in a row; the same face in
    the Klip editor's edit bar, the Zequence timeline bar and the waveform's selection menu. The icon is tinted to the
