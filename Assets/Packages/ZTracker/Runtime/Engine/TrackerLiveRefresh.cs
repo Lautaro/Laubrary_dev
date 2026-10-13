@@ -39,7 +39,7 @@ namespace Laubrary.ZTracker.Engine
                 q.waveA=q.waveB=q.blendMode=q.fmAlgorithm=q.instFilterMode=0;
                 q.enumDomain=SoundEnumDomain.NativeDirect;
                 q.instFilterEnabled=q.glideEnabled=q.glideLegato=q.legatoEnabled=q.legatoSlides=q.blendEnvelope=false; q.transpose=0;
-                q.legatoPoly=false;q.legatoVelocity=LegatoVelocity.Follow;q.legatoVelocitySeconds=q.legatoVelocityScale=0;
+                q.legatoPoly=false;q.autoArp=q.autoArpPerCycle=false;q.autoArpRetrigger=AutoArpRetrigger.FirstNote;q.autoArpSeconds=q.autoArpWindowSeconds=0;q.legatoVelocity=LegatoVelocity.Follow;q.legatoVelocitySeconds=q.legatoVelocityScale=0;
                 q.blendAttack=q.blendDecay=q.blendSustain=q.blendRelease=q.vibratoRandomness=q.instDelaySend=q.instReverbSend=0;
                 // The renderer always has four native FM slots, including when the
                 // authored subtractive instrument has not initialized its operators.
@@ -101,7 +101,7 @@ namespace Laubrary.ZTracker.Engine
         void PreserveSwap(TrackerState next)
         {
             var old=state;
-            CopyLive(old.voices,next.voices);CopyLive(old.modulationState,next.modulationState);CopyLive(old.columns,next.columns);
+            CopyLive(old.voices,next.voices);CopyLive(old.modulationState,next.modulationState);CopyLive(old.columns,next.columns);CopyLive(old.arps,next.arps);
             AdaptSynthMembers(in old,ref next);
             // Held cursors retain a step computed at launch from the old authored tuning.
             // Move that base with the authored definition; live direct/macro deltas remain

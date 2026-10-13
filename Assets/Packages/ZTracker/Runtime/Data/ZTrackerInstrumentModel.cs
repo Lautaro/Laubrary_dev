@@ -17,6 +17,9 @@ namespace Laubrary.ZTracker.Model
     public enum ModulationOperation { Add, Multiply, Replace }
     // How a legato note treats the new note's velocity (T-0628). Follow is 0 so instruments saved before it keep jumping.
     public enum LegatoVelocity { Follow, Ignore, Slide }
+    /// AutoArp retrigger (T-0642): FirstNote = envelopes start only when a key starts a new arpeggio; Single = every step
+    /// restarts the envelopes of the note it plays; All = every key press restarts the whole arpeggio's envelopes.
+    public enum AutoArpRetrigger { FirstNote, Single, All }
 
     [Serializable] public sealed class Mapping
     {
@@ -161,6 +164,15 @@ namespace Laubrary.ZTracker.Model
         // Polyphonic legato (T-0633): while another note of this instrument is held on the track, a new note in a different
         // column starts on that note's running envelopes and modulation instead of restarting them, and differs only in pitch.
         public bool legatoPoly;
+        // AutoArp (T-0642), with Legato on and Poly: the held notes of this instrument on a track are played one at a time
+        // in turn (upwards), each for autoArpSeconds (per note) or autoArpSeconds / the number of notes (per cycle). A key
+        // released while others are held keeps its place for autoArpWindowSeconds; see TrackerArpState. Off on everything
+        // saved before it.
+        public bool autoArp;
+        public AutoArpRetrigger autoArpRetrigger;
+        public float autoArpSeconds = .1f;
+        public bool autoArpPerCycle;
+        public float autoArpWindowSeconds = .05f;
         public int transpose;
         public float glideSeconds = .1f;
         public bool arpeggioSpeedIsPerNote = true;

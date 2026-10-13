@@ -148,6 +148,11 @@ namespace Laubrary.ZTracker.Engine
             }
             if(best<0)return;
             var s=state.voices[best];
+            CopyEnvelopes(ref v,in s);
+        }
+        /// Copies a voice's running envelopes, modulation and vibrato onto another (Poly legato; AutoArp's All retrigger).
+        void CopyEnvelopes(ref TrackerVoice v,in TrackerVoice s)
+        {
             v.stage=s.stage;v.envelope=s.envelope;v.envelopePosition=s.envelopePosition;v.envTime=s.envTime;v.envRows=s.envRows;
             v.blendStage=s.blendStage;v.blendLevel=s.blendLevel;v.blendCurrent=s.blendCurrent;v.pmCurrent=s.pmCurrent;v.ratioCurrent=s.ratioCurrent;v.pulseCurrent=s.pulseCurrent;v.detuneCurrent=s.detuneCurrent;
             v.fmStage=s.fmStage;v.fmLevel=s.fmLevel;v.vibratoPhase=s.vibratoPhase;v.vibratoFade=s.vibratoFade;v.vibratoSmooth=s.vibratoSmooth;

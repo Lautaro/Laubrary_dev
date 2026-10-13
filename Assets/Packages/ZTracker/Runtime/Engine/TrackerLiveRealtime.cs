@@ -108,6 +108,8 @@ namespace Laubrary.ZTracker.Engine
         {
             ref var slot = ref live.slots[key]; if (slot.active == 0) return;
             long cohort = slot.cohort; slot.active = 0; slot.held = 0;
+            // An AutoArp note waits out the release window, or releases the whole arpeggio (T-0642).
+            if (state.arpEnabled && ArpKeyOff(cohort)) return;
             for (int i = 0; i < state.voices.Length; i++) { var v = state.voices[i]; if (v.active && v.cohort == cohort && !state.samples[v.sample].oneShot) Release(i); }
         }
 

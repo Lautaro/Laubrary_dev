@@ -40,6 +40,11 @@ namespace Laubrary.ZTracker.Engine
         public float legatoVelocitySeconds, legatoVelocityScale;
         // Polyphonic legato (T-0633): a new note while another is held joins its running envelopes (pitch stays its own).
         public bool legatoPoly;
+        // AutoArp (T-0642): only with legatoPoly. Retrigger 0 first note, 1 every step (single), 2 every key press (all);
+        // step length in seconds, per note or per whole cycle; release window in seconds.
+        public bool autoArp, arpPerCycle;
+        public int arpRetrigger;
+        public float arpStepSeconds, arpWindowSeconds;
     }
     public static class TrackerParameters
     {

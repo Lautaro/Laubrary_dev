@@ -258,6 +258,8 @@ namespace Laubrary.ZTracker.Engine
         void Off(int track,int column)
         {
             long cohort=state.columns[state.tracks[track].columns+column].cohort;
+            // An AutoArp note waits out the release window, or releases the whole arpeggio (T-0642).
+            if(!(state.arpEnabled&&ArpKeyOff(cohort)))
             for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.active&&v.track==track&&v.column==column&&v.cohort==cohort&&!state.samples[v.sample].oneShot)Release(i);}
             Emit(TrackerEventKind.NoteOff,track,column);
         }
@@ -305,6 +307,7 @@ namespace Laubrary.ZTracker.Engine
                     held.note=note;held.pan=col.pan;held.cohort=col.cohort;
                     state.voices[i]=held;
                 }
+                if(state.arpEnabled)ArpCohortMoved(track,previousCohort,col.cohort,note);
                 Emit(TrackerEventKind.NoteOn,track,column,note,instrument);return;
             }
             bool previousHeld=false;for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&!state.voices[i].released&&state.voices[i].cohort==col.cohort)previousHeld=true;
@@ -332,13 +335,14 @@ namespace Laubrary.ZTracker.Engine
                 for(int m=0;m<state.modStride;m++)state.modulationState[voice.modulationOffset+m]=default;
                 for(int m=0;m<sample.modCount;m++){var mod=state.mods[sample.modStart+m];if(mod.parameterEnvelope)state.modulationState[voice.modulationOffset+m]=new TrackerModState{output=Curve(in mod,0)};}
                 InitTone(ref voice,in tone,in sample,member,!zone.tracking?voice.note:col.hasPreviousNote?col.previousNote:note,previousHeld);
-                if(tone.legatoPoly&&tone.kind!=0)JoinRunningNote(ref voice,index);
+                if(tone.legatoPoly&&tone.kind!=0&&(!tone.autoArp||tone.arpRetrigger==0))JoinRunningNote(ref voice,index);
                 double sourceExponent=tone.kind==0?math.log2(clip.frequency/(double)state.sampleRate)+((zone.tracking?note-zone.baseNote:0)+(double)sample.tune)/12d:math.log2(440d/state.sampleRate)+(note-69)/12d+((double)tone.baseGlobalTune+tone.transposeCents+voice.memberSpread*voice.detuneCurrent)/1200d;
                 if(math.isfinite(sourceExponent)&&(sourceExponent<-20||sourceExponent>20))ReportPitchLimit(ref voice);
                 voice.filterCutoff=-1;voice.filterQ=-1;state.voices[index]=voice;
                 }
             }
             col.previousNote=note;col.hasPreviousNote=true;state.columns[ci]=col;
+            if(state.arpEnabled)ArpNoteStarted(track,instrument,cohort,note);
             Emit(TrackerEventKind.NoteOn,track,column,note,instrument);
         }
         // A legato note's velocity (T-0628): Follow jumps to it, Ignore keeps the held note's level, Slide moves there over
@@ -390,10 +394,10 @@ namespace Laubrary.ZTracker.Engine
                     int n=(int)math.min(frames-offset,next-state.samplePosition);
                     for(int ci=0;ci<state.columnCount;ci++){var c=state.columns[ci];if(c.pendingCell>=0&&c.due>state.samplePosition)n=(int)math.min(n,c.due-state.samplePosition);}
                     if(state.automationDeadline<exactNext)n=(int)math.min(n,state.transportOrigin+Quantize(state.automationDeadline)-state.samplePosition);
-                    n=RowReverseSliceLimit(RewindSliceLimit(n));
+                    n=ArpSlice(RowReverseSliceLimit(RewindSliceLimit(n)));
                     if(state.dynamicCount>0){n=DynamicSliceLimit(n);AdvanceDynamic(n);}
-                    RenderVoices(offset,n);Mix(offset,n);CaptureMix(offset,n);SlowMix(offset,n);RowReverseGain(offset,n);state.samplePosition+=n;offset+=n;TurnRowReverse();CompleteRowReverse();
-                }else {int n=RewindSliceLimit(frames-offset);if(state.dynamicCount>0){n=DynamicSliceLimit(n);AdvanceDynamic(n);}RenderVoices(offset,n);Mix(offset,n);if(state.rewind.phase==TrackerRewindPhase.Slowing){CaptureMix(offset,n);SlowMix(offset,n);state.samplePosition+=n;}offset+=n;}
+                    RenderVoices(offset,n);ArpElapse(n);Mix(offset,n);CaptureMix(offset,n);SlowMix(offset,n);RowReverseGain(offset,n);state.samplePosition+=n;offset+=n;TurnRowReverse();CompleteRowReverse();
+                }else {int n=ArpSlice(RewindSliceLimit(frames-offset));if(state.dynamicCount>0){n=DynamicSliceLimit(n);AdvanceDynamic(n);}RenderVoices(offset,n);ArpElapse(n);Mix(offset,n);if(state.rewind.phase==TrackerRewindPhase.Slowing){CaptureMix(offset,n);SlowMix(offset,n);state.samplePosition+=n;}offset+=n;}
             }
             LimitOutput(frames);
 #if UNITY_EDITOR || ZTRACKER_PROOF
@@ -475,6 +479,7 @@ namespace Laubrary.ZTracker.Engine
                     float globalVolume=VoiceParameter(in v,TrackerParameter.Volume);
                     float sampleVolume=VoiceParameterActive(in v,TrackerParameter.Volume)?tone.localVolume*globalVolume:s.volume;
                     float amplitude=sampleVolume*v.memberGain*v.volume*volume*state.tracks[v.track].instrumentGain*(tone.kind==0?v.commandGain*v.commandTremolo:v.retriggerGain);
+                    if(tone.autoArp)amplitude*=ArpGain(ref v);
                     if(v.amplitudeDepth!=0){v.amplitudePhase+=v.amplitudeRate/state.sampleRate;v.amplitudePhase-=math.floor(v.amplitudePhase);amplitude*=math.max(0,1+math.sin(v.amplitudePhase*2*math.PI)*v.amplitudeDepth);}v.amplitude=amplitude;
                     float samplePan=VoiceParameterActive(in v,TrackerParameter.Pan)?s.legacyPan?CombinePan(VoiceParameter(in v,TrackerParameter.Pan),tone.localPan):math.clamp(VoiceParameter(in v,TrackerParameter.Pan)+tone.localPan,-1,1):s.pan;
                     samplePan=math.clamp(samplePan+v.memberSpread*VoiceParameter(in v,TrackerParameter.UnisonSpread),-1,1);

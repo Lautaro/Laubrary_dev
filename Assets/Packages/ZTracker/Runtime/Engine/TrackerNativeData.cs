@@ -282,6 +282,21 @@ namespace Laubrary.ZTracker.Engine
         // Legato velocity slide (T-0628): level and velocity move from From to Target over Span samples.
         public float volumeFrom, volumeTarget;
         public int volumeRemaining, volumeSpan, velocityFrom, velocityTarget;
+        // AutoArp (T-0642): how much of this note the arpeggio lets through (fades 0..1 at a step change); its key was
+        // released while others were held and it waits out the release window; it has left the arpeggio (fading out).
+        public float arpGain;
+        public bool arpWaiting, arpDropped;
+    }
+    /// <summary>
+    /// One track's AutoArp (T-0642): which note (cohort) is sounding, the instrument, samples left in this step and in the
+    /// release window, and whether the arpeggio is in its release. Fixed size, written only on the audio side.
+    /// </summary>
+    public struct TrackerArpState
+    {
+        public bool active, releasing, windowOpen;
+        public int instrument, note;
+        public long current;
+        public double stepLeft, windowLeft;
     }
     /// <summary>
     /// Where one voice is on each of its per-note parameter envelopes, published by the renderer once per rendered slice so
@@ -404,6 +419,9 @@ namespace Laubrary.ZTracker.Engine
         public NativeArray<TrackerModState> modulationState;
         public NativeArray<TrackerVoice> voices;
         public NativeArray<TrackerEnvelopeHead> envelopeHeads;
+        // AutoArp (T-0642): one arpeggio per track; arpEnabled when any compiled tone has AutoArp (otherwise nothing runs).
+        public NativeArray<TrackerArpState> arps;
+        public bool arpEnabled;
         public NativeArray<TrackerTone> tones;
         public NativeArray<float> parameterBase, parameterDirect, parameterLive;
         public NativeArray<byte> parameterWritten;

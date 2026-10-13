@@ -39,6 +39,22 @@ namespace Laubrary.ZTracker.Editor
                 "Mono: an overlapping note in the same column takes over the held note. Poly: also, while any note of this instrument is held on the track (a chord across columns, overlapping lines), a new note does not restart the envelopes, modulation or vibrato; it joins them where they are and differs only in pitch. With no note held, a note starts normally.",
                 v => q.legatoPoly = v == 1, "synth-legato-scope");
             root.Add(Flow(scope, velocity, slide, scale));
+            if (!q.legatoPoly) return;
+            // AutoArp (T-0642), offered with Poly legato: the held notes are played one at a time in turn.
+            var arp = InstrumentToggle("AutoArp", q.autoArp,
+                "Play the notes held on the track one at a time, in turn from the lowest up, instead of together: a chord becomes an arpeggio. Pattern notes and live keys alike.",
+                v => q.autoArp = v, "synth-autoarp", true);
+            if (!q.autoArp) { root.Add(Flow(arp)); return; }
+            float stepMs = q.autoArpSeconds * 1000, defaultStep = defaults.autoArpSeconds * 1000, defaultWindow = defaults.autoArpWindowSeconds * 1000;
+            var duration = Named(Z.MicroSlider("Arp ms", stepMs, 5, 2000, (q.autoArpPerCycle ? "How long one whole cycle through the held notes takes; each note gets an equal share (100 ms with 4 notes plays each for 25 ms)." : "How long each note of the arpeggio sounds (10 ms with 3 notes makes a 30 ms cycle).") + " Double-click resets to " + defaultStep.ToString("0") + " ms.",
+                v => InstrumentEdit("AutoArp ms", () => q.autoArpSeconds = v / 1000), 130, defaultValue: defaultStep, decimals: 0, logarithmic: true), "synth-autoarp-ms");
+            var per = InstrumentChoice("Per", q.autoArpPerCycle ? 1 : 0, new[] { "Note", "Cycle" }, "Whether Arp ms is the length of each note, or of one whole cycle through the held notes.", v => q.autoArpPerCycle = v == 1, "synth-autoarp-per");
+            var retrigger = InstrumentChoice("Retrigger", (int)q.autoArpRetrigger, new[] { "First", "Single", "All" },
+                "When the envelopes start again. First: only when a key starts a new arpeggio (no other key held); a key that joins takes over the running envelopes. Single: every step restarts the envelopes of the note it plays, each note on its own. All: every key press restarts the envelopes of the whole arpeggio, as a normal note would.",
+                v => q.autoArpRetrigger = (AutoArpRetrigger)v, "synth-autoarp-retrigger");
+            var window = Named(Z.MicroSlider("Window ms", q.autoArpWindowSeconds * 1000, 0, 500, "When a key is let go while others are still held, its note keeps its place in the arpeggio for this long, so keys released a little apart release together: if every key is let go within the window, the release plays the whole last chord (still arpeggiated); otherwise the arpeggio carries on with the held keys. Double-click resets to " + defaultWindow.ToString("0") + " ms.",
+                v => InstrumentEdit("AutoArp window ms", () => q.autoArpWindowSeconds = v / 1000), 140, defaultValue: defaultWindow, decimals: 0), "synth-autoarp-window");
+            root.Add(Flow(arp, duration, per, retrigger, window));
         }
     }
 }
