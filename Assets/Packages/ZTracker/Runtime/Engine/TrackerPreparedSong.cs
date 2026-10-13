@@ -37,6 +37,10 @@ namespace Laubrary.ZTracker.Engine
             string error=ZTrackerModelValidation.Validate(validation);
             if(error!=null)throw new ArgumentException(error);
             if(rate<8000||rate>192000||maxFrames<64||maxFrames>65536||song.voiceCapacity>4096||song.tracks.Count>128||song.instruments.Count>4096||song.patterns.Count>4096||song.sequence.Count>65536)throw new ArgumentException("Engine preparation capacity exceeded");
+            // The engine reads instrument models directly. An older-format (schema 0) instrument asset has none until it is
+            // upgraded; it plays through a PlaybackSnapshot, which converts it to a detached copy. Refuse it plainly here,
+            // before any compiler dereferences a missing model.
+            for(int i=0;i<song.instruments.Count;i++){var a=song.instruments[i];if(a!=null&&(a.schemaVersion!=1||a.model==null))throw new ArgumentException("Instrument requires schema 1 at slot "+i+" ("+a.name+"); play an older-format instrument through PlaybackSnapshot");}
             if(song.bpm<32||song.bpm>999||song.linesPerBeat>256||song.ticksPerLine>16||rate*60d/(song.bpm*song.linesPerBeat)<1)throw new ArgumentException("INVALID_CLOCK");
             var owner=new TrackerPreparedSong();var chains=new List<TrackerChain>();var temporary=new List<ZTrackerInstrument>();
             try {

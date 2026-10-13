@@ -140,9 +140,14 @@ namespace Laubrary.ZTracker.Editor
                     var demo = AssetDatabase.LoadAssetAtPath<ZTrackerSong>(path);
                     Need(!text.Contains("commandModelVersion") || demo.schemaVersion != 1 || demo.model.commandModelVersion == 0, "fixture is already versioned");
                     if (demo.schemaVersion != 1) { report.AppendLine("     (demo song is schema " + demo.schemaVersion + "; migrated copy used)"); }
-                    var model = demo.schemaVersion == 1 ? ZTrackerMigration.Copy(demo.model) : ZTrackerMigration.Convert(ZTrackerMigration.Capture(demo));
+                    // Its instrument files may be older-format too: they must stay byte-identical as well.
+                    var instrumentFiles = demo.instruments.Where(i => i != null).Select(AssetDatabase.GetAssetPath).Distinct().ToDictionary(p => p, File.ReadAllText);
+                    // Play the song the way the product does: a playback snapshot converts older-format songs and instruments
+                    // into detached schema-1 copies. Handing older-format instrument assets straight to the engine is refused.
+                    using var snapshot = PlaybackSnapshot.Create(demo, null, -1);
+                    var model = snapshot.Data;
                     Need(model.commandModelVersion == 0 && model.dynamicParameters.Count == 0, "old song does not read as version 0 with no commands");
-                    Need(File.ReadAllText(path) == text, "loading changed the file");
+                    Need(File.ReadAllText(path) == text && instrumentFiles.All(f => File.ReadAllText(f.Key) == f.Value), "loading changed a file");
                     // A JSON song with the new fields absent reads the same way.
                     var stripped = JsonUtility.FromJson<SongData>(JsonUtility.ToJson(model).Replace(",\"commandModelVersion\":0", "").Replace(",\"dynamicParameters\":[]", ""));
                     Need(stripped.commandModelVersion == 0 && stripped.dynamicParameters != null && stripped.dynamicParameters.Count == 0, "absent fields do not default");
@@ -150,25 +155,99 @@ namespace Laubrary.ZTracker.Editor
                     var upgraded = ZTrackerMigration.Copy(model);
                     Need(ZTrackerCommandRegistry.Upgrade(upgraded) == null && upgraded.commandModelVersion == 1, "upgrade failed");
                     Need(JsonUtility.ToJson(upgraded).Replace("\"commandModelVersion\":1", "\"commandModelVersion\":0") == before, "upgrade changed more than the version");
-                    float[] Render(SongData s)
-                    {
-                        var l = new NativeArray<float>(1024, Allocator.Persistent); var r = new NativeArray<float>(1024, Allocator.Persistent); var all = new List<float>();
-                        try { using (var e = new TrackerOffline(TrackerPreparedSong.Prepare(s))) { e.SendCommand(TrackerCommand.Play()); for (int i = 0; i < 96; i++) { e.Render(l, r, 1024, 1024); for (int f = 0; f < 1024; f++) { all.Add(l[f]); all.Add(r[f]); } } } }
-                        finally { l.Dispose(); r.Dispose(); }
-                        return all.ToArray();
-                    }
-                    var a = Render(model); var b = Render(upgraded);
+                    var a = RenderOffline(model); var b = RenderOffline(upgraded);
                     Need(a.Any(v => v != 0), "demo song rendered silence");
                     Need(a.Length == b.Length && a.Zip(b, (x, y) => BitConverter.SingleToInt32Bits(x) == BitConverter.SingleToInt32Bits(y)).All(x => x), "upgraded song does not render bit-identically");
                     var future = ZTrackerMigration.Copy(model); future.commandModelVersion = 2;
                     Need(ZTrackerCommandRegistry.Upgrade(future) != null && ZTrackerCommandRegistry.Define(future, DynamicScope.Song, new ParameterTarget { kind = ParameterKind.Timing, parameter = "bpm" }, "BT", "Tempo", 60, 240, out _) == null, "future version edited");
+                    // An older-format instrument handed to the engine directly is refused with a plain message, never a null reference.
+                    if (demo.schemaVersion == 0 && demo.instruments.Any(i => i != null && i.schemaVersion == 0))
+                    {
+                        string refusal = null;
+                        try { using (TrackerPreparedSong.Prepare(ZTrackerMigration.Convert(ZTrackerMigration.Capture(demo)))) { } } catch (ArgumentException e) { refusal = e.Message; }
+                        Need(refusal != null && refusal.StartsWith("Instrument requires schema 1 at slot "), "older-format instrument not refused plainly: " + refusal);
+                    }
                 });
+
+                Check("older-format fixtures: the committed demo song and instrument load unchanged, migrate and render identically", () => OlderFormatFixtures(Need, report));
 
                 Check("window: right-click a mixer slider, type id and name with inline validation, create, rename, remove, Undo/Redo", () => CommandWindowWalk(Fixture(), inst, Need, report));
             }
             finally { DestroyImmediate(inst); DestroyImmediate(inst2); }
             report.Insert(0, "TOTAL passed=" + passed + " failed=" + failed + "\n");
             return report.ToString();
+        }
+
+        /// <summary>Renders <paramref name="blocks"/> blocks of 1024 interleaved stereo frames from the song start, offline.</summary>
+        static float[] RenderOffline(SongData s, int blocks = 96)
+        {
+            var l = new NativeArray<float>(1024, Allocator.Persistent); var r = new NativeArray<float>(1024, Allocator.Persistent); var all = new List<float>();
+            try { using (var e = new TrackerOffline(TrackerPreparedSong.Prepare(s))) { e.SendCommand(TrackerCommand.Play()); for (int i = 0; i < blocks; i++) { e.Render(l, r, 1024, 1024); for (int f = 0; f < 1024; f++) { all.Add(l[f]); all.Add(r[f]); } } } }
+            finally { l.Dispose(); r.Dispose(); }
+            return all.ToArray();
+        }
+        static bool BitIdentical(float[] a, float[] b) => a.Length == b.Length && a.Zip(b, (x, y) => BitConverter.SingleToInt32Bits(x) == BitConverter.SingleToInt32Bits(y)).All(x => x);
+
+        /// <summary>The committed demo song and instrument are deliberately kept in the older (schema 0) format as the
+        /// fixture for old saved work (T-0612). Each must read without touching its file, convert to a valid model,
+        /// upgrade on an in-memory clone, and render audibly and bit-identically before and after the upgrade. The
+        /// package's shipped sample copies are the same data (line endings aside), so they are covered by comparison.</summary>
+        internal static void OlderFormatFixtures(Action<bool, string> Need, StringBuilder report)
+        {
+            const string folder = "Assets/Demos/ZTrackerDemo", samples = "Assets/Packages/ZTracker/Samples~/ZTrackerDemo";
+            string Lines(string s) => s.Replace("\r\n", "\n");
+            var songs = AssetDatabase.FindAssets("t:ZTrackerSong", new[] { folder }).Select(AssetDatabase.GUIDToAssetPath).ToList();
+            var instruments = AssetDatabase.FindAssets("t:ZTrackerInstrument", new[] { folder }).Select(AssetDatabase.GUIDToAssetPath).ToList();
+            Need(songs.Count > 0 && instruments.Count > 0, "demo song or instrument missing under " + folder);
+            var texts = songs.Concat(instruments).ToDictionary(p => p, File.ReadAllText);
+            foreach (var p in texts.Keys)
+            {
+                string sample = samples + "/" + Path.GetFileName(p);
+                Need(File.Exists(sample) && Lines(File.ReadAllText(sample)) == Lines(texts[p]), "package sample differs from the demo: " + sample);
+            }
+            string Restore(string path, int schema) => path + " is no longer older-format (schema " + schema + "); it is the schema-0 fixture, restore it with git checkout";
+            var temporary = new List<UnityEngine.Object>();
+            T Temp<T>(T o) where T : UnityEngine.Object { o.hideFlags = HideFlags.HideAndDontSave; temporary.Add(o); return o; }
+            try
+            {
+                foreach (var path in instruments)
+                {
+                    var asset = AssetDatabase.LoadAssetAtPath<ZTrackerInstrument>(path);
+                    Need(asset.schemaVersion == 0, Restore(path, asset.schemaVersion));
+                    var view = ZTrackerMigration.Convert(ZTrackerMigration.Capture(asset), asset.name);
+                    string invalid = ZTrackerModelValidation.Validate(view);
+                    Need(invalid == null, path + " converts to an invalid model: " + invalid);
+                    var clone = Temp(Instantiate(asset));
+                    Need(ZTrackerMigration.Upgrade(clone, out var error) && clone.schemaVersion == 1 && clone.model != null && clone.model.family == view.family && clone.legacyArchive != null, path + " upgrade failed: " + error);
+                    float[] Play(ZTrackerInstrument inst)
+                    {
+                        var song = Temp(CreateInstance<ZTrackerSong>()); song.schemaVersion = 1; song.model = TrackerEngineCheck.FixtureSong(inst, 1, 16);
+                        song.model.patterns[0].tracks[0].WriteLine(new PatternLine { line = 0, notes = new List<NoteCell> { TrackerEngineCheck.Note(60) } });
+                        using var snapshot = PlaybackSnapshot.Create(song, null, -1);
+                        return RenderOffline(snapshot.Data, 24);
+                    }
+                    var before = Play(asset); var after = Play(clone);
+                    Need(before.Any(v => v != 0), path + " rendered silence");
+                    Need(BitIdentical(before, after), path + " does not render bit-identically once upgraded");
+                    report.AppendLine("     " + path + ": schema 0, " + view.family + ", peak " + before.Max(Math.Abs).ToString("0.000"));
+                }
+                foreach (var path in songs)
+                {
+                    var asset = AssetDatabase.LoadAssetAtPath<ZTrackerSong>(path);
+                    Need(asset.schemaVersion == 0, Restore(path, asset.schemaVersion));
+                    var clone = Temp(Instantiate(asset));
+                    Need(ZTrackerMigration.Upgrade(clone, out var error) && clone.schemaVersion == 1 && clone.model != null, path + " upgrade failed: " + error);
+                    Need(clone.model.tracks.Count == asset.channelCount + 1 && clone.model.patterns.Count == asset.patterns.Count && clone.model.sequence.Count == asset.orderList.Count && clone.model.instruments.SequenceEqual(asset.instruments), path + " upgraded with a different shape");
+                    float[] before, after;
+                    using (var snapshot = PlaybackSnapshot.Create(asset, null, -1)) before = RenderOffline(snapshot.Data);
+                    using (var snapshot = PlaybackSnapshot.Create(clone, null, -1)) after = RenderOffline(snapshot.Data);
+                    Need(before.Any(v => v != 0), path + " rendered silence");
+                    Need(BitIdentical(before, after), path + " does not render bit-identically once upgraded");
+                    report.AppendLine("     " + path + ": schema 0, " + asset.patterns.Count + " pattern(s), " + asset.instruments.Count + " instrument(s), peak " + before.Max(Math.Abs).ToString("0.000"));
+                }
+            }
+            finally { foreach (var o in temporary) DestroyImmediate(o); }
+            Need(texts.All(t => File.ReadAllText(t.Key) == t.Value), "a fixture file changed on disk");
         }
 
         static void RightClick(VisualElement target)
