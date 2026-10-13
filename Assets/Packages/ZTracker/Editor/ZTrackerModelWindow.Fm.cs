@@ -66,7 +66,7 @@ namespace Laubrary.ZTracker.Editor
             }
             if (q.fmOperators.Length > 4) root.Add(Diagnostic("Extra operators retained", "The first four operators are editable and play. The extra imported operator data remains unchanged in the asset."));
             if (classic) root.Add(new FmRoutingView(algorithm));
-            else root.Add(graph = new FmSetupView(setup, false, slot => slot < TrackerFmSetups.Modulators ? q.fmOperators[slot].feedback : 0, () => q.fmFeedback != 0));
+            else root.Add(graph = new FmSetupView(setup, false, slot => slot < TrackerFmSetups.Modulators ? q.fmOperators[slot].feedback : 0, () => q.fmFeedback != 0, slot => FmOperatorOff(q, slot)));
             var operators = InstrumentColumns(root, "fm-operators", 380);
             for (int i = 0; i < 4; i++)
             {
@@ -85,7 +85,7 @@ namespace Laubrary.ZTracker.Editor
                 foreach (string field in fields)
                 {
                     var f = typeof(ZTrackerInstrument.FMOperatorData).GetField(field); string id = "fmOperators." + at + "." + field;
-                    var control = ParameterValue(field, (float)f.GetValue(op), v => { object next = q.fmOperators[at]; f.SetValue(next, v); q.fmOperators[at] = (ZTrackerInstrument.FMOperatorData)next; if (field == "feedback") graph?.MarkDirtyRepaint(); if (field == "freqFixed" && ratioControl != null) ratioControl.style.display = v > 0 && q.GetParameterEnvelope("fmOperators." + at + ".freqFixed")?.enabled != true ? DisplayStyle.None : DisplayStyle.Flex; }, id, q, id);
+                    var control = ParameterValue(field, (float)f.GetValue(op), v => { object next = q.fmOperators[at]; f.SetValue(next, v); q.fmOperators[at] = (ZTrackerInstrument.FMOperatorData)next; if (field == "feedback" || field == "level") graph?.Refresh(); if (field == "freqFixed" && ratioControl != null) ratioControl.style.display = v > 0 && q.GetParameterEnvelope("fmOperators." + at + ".freqFixed")?.enabled != true ? DisplayStyle.None : DisplayStyle.Flex; }, id, q, id, field == "level" ? LevelPresentation(classic, carrier, classic ? FmCarriers[algorithm].Length : 1, classic ? null : Targets(setup, i)) : (MusicalRange?)null);
                     if (field == "freqRatio") { ratioControl = control; control.style.display = op.freqFixed > 0 && !fixedEnvelope ? DisplayStyle.None : DisplayStyle.Flex; }
                     if (field == "freqFixed") control.Q<ZuiValueControl>().ModeChanged += () => control.schedule.Execute(() => { ratioControl.style.display = q.fmOperators[at].freqFixed > 0 && q.GetParameterEnvelope("fmOperators." + at + ".freqFixed")?.enabled != true ? DisplayStyle.None : DisplayStyle.Flex; });
                     row.Add(control);
@@ -96,6 +96,22 @@ namespace Laubrary.ZTracker.Editor
                 box.Add(Named(Z.Adsr("ADSR", () => Read("attack"), v => Write("attack",v), () => Read("decay"), v => Write("decay",v), () => Read("sustain"), v => Write("sustain",v), () => Read("release"), v => Write("release",v), "This operator's attack, decay, sustain and release; each note restarts it. Drag a point or a slider; double-click resets a stage.", EnvelopeDefaults(NewInstrumentData().parameters.fmOperators[at])), "fm-adsr-" + at));
             }
         }
+
+        // An operator's Level means two different things (T-0636): on a carrier it is loudness, on a modulator it is how
+        // strongly it bends the phase of the operator it feeds. A modulator at 0 therefore leaves a plainer tone, not
+        // silence (measured: in A → B → D → C, D at 0 leaves C as a pure sine; A or B at 0 still leave D bending C).
+        static MusicalRange LevelPresentation(bool classic, bool carrier, int carriers, IEnumerable<string> targets)
+        {
+            var r = Musical("level");
+            string bends = targets == null ? "the operator its arrow points to" : string.Join(" and ", targets);
+            r.tip = carrier
+                ? carriers > 1 ? "How loud this carrier is in the mix: 100% is unity gain. 0% silences only this carrier's branch; the other carriers keep sounding." : "How loud C plays: 100% is unity gain. C is the only operator you hear, so 0% silences the instrument."
+                : "How strongly this modulator bends the phase of " + bends + ": its modulation depth, not a volume. 0% switches its effect off, so the sound keeps playing as a plainer tone (a pure sine when nothing else bends C); higher values add brighter overtones.";
+            return r;
+        }
+
+        // An operator whose Level is 0 and not driven by an envelope does nothing; the diagram fades it.
+        static bool FmOperatorOff(InstrumentParameters q, int slot) => q.fmOperators != null && slot < q.fmOperators.Length && q.fmOperators[slot].level == 0 && q.GetParameterEnvelope("fmOperators." + slot + ".level")?.enabled != true;
 
         static IEnumerable<string> Targets(int setup, int slot)
         {
@@ -125,17 +141,17 @@ namespace Laubrary.ZTracker.Editor
         // every modulator whose Feedback is above zero. Compact form is the picker thumbnail.
         sealed class FmSetupView : VisualElement
         {
-            readonly int setup; readonly bool compact; readonly Func<int,float> feedback; readonly Func<bool> outputFeedback;
+            readonly int setup; readonly bool compact; readonly Func<int,float> feedback; readonly Func<bool> outputFeedback; readonly Func<int,bool> off;
             readonly FmNodeLayout[] layout; readonly Label[] nodes = new Label[4];
             readonly float nodeWidth, nodeHeight, gapY, top, pad, lane;
             public const float FullHeight = 128, FullMaxWidth = 560;
-            public FmSetupView(int setup, bool compact, Func<int,float> feedback = null, Func<bool> outputFeedback = null)
+            public FmSetupView(int setup, bool compact, Func<int,float> feedback = null, Func<bool> outputFeedback = null, Func<int,bool> off = null)
             {
-                this.setup = setup; this.compact = compact; this.feedback = feedback ?? (_ => 0); this.outputFeedback = outputFeedback ?? (() => false);
+                this.setup = setup; this.compact = compact; this.feedback = feedback ?? (_ => 0); this.outputFeedback = outputFeedback ?? (() => false); this.off = off ?? (_ => false);
                 layout = LayoutSetup(setup); name = compact ? "fm-setup-diagram-" + setup : "fm-routing";
                 nodeWidth = compact ? 13 : 38; nodeHeight = compact ? 11 : 24; gapY = compact ? 3 : 15; top = compact ? 0 : 14; pad = compact ? 2 : 6; lane = compact ? 5 : 18;
                 pickingMode = compact ? PickingMode.Ignore : PickingMode.Position;
-                if (!compact) { tooltip = SetupTip(setup) + " Arrows carry phase modulation toward their target. A loop on a modulator is its own Feedback."; style.height = FullHeight; style.minHeight = FullHeight; style.flexShrink = 0; style.minWidth = 0; style.width = Length.Percent(100); style.maxWidth = FullMaxWidth; }
+                if (!compact) { tooltip = SetupTip(setup) + " Arrows carry phase modulation toward their target. A loop on a modulator is its own Feedback. A faded operator is at Level 0: a faded modulator bends nothing, a faded C is silent."; style.height = FullHeight; style.minHeight = FullHeight; style.flexShrink = 0; style.minWidth = 0; style.width = Length.Percent(100); style.maxWidth = FullMaxWidth; }
                 for (int slot = 0; slot < 4; slot++)
                 {
                     if (!TrackerFmSetups.Uses(setup, slot)) continue;
@@ -175,15 +191,25 @@ namespace Laubrary.ZTracker.Editor
                 {
                     if (nodes[slot] == null) continue;
                     var r = NodeRect(slot, w, h); nodes[slot].style.left = r.x; nodes[slot].style.top = r.y;
+                }
+                Refresh();
+            }
+            /// Re-reads the operators' levels and feedback: fades an operator at Level 0, updates tooltips, repaints.
+            public void Refresh()
+            {
+                for (int slot = 0; slot < 4; slot++)
+                {
+                    if (nodes[slot] == null) continue;
+                    nodes[slot].style.opacity = off(slot) ? .35f : 1f;
                     if (!compact) nodes[slot].tooltip = NodeTip(slot);
                 }
                 MarkDirtyRepaint();
             }
             string NodeTip(int slot)
             {
-                if (slot == TrackerFmSetups.Carrier) return "C is the carrier: the sine you hear. " + (TrackerFmSetups.Edges(setup).Length > 0 ? "Its phase is bent by the operators whose arrows reach it." : "");
+                if (slot == TrackerFmSetups.Carrier) return "C is the carrier: the sine you hear. " + (TrackerFmSetups.Edges(setup).Length > 0 ? "Its phase is bent by the operators whose arrows reach it." : "") + (off(slot) ? " Its Level is 0, so the instrument is silent." : "");
                 float amount = feedback(slot);
-                return TrackerFmSetups.Letter(slot) + " is a modulator: it bends the phase of " + string.Join(" and ", Targets(setup, slot)) + "." + (amount > 0 ? " Its Feedback (" + Mathf.RoundToInt(amount * 100) + "%) bends its own phase too, shown as the loop above it." : "");
+                return TrackerFmSetups.Letter(slot) + " is a modulator: it bends the phase of " + string.Join(" and ", Targets(setup, slot)) + "." + (off(slot) ? " Its Level is 0, so it bends nothing: the sound plays as if it were not there." : "") + (amount > 0 ? " Its Feedback (" + Mathf.RoundToInt(amount * 100) + "%) bends its own phase too, shown as the loop above it." : "");
             }
             void Paint(MeshGenerationContext context)
             {
@@ -195,6 +221,8 @@ namespace Laubrary.ZTracker.Editor
                 for (int e = 0; e < edges.Length; e += 2)
                 {
                     var a = NodeRect(edges[e], width, height); var b = NodeRect(edges[e + 1], width, height);
+                    // An arrow from an operator at Level 0 carries nothing: drawn faint.
+                    var arrow = FmModulationColor; if (off(edges[e])) arrow.a = .3f; painter.strokeColor = arrow;
                     painter.BeginPath();
                     if (layout[edges[e+1]].column - layout[edges[e]].column > 1)
                     {
