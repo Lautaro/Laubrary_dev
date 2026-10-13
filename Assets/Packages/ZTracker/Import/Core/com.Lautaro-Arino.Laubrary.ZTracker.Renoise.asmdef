@@ -1,0 +1,7 @@
+{
+  "name": "com.Lautaro-Arino.Laubrary.ZTracker.Renoise",
+  "rootNamespace": "Laubrary.ZTracker.Renoise",
+  "references": [],
+  "autoReferenced": true,
+  "noEngineReferences": true
+}
