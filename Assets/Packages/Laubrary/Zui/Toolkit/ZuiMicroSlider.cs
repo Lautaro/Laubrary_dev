@@ -39,9 +39,19 @@ namespace Laubrary.Zui
         bool _showNumInput;
         readonly int _decimals;
         readonly bool _logarithmic;
+        readonly string _baseTooltip;
+        // Optional presentation set through SetSteps: a caller-owned step rule, a caller-owned readout and a
+        // power-curve track (exponent 2 = square: the lower part of the range gets more of the track, like a
+        // log track but able to reach zero). All null/1 = the plain behaviour above.
+        Func<float, float> _snap;
+        Func<float, string> _format;
+        float _trackExponent = 1f;
         bool _dragging, _gestureOpen;
         int _undoGroup = -1;   // the Undo group the open gesture collapses into — see ZuiUndoGesture
         float _lastMoveX;   // local-space x of the previous applied move (for Shift fine/relative dragging)
+        // Unsnapped track position of the drag in progress. Shift-fine moves accumulate here rather than from
+        // the snapped value, so a step rule coarser than one fine pixel can never freeze a fine drag.
+        float _dragTrack;
 
         // Shift fine-drag sensitivity: the value moves this fraction of the NORMAL value-per-pixel while Shift
         // is held (so ~0.15× — a gentle nudge for setting precise small values). Matches ZuiScrub's Shift-fine
@@ -78,9 +88,8 @@ namespace Laubrary.Zui
             // THE ONE PLACE the reset suffix is composed: every slider in the toolkit — hand-written or drawn
             // by ZuiReflect — gets the same sentence, with the actual number spelled out rather than the word
             // "default", so the author can tell what a double-click will do without performing it first.
-            this.tooltip = tooltip + "  ·  Drag to set; Shift = fine"
-                + (_default.HasValue ? ". Double-click to reset to " + Format(_default.Value) + "." : ".")
-                + (HasPrefs ? "  ·  Right-click for display options." : "");
+            _baseTooltip = tooltip;
+            ComposeTooltip();
 
             AddToClassList("zui-microslider");
             AddToClassList("zui-slider");
@@ -113,8 +122,31 @@ namespace Laubrary.Zui
             RegisterCallback<PointerUpEvent>(OnUp);
         }
 
-        float Round(float v) => _decimals >= 0 ? (float)Math.Round(v, _decimals)
+        float Round(float v) => _snap != null ? Mathf.Clamp(_snap(v), _min, _max)
+                              : _decimals >= 0 ? (float)Math.Round(v, _decimals)
                                                : (float)Math.Round(v, 5);
+
+        /// Give this slider musical steps instead of fixed decimals: <paramref name="snap"/> turns any value
+        /// into the nearest useful one (every drag, typed value and reset goes through it),
+        /// <paramref name="format"/> prints the readout and the reset hint (so units may change with size,
+        /// e.g. "250 ms" then "1.5 s"), and <paramref name="trackExponent"/> &gt; 1 gives the low end of the
+        /// range more of the track while still reaching zero. Only presentation and steps change: the value
+        /// handed to the callback stays in the slider's own units. The current value is NOT re-snapped, so a
+        /// value stored before the steps existed is shown rounded but left untouched until it is edited.
+        public void SetSteps(Func<float, float> snap, Func<float, string> format, float trackExponent = 1f)
+        {
+            _snap = snap; _format = format; _trackExponent = Mathf.Max(0.05f, trackExponent);
+            ComposeTooltip();
+            UpdateValueLabel();
+            MarkDirtyRepaint();
+        }
+
+        void ComposeTooltip()
+        {
+            tooltip = _baseTooltip + "  ·  Drag to set; Shift = fine"
+                + (_default.HasValue ? ". Double-click to reset to " + Format(_snap != null ? Round(_default.Value) : _default.Value) + "." : ".")
+                + (HasPrefs ? "  ·  Right-click for display options." : "");
+        }
 
         void SetValue(float v, bool notify)
         {
@@ -174,6 +206,7 @@ namespace Laubrary.Zui
         /// places than a 0..360 one.
         string Format(float v)
         {
+            if (_format != null) return _format(v);
             float span = _max - _min;
             string fmt = _decimals >= 0 ? "F" + _decimals : span <= 3f ? "0.##" : span <= 40f ? "0.#" : "0";
             return v.ToString(fmt);
@@ -193,11 +226,12 @@ namespace Laubrary.Zui
 
         float ValueFromNormalized(float t) => _logarithmic
             ? Mathf.Exp(Mathf.Lerp(Mathf.Log(_min), Mathf.Log(_max), Mathf.Clamp01(t)))
-            : Mathf.Lerp(_min, _max, Mathf.Clamp01(t));
+            : Mathf.Lerp(_min, _max, _trackExponent == 1f ? Mathf.Clamp01(t) : Mathf.Pow(Mathf.Clamp01(t), _trackExponent));
 
         float NormalizedFromValue(float v) => _logarithmic
             ? Mathf.InverseLerp(Mathf.Log(_min), Mathf.Log(_max), Mathf.Log(Mathf.Clamp(v, _min, _max)))
-            : Mathf.InverseLerp(_min, _max, v);
+            : _trackExponent == 1f ? Mathf.InverseLerp(_min, _max, v)
+            : Mathf.Pow(Mathf.InverseLerp(_min, _max, v), 1f / _trackExponent);
 
         void OpenGesture()
         {
@@ -234,11 +268,16 @@ namespace Laubrary.Zui
             }
             _dragging = true;
             _lastMoveX = e.localPosition.x;
+            _dragTrack = NormalizedFromValue(_value);
             this.CapturePointer(e.pointerId);
             OpenGesture();
             // Shift = gentle: start a relative fine drag from the CURRENT value (no jump to the press point);
             // a normal press jumps the value to where you clicked (absolute).
-            if (!e.shiftKey) SetValue(ValueFromX(e.localPosition.x), notify: true);
+            if (!e.shiftKey)
+            {
+                _dragTrack = Mathf.Clamp01(e.localPosition.x / Mathf.Max(1f, contentRect.width));
+                SetValue(ValueFromX(e.localPosition.x), notify: true);
+            }
             e.StopPropagation();
         }
 
@@ -250,9 +289,14 @@ namespace Laubrary.Zui
             {
                 // Fine/relative: nudge by a fraction of the normal value-per-pixel, accumulated from the last x.
                 float w = Mathf.Max(1f, contentRect.width);
-                SetValue(ValueFromNormalized(NormalizedFromValue(_value) + (x - _lastMoveX) / w * FineFactor), notify: true);
+                _dragTrack = Mathf.Clamp01(_dragTrack + (x - _lastMoveX) / w * FineFactor);
+                SetValue(ValueFromNormalized(_dragTrack), notify: true);
             }
-            else SetValue(ValueFromX(x), notify: true);
+            else
+            {
+                _dragTrack = Mathf.Clamp01(x / Mathf.Max(1f, contentRect.width));
+                SetValue(ValueFromX(x), notify: true);
+            }
             _lastMoveX = x;
             e.StopPropagation();
         }
