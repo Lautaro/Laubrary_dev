@@ -20,7 +20,7 @@ namespace Laubrary.ZTracker.Engine
             // the ordered model IDs/payloads below, not wrapper instance IDs.
             copy.instruments.Clear();
             copy.name="";copy.diagnostics.Clear();copy.bpm=120;copy.linesPerBeat=4;copy.ticksPerLine=6;
-            foreach(var t in copy.tracks){t.name="";t.color=Color.gray;t.columns.Clear();t.visibleEffectColumns=0;t.preVolume=t.postVolume=t.preWidth=1;t.prePan=t.postPan=0;t.triggerMute=t.outputMute=t.solo=false;NormalizeLiveChain(t.devices);}
+            foreach(var t in copy.tracks){t.name="";t.color=Color.gray;t.columns.Clear();t.effectColumnViews?.Clear();t.visibleEffectColumns=0;t.preVolume=t.postVolume=t.preWidth=1;t.prePan=t.postPan=0;t.triggerMute=t.outputMute=t.solo=false;NormalizeLiveChain(t.devices);}
             foreach(var t in copy.tracks)
             {
                 if(t.sourceDevices!=null)foreach(var s in t.sourceDevices){if(s==null)continue;s.pluginId="";if(s.parameters!=null)foreach(var p in s.parameters){if(p==null)continue;p.defaultValue=0;p.parameter="";}}

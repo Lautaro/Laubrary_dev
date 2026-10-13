@@ -122,6 +122,18 @@ namespace Laubrary.ZTracker.Model
         public List<PatternTrack> tracks = new List<PatternTrack>();
     }
     [Serializable] public sealed class ColumnVisibility { public bool volume = true, pan, delay, sampleFx; }
+    /// <summary>
+    /// How one track FX column is shown while editing. View state only: the engine never reads it, and the
+    /// commands stay in the column they were typed in. <c>command</c> binds the column to one command: a
+    /// built-in or imported-device id (two characters) or a dynamic parameter's stable uid, so a rename of the
+    /// id keeps the binding. <c>bar</c> draws a bound column's values as bars instead of characters.
+    /// </summary>
+    [Serializable] public sealed class EffectColumnView
+    {
+        public int column;
+        public string command = "";
+        public bool bar;
+    }
     [Serializable] public sealed class SendDestination
     {
         public string trackId = "";
@@ -138,6 +150,7 @@ namespace Laubrary.ZTracker.Model
         public Color color = Color.gray;
         public int visibleNoteColumns = 1, visibleEffectColumns = 1;
         public List<ColumnVisibility> columns = new List<ColumnVisibility>();
+        public List<EffectColumnView> effectColumnViews = new List<EffectColumnView>();
         public float preVolume = 1, prePan, preWidth = 1, postVolume = 1, postPan;
         public bool triggerMute, outputMute, solo;
         public AudioEffectChainData devices = new AudioEffectChainData();

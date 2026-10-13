@@ -28,3 +28,12 @@
 .tracker-status-line { height: 20px; min-height: 20px; flex-shrink: 0; margin: 0; padding-left: 4px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tracker-axis-label { font-size: 10px; margin: 0; padding: 0; -unity-text-align: middle-left; }
 .tracker-zone-label { font-size: 11px; margin: 0; padding: 2px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Track FX columns: −/+ and +N on the track header, +N row markers in the track gutter, bound columns and bar view. */
+.tracker-header-glyph { font-size: 12px; color: rgb(220, 220, 220); background-color: rgba(0, 0, 0, 0.18); }
+.tracker-header-glyph:hover { background-color: rgba(255, 255, 255, 0.16); }
+.tracker-fx-overflow { color: rgb(236, 176, 72); font-size: 10px; -unity-text-align: middle-left; background-color: rgba(0, 0, 0, 0); }
+.tracker-fx-title-bound { color: rgb(150, 205, 240); }
+.tracker-cell.tracker-bound-id { color: rgba(200, 200, 200, 0.45); }
+.tracker-cell.tracker-bound-other { color: rgb(236, 176, 72); }
+.tracker-fx-bar { background-color: rgba(120, 190, 235, 0.85); }
+.tracker-cell.tracker-header-glyph-half { height: 10px; min-height: 10px; font-size: 10px; padding: 0; -unity-text-align: middle-center; }
