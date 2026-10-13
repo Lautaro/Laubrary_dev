@@ -295,7 +295,9 @@ namespace Laubrary.ZTracker.Engine
                 case 2:c=math.sin((v.fmPhase.z+a+b)*2*math.PI)*level.z;output=math.sin((v.fmPhase.w+c)*2*math.PI)*level.w;break;
                 case 3:b=math.sin((v.fmPhase.y+a)*2*math.PI)*level.y;output=(b+c+d)/3;break;
                 case 4:b=math.sin((v.fmPhase.y+a)*2*math.PI)*level.y;c=math.sin((v.fmPhase.z+b)*2*math.PI)*level.z;output=(c+d)*.5f;break;
-                default:a=math.sin((v.fmPhase.x+feedback)*2*math.PI)*level.x;output=(a+b+c+d)*.25f;break;
+                // Parallel: operator A's output feedback is added in radians like every other routing (T-0645). It used to
+                // be added in cycles here, which made the same Feedback setting 2π times stronger on Parallel only.
+                default:output=(a+b+c+d)*.25f;break;
             }
             v.fmPhase+=inc;v.fmPhase-=math.floor(v.fmPhase);v.fmPrevious=output;return output;
         }
