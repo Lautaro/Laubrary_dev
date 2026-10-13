@@ -161,7 +161,7 @@ namespace Laubrary.Zui
             if (_env == null) return;
             _env.ShowAxisLegends = shown;
             _env.Query<Label>(className: "zui-value__curve-axis").ForEach(l => l.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None);
-            _env.Query<Label>(className: "zui-value__curve-yaxis").ForEach(l => l.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None);
+            _content.Query<VisualElement>(className: "zui-value__curve-ylegend").ForEach(l => l.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None);
         }
 
         /// True when this control draws a CURVE rather than a single row, so a host packing a flow knows it
@@ -494,12 +494,7 @@ namespace Laubrary.Zui
                     axis.AddToClassList("zui-value__curve-axis");
                     _env.Add(axis);
                 }
-                if (_opt.yAxisLegend && !string.IsNullOrEmpty(_opt.yAxisLabel))
-                {
-                    var axis = new Label(_opt.yAxisLabel) { pickingMode = PickingMode.Ignore };
-                    axis.AddToClassList("zui-value__curve-yaxis");
-                    _env.Add(axis);
-                }
+
             }
             _env.configuration.xTickLabel = _opt.xTickLabel;
             SetAxisLegends(_opt.showAxisLegends);
@@ -518,6 +513,14 @@ namespace Laubrary.Zui
             var envRow = new VisualElement();
             envRow.style.flexDirection = FlexDirection.Row;
             envRow.style.alignItems = Align.Stretch;
+            if (physical && _opt.yAxisLegend && !string.IsNullOrEmpty(_opt.yAxisLabel))
+            {
+                // The vertical caption runs up a narrow column left of the scale (rotated about its own centre).
+                var legend = new VisualElement { pickingMode = PickingMode.Ignore }; legend.AddToClassList("zui-value__curve-ylegend");
+                var axis = new Label(_opt.yAxisLabel) { pickingMode = PickingMode.Ignore }; axis.AddToClassList("zui-value__curve-yaxis");
+                legend.Add(axis); envRow.Add(legend);
+                legend.style.display = _opt.showAxisLegends ? DisplayStyle.Flex : DisplayStyle.None;
+            }
             if (physical)
             {
                 var scale = new VisualElement(); scale.AddToClassList("zui-value__curve-scale");

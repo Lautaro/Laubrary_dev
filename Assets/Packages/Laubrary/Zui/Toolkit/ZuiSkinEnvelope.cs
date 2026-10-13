@@ -72,6 +72,7 @@ namespace Laubrary.Zui
             focusable = true;
             generateVisualContent += Paint;
             RegisterCallback<CustomStyleResolvedEvent>(e => { _presentation.Resolve(e, def, curveColor); Repaint(); });
+            RegisterCallback<GeometryChangedEvent>(_ => UpdateTicks());
             _tag = new Label { pickingMode = PickingMode.Ignore };
             _tag.AddToClassList("zui-skinenvelope__tag");
             _tag.AddToClassList("zui-envelope__readout");
@@ -90,7 +91,7 @@ namespace Laubrary.Zui
         }
 
         /// <summary>Redraw after the points or the look changed elsewhere.</summary>
-        public void Repaint() { Prepare(); MarkDirtyRepaint(); UpdateTag(); }
+        public void Repaint() { Prepare(); MarkDirtyRepaint(); UpdateTag(); UpdateTicks(); }
 
         /// <summary>Adapters refresh mutable domain/configuration before drawing and editing.</summary>
         protected virtual void Prepare() { }
@@ -877,19 +878,10 @@ namespace Laubrary.Zui
                 }
             if (configuration.xTickLabel != null && configuration.xTickCount > 0)
             {
-                // Under the plot, at the ends and evenly between; the first is left-aligned and the last right-aligned.
-                int n = configuration.xTickCount; float lastRight = float.NegativeInfinity;
-                for (int i = 0; i <= n; i++)
-                {
-                    float f = i / (float)n, x = plot.x + plot.width * f; string text = configuration.xTickLabel(f); if (string.IsNullOrEmpty(text)) continue;
-                    float w = text.Length * TickLabelSize * 0.58f;
-                    float left = i == 0 ? x : i == n ? x - w : x - w * .5f;
-                    if (left < lastRight + 4f) continue;
-                    painter.strokeColor = style.frameEdgeColor; painter.lineWidth = 1f;
-                    painter.BeginPath(); painter.MoveTo(new Vector2(x, plot.yMax)); painter.LineTo(new Vector2(x, plot.yMax + 3f)); painter.Stroke();
-                    ctx.DrawText(text, new Vector2(left, plot.yMax + 3f), TickLabelSize, style.frameLabelColor);
-                    lastRight = left + w;
-                }
+                // A short mark under the plot at each tick; the labels are real text elements (UpdateTicks), readable at any scale.
+                int n = configuration.xTickCount;
+                painter.strokeColor = style.frameEdgeColor; painter.lineWidth = 1f;
+                for (int i = 0; i <= n; i++) { float x = plot.x + plot.width * i / n; painter.BeginPath(); painter.MoveTo(new Vector2(x, plot.yMax)); painter.LineTo(new Vector2(x, plot.yMax + 3f)); painter.Stroke(); }
             }
             if (!float.IsNaN(configuration.playhead01))
             {
@@ -907,8 +899,36 @@ namespace Laubrary.Zui
                 ctx.DrawText(configuration.yAxisLabel, new Vector2(plot.x + 3f, plot.center.y - style.axisLabelSize * 0.67f), style.axisLabelSize, style.axisLabelColor);
         }
 
-        /// Size of the time-axis tick labels: one step larger than the frame-marker labels, so a time reads at a glance.
-        const float TickLabelSize = 10f;
+        readonly List<Label> _ticks = new List<Label>();
+        /// The time-axis labels under the plot (configuration.xTickLabel): the first left-aligned, the last right-aligned, the
+        /// others centred on their mark; one that would touch its neighbour is left out.
+        void UpdateTicks()
+        {
+            var format = configuration.xTickLabel; int n = format == null ? 0 : Mathf.Max(0, configuration.xTickCount);
+            var r = Plot; int needed = n > 0 && ValidPlot(r) ? n + 1 : 0;
+            while (_ticks.Count < needed) { var l = new Label { pickingMode = PickingMode.Ignore }; l.AddToClassList("zui-envelope__tick"); Add(l); _ticks.Add(l); }
+            var lefts = new float[needed]; var widths = new float[needed];
+            for (int i = 0; i < _ticks.Count; i++)
+            {
+                var label = _ticks[i];
+                if (i >= needed) { label.style.display = DisplayStyle.None; continue; }
+                string text = format(i / (float)n); label.text = text;
+                // Measured once the label has its style; before that (or hidden) an estimate from the text length.
+                float measured = string.IsNullOrEmpty(text) ? 0f : label.MeasureTextSize(text, 0, MeasureMode.Undefined, 0, MeasureMode.Undefined).x;
+                widths[i] = string.IsNullOrEmpty(text) ? 0f : (float.IsNaN(measured) || measured <= 0f ? text.Length * 6.2f : measured) + 2f;
+                float x = r.x + r.width * i / n; lefts[i] = i == 0 ? x : i == n ? x - widths[i] : x - widths[i] * .5f;
+            }
+            // The two ends always show; a label between them shows when it clears its shown neighbour and the last one.
+            float lastRight = float.NegativeInfinity;
+            for (int i = 0; i < needed; i++)
+            {
+                bool end = i == 0 || i == needed - 1;
+                bool shown = widths[i] > 0f && (end || (lefts[i] >= lastRight + 4f && lefts[i] + widths[i] + 4f <= lefts[needed - 1]));
+                _ticks[i].style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+                if (!shown) continue;
+                _ticks[i].style.left = lefts[i]; _ticks[i].style.top = r.yMax + 3f; lastRight = lefts[i] + widths[i];
+            }
+        }
 
         /// <summary>A positioned value tag beside the hovered or selected point.</summary>
         void UpdateTag()

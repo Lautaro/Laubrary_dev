@@ -54,11 +54,15 @@ namespace Laubrary.ZTracker.Editor
                 });
                 Check("disabled envelope header cannot unfold or discard stages", () =>
                 {
-                    var q = ins.model.parameters; q.blendEnvelope = false; q.blendAttack = .137f; window.BuildPane();
+                    // The older blend ADSR card exists only on an instrument saved with it on (T-0630); switching it off keeps its stages.
+                    var q = ins.model.parameters; q.blendEnvelope = false; window.BuildPane();
+                    Need(window.rootVisualElement.Q<VisualElement>("synth-blend-envelope-body") == null, "A new sound shows the older blend ADSR");
+                    q.blendEnvelope = true; q.blendAttack = .137f; window.BuildPane();
                     var body = window.rootVisualElement.Q<VisualElement>("synth-blend-envelope-body"); Need(body != null, "Missing envelope body"); var box = body.parent as ZuiBox; Need(box != null, "Missing envelope box");
+                    var toggle = box.Q<Toggle>(className: "zui-box__enable"); Need(toggle != null, "Missing real header checkbox"); toggle.value = false; Need(!q.blendEnvelope && q.blendAttack == .137f, "Disable lost stages");
                     box.IsOpen = true; Need(!box.IsOpen && body.style.display.value == DisplayStyle.None, "Disabled section unfolded");
-                    var toggle = box.Q<Toggle>(className: "zui-box__enable"); Need(toggle != null, "Missing real header checkbox"); toggle.value = true; Need(q.blendEnvelope && q.blendAttack == .137f, "Header did not enable preserved envelope");
-                    toggle.value = false; Need(!q.blendEnvelope && !box.IsOpen && q.blendAttack == .137f, "Disable lost stages or unfolding gate");
+                    toggle.value = true; Need(q.blendEnvelope && q.blendAttack == .137f, "Header did not enable preserved envelope");
+                    q.blendEnvelope = false; window.BuildPane();
                 });
                 Check("building Synth and Effects retains legacy filter and missing-destination sends", () =>
                 {

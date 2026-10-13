@@ -42,7 +42,7 @@ namespace Laubrary.ZTracker.Editor
                 window.song=songAsset;window.instrument=asset;window.pane=3;window.Show();window.CreateGUI();
                 foreach(var mode in new[]{SynthMode.Subtractive,SynthMode.FM})
                 {
-                    asset.model.synthMode=mode;asset.model.parameters.blendEnvelope=true;asset.model.parameters.glideEnabled=true;asset.model.parameters.unisonVoices=3;asset.model.parameters.vibratoDepth=20;
+                    asset.model.synthMode=mode;asset.model.parameters.blendEnvelope=true;asset.model.parameters.glideEnabled=true;asset.model.parameters.legatoEnabled=true;asset.model.parameters.legatoVelocity=LegatoVelocity.Slide;asset.model.parameters.unisonVoices=3;asset.model.parameters.vibratoDepth=20;
                     for(int tab=0;tab<5;tab++){window.instrumentTab=tab;window.BuildPane();Inventory(mode+" tab "+tab);}
                 }
                 asset.model.family=InstrumentFamily.Sampler;

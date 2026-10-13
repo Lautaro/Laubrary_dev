@@ -408,12 +408,12 @@ namespace Laubrary.ZTracker.Editor
                             ZuiAudit.ExpandAll(window); Layout(); Need(!Visible(Find<VisualElement>(prefix + "-body")), prefix + " ExpandAll revealed disabled settings");
                         }
                     }
-                    Verify("synth-blend-envelope", () => inst.model.parameters.blendEnvelope, v => inst.model.parameters.blendEnvelope = v);
+                    // The older blend ADSR is not an optional section any more (T-0630): it is shown only while on, so it has no off state to verify here.
                     inst.model.family = InstrumentFamily.Sampler; inst.model.parameters.type = InstrumentType.Sample;
                     inst.model.sampler.samples.Add(new SampleData { id = "section-sample", name = "Section sample" });
                     inst.model.sampler.zones.Add(new Keyzone { id = "section-zone", sample = 0, blend = new SampleBlendExtension { attack = .123f, amount = .37f } });
                     window.sampleId = "section-sample"; window.zoneId = "section-zone"; window.instrumentTab = 1;
-                    Verify("paired-envelope", () => inst.model.sampler.zones[0].blend.envelopeEnabled, v => inst.model.sampler.zones[0].blend.envelopeEnabled = v);
+                    window.BuildPane(); Layout(); Need(window.rootVisualElement.Q("paired-envelope-body") == null, "A zone without the older blend ADSR shows it");
                     inst.model.modulation.Add(new ModulationSet { id = "section-mod", name = "Section modulation" });
                     inst.model.modulation[0].devices.Add(new ModulationDevice { id = "section-device", kind = ModulationDeviceKind.AHDSR, attack = .137f });
                     window.instrumentTab = 2; window.modSetId = "section-mod"; window.modDeviceId = "section-device";

@@ -229,11 +229,16 @@ namespace Laubrary.ZTracker.Editor
             var pm = new MusicalRange { label = "PM ms", unit = "ms", tip = "Phase modulation depth as source-audio time in milliseconds.", min = 0, max = 100, scale = 1000f / Math.Max(1, b.pcmB != null ? b.pcmB.frequency : 48000), decimals = 2 };
             box.Add(InstrumentChoice("Blend", b.mode, new[] { "Mix", "Ring", "Sync", "PM" }, "How the second sample combines with the first.", v => b.mode = v));
             box.Add(Flow(ParameterValue("blend", b.amount, v => b.amount = v, "paired-blend", () => b.blendEnvelope, env => b.blendEnvelope = env), ParameterValue("pmDepth", b.pmDepth, v => b.pmDepth = v, "paired-pm", () => b.pmEnvelope, env => b.pmEnvelope = env, pm)));
-            var envelope = InstrumentSection(box, "Blend envelope", "paired-envelope", "Fixed amplitude stages applied to the second sample blend.");
-            InstrumentEnabledBody(envelope, b.envelopeEnabled, v => b.envelopeEnabled = v, "paired-envelope", "Apply the second sample's amplitude envelope. Switching off retains all stages.").Add(FixedAdsr("ADSR", b, name: "paired-adsr"));
+            // The fixed blend ADSR is shown only on zones saved with it switched on (T-0630); Blend's own envelope replaces it.
+            if (b.envelopeEnabled)
+            {
+                var envelope = InstrumentSection(box, "Older blend ADSR", "paired-envelope", OlderBlendAdsrTip);
+                InstrumentEnabledBody(envelope, b.envelopeEnabled, v => b.envelopeEnabled = v, "paired-envelope", "Switch the older blend ADSR off; Blend then follows its own value or envelope. Its stages are kept, and Undo turns it back on.").Add(FixedAdsr("ADSR", b, name: "paired-adsr"));
+            }
             box.Add(InstrumentChoice("Second loop", (int)b.loopB, new[] { "Off", "Forward", "Backward", "PingPong" }, "Independent loop mode for the second sample.", v => b.loopB = (SampleLoop)v)); if (b.pcmB != null && b.pcmB.samples >= 2) box.Add(SampleTimeRange("Second loop", b.pcmB, b.loopStartFrameB, b.loopEndFrameB, 0, b.pcmB.samples, "Second sample loop bounds, exclusive end; minimum two source frames.", (a, e) => InstrumentEdit("second sample loop", () => { b.loopStartFrameB = Mathf.Clamp(a, 0, Math.Max(0, b.pcmB.samples - 2)); b.loopEndFrameB = Mathf.Clamp(e, Math.Min(b.pcmB.samples, b.loopStartFrameB + 2), b.pcmB.samples); }), "paired-loop-time")); box.Add(InstrumentToggle("Exit on release", b.releaseExitsLoopB, "Leave the second sample's loop on note release.", v => b.releaseExitsLoopB = v));
             root.Add(box);
         }
+        const string OlderBlendAdsrTip = "A fixed attack-decay-sustain-release shape for Blend, from before Blend had its own per-note envelope. While it is on it decides Blend and the Blend slider has almost no effect. It plays exactly as saved. To shape Blend now, right-click the Blend slider and choose Envelope: the same shape is points at the attack peak and the decay end with the sustain marker there, plus a loop, song rows and playheads.";
         static string[] WaveLabels(SoundEnumDomain domain) => domain == SoundEnumDomain.SavedAuthoring ? new[] { "Sine", "Triangle", "Saw", "Square", "Noise" } : new[] { "Sine", "Square", "Saw", "Reverse saw", "Triangle", "White noise", "Pink noise" };
         void BuildSynth(VisualElement root)
         {
@@ -251,8 +256,12 @@ namespace Laubrary.ZTracker.Editor
                 // The saved and native waveform domains use different square-wave indices.
                 if (q.waveA == (q.enumDomain == SoundEnumDomain.SavedAuthoring ? 3 : 1) || q.waveB == (q.enumDomain == SoundEnumDomain.SavedAuthoring ? 3 : 1)) fields.Add("pulseWidth");
                 BuildNumericFields(source, q, fields.ToArray(), "synth");
-                var blend = InstrumentSection(source, "Blend envelope", "blend-envelope", "Fixed envelope controlling oscillator blend.");
-                InstrumentEnabledBody(blend, q.blendEnvelope, v => q.blendEnvelope = v, "synth-blend-envelope", "Enable the fixed blend envelope; switching off retains its stages.").Add(FixedAdsr("ADSR", q, "blend", "blend-adsr"));
+                // The fixed blend ADSR is shown only on instruments saved with it switched on (T-0630); Blend's own envelope replaces it.
+                if (q.blendEnvelope)
+                {
+                    var blend = InstrumentSection(source, "Older blend ADSR", "blend-envelope", OlderBlendAdsrTip);
+                    InstrumentEnabledBody(blend, q.blendEnvelope, v => q.blendEnvelope = v, "synth-blend-envelope", "Switch the older blend ADSR off; Blend then follows its own value or envelope. Its stages are kept, and Undo turns it back on.").Add(FixedAdsr("ADSR", q, "blend", "blend-adsr"));
+                }
             }
             else BuildFm(source, q);
             BuildNumericFields(source, q, new[] { "fineTune", "transpose" }, "synth");

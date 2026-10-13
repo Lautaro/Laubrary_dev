@@ -385,5 +385,59 @@ namespace Laubrary.ZTracker.Editor
             report.AppendLine("TOTAL passed=" + pass + " failed=" + fail);
             return report.ToString();
         }
+
+        /// T-0630: the older fixed blend ADSR against the same shape drawn as Blend's own per-note envelope, rendered.
+        public static string CheckBlendAdsr()
+        {
+            var report = new StringBuilder(); int pass = 0, fail = 0;
+            void Check(string name, Action run) { try { run(); pass++; report.AppendLine("PASS " + name); } catch (Exception ex) { fail++; report.AppendLine("FAIL " + name + ": " + ex.Message); } }
+            void Need(bool ok, string why) { if (!ok) throw new Exception(why); }
+            const float A = .05f, D = .2f, S = .4f, R = .3f;
+            float[] Render(bool adsr, float blend, int offRow)
+            {
+                var ins = SlideInstrument(SlideSource.Synth); var q = ins.model.parameters;
+                try
+                {
+                    // Sine A against square B at the same pitch, mixed: the level of B in the sound is Blend.
+                    q.waveA = 0; q.waveB = 1; q.waveBRatio = 1; q.blendMode = 0; q.blend = blend;
+                    if (adsr) { q.blendEnvelope = true; q.blendAttack = A; q.blendDecay = D; q.blendSustain = S; q.blendRelease = R; }
+                    else
+                    {
+                        // The same shape as Blend's own envelope: up over A, down to S over D, held there (sustain), then to 0 over S*R.
+                        var e = new ZUIEnvelopeData(0, A + D + S * R, 0, 1, false) { requiresEndPoint = false, enabled = true, sustainEnabled = true, sustainPosition = A + D };
+                        e.points.Add(new ZUIEnvelopePoint(0, 0, 1)); e.points.Add(new ZUIEnvelopePoint(A, 1, 1)); e.points.Add(new ZUIEnvelopePoint(A + D, S, 1)); e.points.Add(new ZUIEnvelopePoint(A + D + S * R, 0, 1));
+                        q.blendEnvelopeData = e;
+                    }
+                    q.release = .6f;
+                    return SlideRender(SlideSong(ins, 32, (0, 69, 128), (offRow, -1, 0)), SlideRate * 2);
+                }
+                finally { DestroyImmediate(ins); }
+            }
+            double Rms(float[] x, int from, int to) { double e = 0; for (int i = from; i < to; i++) e += x[i] * (double)x[i]; return Math.Sqrt(e / Math.Max(1, to - from)); }
+            double Difference(float[] a, float[] b, int from, int to) { double e = 0; for (int i = from; i < to; i++) { double d = a[i] - b[i]; e += d * d; } return Math.Sqrt(e / Math.Max(1, to - from)) / Math.Max(1e-12, Rms(a, from, to)); }
+            double held = 0, early = 0;
+            Check("Held into its sustain, the blend ADSR and the same shape as Blend's own envelope sound nearly the same", () =>
+            {
+                var adsr = Render(true, .3f, 8); var curve = Render(false, .3f, 8); held = Difference(adsr, curve, 0, SlideRate * 2);
+                double attack = Difference(adsr, curve, 0, (int)(SlideRate * (A + D))), hold = Difference(adsr, curve, (int)(SlideRate * .4), (int)(SlideRate * .95)), release = Difference(adsr, curve, SlideRate, (int)(SlideRate * 1.6));
+                Need(hold < .01, "differ by " + (hold * 100).ToString("0.00") + "% while held at the sustain level");
+                held = attack;
+                report.AppendLine("MEASURE note held 1 s: difference " + (attack * 100).ToString("0.0") + "% of the signal during attack and decay (the envelope's 5 ms smoothing), " + (hold * 100).ToString("0.00") + "% while held, " + (release * 100).ToString("0.0") + "% after note-off (the ADSR goes back to the Blend slider's value once its release ends; the envelope stays at its last point)");
+            });
+            Check("Released before its sustain, they differ: the ADSR releases from where it is, the envelope plays on through its shape", () =>
+            {
+                var adsr = Render(true, .3f, 1); var curve = Render(false, .3f, 1); early = Difference(adsr, curve, (int)(SlideRate * .125), (int)(SlideRate * .6));
+                Need(early > held * 2, "the early release differs only " + (early * 100).ToString("0.0") + "% (attack and decay alone differ " + (held * 100).ToString("0.0") + "%)");
+                report.AppendLine("MEASURE note released at 125 ms (during decay): difference " + (early * 100).ToString("0.0") + "% of the signal over the release");
+            });
+            Check("While the blend ADSR is on, the Blend slider barely changes the sound", () =>
+            {
+                var low = Render(true, 0, 8); var high = Render(true, 1, 8); double d = Difference(low, high, 0, (int)(SlideRate * .95));
+                Need(d < .02, "Blend 0 and 1 differ by " + (d * 100).ToString("0.0") + "%");
+                report.AppendLine("MEASURE blend ADSR on: Blend 0% against 100% differs by " + (d * 100).ToString("0.00") + "% of the signal while the note is held");
+            });
+            report.AppendLine("TOTAL passed=" + pass + " failed=" + fail);
+            return report.ToString();
+        }
     }
 }
