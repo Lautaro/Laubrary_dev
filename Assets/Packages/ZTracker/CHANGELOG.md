@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Row scalar writes no longer emit a tempo command a second time after the row clock is fixed, preserving next-row game tempo precedence and the same BPM in events, readouts and rendered duration.
+
 - Games can set a persistent tempo override at the next row boundary, clear it back to the evolving authored tempo, drive a song command/effect by stable definition identity, and add independent semitone and cents offsets per track. Pitch offsets affect active and future voices after authored tuning, macros and envelopes without changing sample selection or note events. Compatible refresh preserves controls; Play, Stop and Seek clear them. Command targets reuse the existing ramps and automation precedence. Offline verification: `TrackerGameControlCheck.Execute()`.
 - The generator exposes stable command writes directly, so the playback facade crosses the engine assembly boundary through its public API without exposing prepared-song ownership.
 
