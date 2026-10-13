@@ -522,3 +522,7 @@ Verified by eye (disposable window "ZTracker FM walk", real pointer clicks, scre
 Not verified: listening (system volume deliberately low); physical mouse; the pattern retrigger command's FM start phase with Free phase on (same function as a new note, not rendered separately); MIDI ignored on purpose.
 
 Check groups after T-0645 (all non-MIDI groups, about 20:35 local time; MIDI UI, MIDI engine and MIDI persistence skipped on the owner's instruction): 62 groups; every group passes except Command model 6/1 and P2 model 39/1, both on the demo Synth.asset the owner's open window rewrote (owner data, not touched; both failed the same way before this ticket). New groups FM quality 5/0 and FM quality UI 3/0.
+
+## T-0650 automatic headroom
+
+Verified by probe: all non-MIDI check groups after the change (about 22:30 local time, Dev editor restarted first, system audio muted at 10%): every group passes. AutoArp first failed (3 held keys counted as 3 notes though one sounds at a time), fixed by counting an arpeggio once. The demo fixture checks needed the schema-0 Synth.asset restored from git and reimported. Measured: synth 12-key chord +18.6 to +11.2 dB over full scale, FM 4 keys under full scale, drum kit 12 pads unchanged. Not verified: listening; physical mouse; MIDI groups skipped on the owner's instruction.

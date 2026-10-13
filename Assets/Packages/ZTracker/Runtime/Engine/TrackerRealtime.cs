@@ -418,6 +418,12 @@ namespace Laubrary.ZTracker.Engine
         public const int PeakSlot=6;
         /// <summary>Seconds for the output limiter to recover two thirds of the way back to unity gain.</summary>
         public const float LimiterReleaseSeconds=.1f;
+        /// <summary>Notes of one instrument on a track that keep full gain before automatic headroom starts (T-0650).</summary>
+        public const int HeadroomFree=2;
+        /// <summary>How fast the gain falls with the number of notes beyond the free ones (1 would keep a chord's peak constant).</summary>
+        public const float HeadroomExponent=.9f;
+        /// <summary>Seconds for a voice's headroom gain to move two thirds of the way to its target.</summary>
+        public const float HeadroomGlideSeconds=.03f;
         // Output safety limiter (T-0635). Notes are summed with no headroom management, so many loud notes at once (a
         // chord, the onsets of several FM voices whose operators all start in phase) can add up past full scale; the
         // output device then clips them flat, which is heard as a click or crackle. Above full scale the gain drops at
@@ -453,6 +459,28 @@ namespace Laubrary.ZTracker.Engine
             EvaluateParameters();
             for(int t=0;t<state.trackCount;t++){byte mute=Muted(t)?(byte)1:(byte)0;for(int f=0;f<count;f++)state.outputMutes[t*state.maxFrames+offset+f]=mute;}
             int active=0;for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active){var voice=state.voices[i];bool follower=false;if(state.tones[voice.sample].members>1)for(int j=0;j<i;j++)if(state.voices[j].active&&state.voices[j].cohort==voice.cohort&&state.voices[j].sample==voice.sample){follower=true;break;}if(!follower)active++;}
+            // Automatic headroom (T-0650): when many notes of one instrument sound together on a track their sum overloads, so each
+            // note's gain falls as the count grows. Up to HeadroomFree notes keep full gain (a single note, an interval, a bass and
+            // a kick are untouched); beyond that the gain is (free / notes) ^ HeadroomExponent. Unison members and layers of one
+            // note count once. The gain glides (HeadroomGlideSeconds), so notes starting and stopping do not pump; a new voice
+            // starts at its target. Fixed-size, allocation-free.
+            if(!state.headroomOff)
+            {
+                for(int j=0;j<state.voices.Length;j++)
+                {
+                    var o=state.voices[j];bool first=o.active&&!o.released;
+                    if(first)for(int k=0;k<j;k++){var e=state.voices[k];if(e.active&&!e.released&&e.track==o.track&&e.instrument==o.instrument&&(e.cohort==o.cohort||state.tones[o.sample].autoArp)){first=false;break;}}
+                    if(o.headFirst!=first){o.headFirst=first;state.voices[j]=o;}
+                }
+                for(int j=0;j<state.voices.Length;j++)
+                {
+                    var o=state.voices[j];if(!o.active)continue;
+                    int notes=0;for(int k=0;k<state.voices.Length;k++){var e=state.voices[k];if(e.headFirst&&e.track==o.track&&e.instrument==o.instrument)notes++;}
+                    float want=notes<=HeadroomFree?1:math.pow(HeadroomFree/(float)notes,HeadroomExponent);
+                    o.headTarget=want;if(o.headroom<=0)o.headroom=want;state.voices[j]=o;
+                }
+            }
+            float headroomSmooth=1/(HeadroomGlideSeconds*state.sampleRate);
             float target=state.legacyMix&&active>1?1/math.sqrt((float)active):1;float scale=state.normalization,scaleStep=(target-scale)/count;
             for(int i=0;i<state.voices.Length;i++){
                 var v=state.voices[i];if(!v.active){if(i<state.envelopeHeads.Length&&state.envelopeHeads[i].active!=0){var idle=state.envelopeHeads[i];idle.active=0;state.envelopeHeads[i]=idle;}continue;}var s=state.samples[v.sample];var tone=state.tones[v.sample];var clip=s.pcm>=0?state.clips[s.pcm]:default;
@@ -480,7 +508,7 @@ namespace Laubrary.ZTracker.Engine
                     else {s.regionStart=v.regionStart;s.regionEnd=v.regionEnd;l=Pcm(in clip,in s,v.position,0,v.released);r=Pcm(in clip,in s,v.position,clip.channels==2?1:0,v.released);if(tone.pcmB>=0)Paired(ref v,in tone,in s,l,r,ref l,ref r);}
                     float globalVolume=VoiceParameter(in v,TrackerParameter.Volume);
                     float sampleVolume=VoiceParameterActive(in v,TrackerParameter.Volume)?tone.localVolume*globalVolume:s.volume;
-                    float amplitude=sampleVolume*v.memberGain*v.volume*volume*state.tracks[v.track].instrumentGain*(tone.kind==0?v.commandGain*v.commandTremolo:v.retriggerGain);
+                    if(!state.headroomOff){v.headroom+=(v.headTarget-v.headroom)*headroomSmooth;}float amplitude=sampleVolume*v.memberGain*v.volume*volume*(state.headroomOff?1:v.headroom)*state.tracks[v.track].instrumentGain*(tone.kind==0?v.commandGain*v.commandTremolo:v.retriggerGain);
                     if(tone.autoArp)amplitude*=ArpGain(ref v);
                     if(v.amplitudeDepth!=0){v.amplitudePhase+=v.amplitudeRate/state.sampleRate;v.amplitudePhase-=math.floor(v.amplitudePhase);amplitude*=math.max(0,1+math.sin(v.amplitudePhase*2*math.PI)*v.amplitudeDepth);}v.amplitude=amplitude;
                     float samplePan=VoiceParameterActive(in v,TrackerParameter.Pan)?s.legacyPan?CombinePan(VoiceParameter(in v,TrackerParameter.Pan),tone.localPan):math.clamp(VoiceParameter(in v,TrackerParameter.Pan)+tone.localPan,-1,1):s.pan;

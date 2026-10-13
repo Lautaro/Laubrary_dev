@@ -283,6 +283,10 @@ namespace Laubrary.ZTracker.Engine
         public double glideSemis, glideSpan;
         // Legato velocity slide (T-0628): level and velocity move from From to Target over Span samples.
         public float volumeFrom, volumeTarget;
+        // Automatic headroom (T-0650): the gain this voice has for the notes of its instrument sounding together on its track,
+        // the gain it is heading for, and whether it is the first voice of its note this slice. 0 means not set yet.
+        public float headroom, headTarget;
+        public bool headFirst;
         public int volumeRemaining, volumeSpan, velocityFrom, velocityTarget;
         // AutoArp (T-0642): how much of this note the arpeggio lets through (fades 0..1 at a step change); its key was
         // released while others were held and it waits out the release window; it has left the arpeggio (fading out).
@@ -476,6 +480,8 @@ namespace Laubrary.ZTracker.Engine
         // Measurement only (T-0647): the output limiter only records the peak and leaves the mix as summed, so a check can
         // compare the mix with and without it. Never set by the editor or a game.
         public bool limiterBypass;
+        // Measurement only (T-0650): switches the automatic headroom off so a check can compare the summed mix with and without it.
+        public bool headroomOff;
         public bool playing, rowPending, loopSong, beatTicks, legacyMix;
         public bool paused, held, silentReplay;
         public int holdRemaining, opCount, deviceCount, deviceParameterCount, automationCount;

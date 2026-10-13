@@ -65,12 +65,12 @@ namespace Laubrary.ZTracker.Editor
             {
                 Check("many loud FM notes: the mix goes past full scale, the output never does, and the meter reads the mix", () =>
                 {
-                    foreach (int keys in new[] { 4, 8, 12 })
+                    foreach (int keys in new[] { 12 })
                     {
                         float before = 0; float limitedMost = 0;
-                        var x = LevelChordRender(Make(0, .5f, 1f), keys, 96000, (e, at) => { before = Math.Max(before, TakeOfflinePeak(e)); limitedMost = Math.Max(limitedMost, e.Snapshot.limiterReduction); });
+                        var x = LevelChordRender(Make(0, 1f, 1f), keys, 96000, (e, at) => { before = Math.Max(before, TakeOfflinePeak(e)); limitedMost = Math.Max(limitedMost, e.Snapshot.limiterReduction); });
                         float after = x.Max(v => Math.Abs(v)); int over = x.Count(v => Math.Abs(v) > 1f);
-                        report.AppendLine("MEASURE " + keys + " keys (Stack, volume 50%, levels 100%): mix peak " + before.ToString("0.000") + " (" + (20 * Math.Log10(before)).ToString("+0.0") + " dB), output peak " + after.ToString("0.0000") + ", samples above full scale " + over + ", deepest limiting " + (20 * Math.Log10(1 - limitedMost)).ToString("0.0") + " dB");
+                        report.AppendLine("MEASURE " + keys + " keys (Stack, volume 100%, levels 100%): mix peak " + before.ToString("0.000") + " (" + (20 * Math.Log10(before)).ToString("+0.0") + " dB), output peak " + after.ToString("0.0000") + ", samples above full scale " + over + ", deepest limiting " + (20 * Math.Log10(1 - limitedMost)).ToString("0.0") + " dB");
                         Need(before > 1f, keys + " keys did not exceed full scale before the limiter (" + before + ")");
                         Need(over == 0 && after <= 1f, keys + " keys: output above full scale (" + after + ")");
                     }
