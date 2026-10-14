@@ -6,7 +6,8 @@ namespace Laubrary.Demos.BarbarianDemo
 {
     /// <summary>
     /// The rules between the player's Barbarian and the CPU Barbarian: when their drawn sprites touch they stop,
-    /// and the two sprites are left highlighted, hanging in the air, for a moment.
+    /// the two sprites are left highlighted, hanging in the air, for a moment, and both play the "pushed back"
+    /// animation while sliding apart, as if each shoved the other.
     ///
     /// The touch is pixel exact (a drawn pixel of one over a drawn pixel of the other), not a box test, so a
     /// raised sword touches before two empty corners would. This is game code: the library supplies the test
@@ -24,6 +25,10 @@ namespace Laubrary.Demos.BarbarianDemo
         public Color highlightColor = new Color(1f, 0.92f, 0.3f, 0.85f);
         [Tooltip("Pixels this far above the feet line (art pixels) and lower do not count as touching: the ground shadow drawn into the sprite is not the body.")]
         public float ignoreBelowFeetPixels = 7f;
+        [Tooltip("How far each body is pushed away from the other by a touch, in world units.")]
+        public float pushDistance = 0.9f;
+        [Tooltip("How long that push takes, in seconds.")]
+        public float pushSeconds = 0.4f;
         [Tooltip("A second touch is ignored for this long after one, so a body held against the other does not retrigger.")]
         public float contactCooldown = 0.8f;
 
@@ -40,7 +45,28 @@ namespace Laubrary.Demos.BarbarianDemo
         void Start()
         {
             Resolve();
+            Touched += OnTouched;
         }
+
+        // A touch with nobody attacking: each pushes the other back (both show the same pushed-back reaction).
+        void OnTouched(Vector2 point)
+        {
+            PushBack(player, enemy, ZoeStates.BarbarianStates.PushedBackwards);
+            PushBack(enemy, player, ZoeStates.BarbarianStates.PushedBackwards);
+        }
+
+        // Plays the named reaction on a body and slides it away from the other body.
+        void PushBack(GameObject body, GameObject from, string reaction)
+        {
+            body.GetComponent<ReactionFxPlayer>()?.Raise(reaction);
+            float away = Mathf.Sign(body.transform.position.x - from.transform.position.x);
+            if (away == 0f) away = 1f;
+            var slide = body.GetComponent<Slide>();
+            if (slide == null) slide = body.AddComponent<Slide>();
+            slide.Begin(away, pushDistance, pushSeconds);
+        }
+
+        bool Sliding => (player != null && player.TryGetComponent<Slide>(out var a) && a.Active) || (enemy != null && enemy.TryGetComponent<Slide>(out var b) && b.Active);
 
         void Resolve()
         {
@@ -60,9 +86,12 @@ namespace Laubrary.Demos.BarbarianDemo
                 return;
             }
 
-            // Stop: put both bodies back where they last did not touch.
-            Place(player, _playerBody, _playerClear);
-            Place(enemy, _enemyBody, _enemyClear);
+            // Stop: put both bodies back where they last did not touch (not while a push is carrying them apart).
+            if (!Sliding)
+            {
+                Place(player, _playerBody, _playerClear);
+                Place(enemy, _enemyBody, _enemyClear);
+            }
 
             if (Time.time < _cooldownUntil) return;
             _cooldownUntil = Time.time + contactCooldown;
@@ -137,6 +166,30 @@ namespace Laubrary.Demos.BarbarianDemo
             s_ring = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(.5f, .5f), 16f);
             s_ring.hideFlags = HideFlags.HideAndDontSave;
             return s_ring;
+        }
+
+        /// Moves a body along the line, quickly at first and settling, then stops. Used for the push of a touch.
+        sealed class Slide : MonoBehaviour
+        {
+            float _dir, _distance, _seconds, _t; float _done; Rigidbody2D _rb;
+            public bool Active { get; private set; }
+            public void Begin(float direction, float distance, float seconds)
+            {
+                _dir = direction; _distance = distance; _seconds = Mathf.Max(0.05f, seconds); _t = 0f; _done = 0f; Active = true;
+                if (_rb == null) _rb = GetComponent<Rigidbody2D>();
+            }
+            void Update()
+            {
+                if (!Active) return;
+                _t += Time.deltaTime;
+                float u = Mathf.Clamp01(_t / _seconds);
+                float eased = 1f - (1f - u) * (1f - u);
+                float now = eased * _distance, step = now - _done; _done = now;
+                var p = (Vector2)transform.position + new Vector2(_dir * step, 0f);
+                transform.position = new Vector3(p.x, p.y, transform.position.z);
+                if (_rb != null) _rb.position = p;
+                if (u >= 1f) Active = false;
+            }
         }
 
         /// Holds a highlight at full strength for most of its life, fades it out over the last third, then removes it.
