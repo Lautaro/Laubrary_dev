@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `SpriteAlphaHitFilter.Overlap(a, b, out SpriteContact, ...)`: a pixel exact test of whether two drawn sprites touch (a drawn pixel of one over a drawn pixel of the other, mirrors and scale respected, optional floor so a ground shadow in the art is ignored). `SpriteContact` carries exactly the shared pixels (where, how many, the middle) and `ToSprite` draws just them, so a spark can match the contact instead of the whole body. `SpriteAlphaHitFilter.IsSolidAt` answers it for one point.
+
+### Fixed
+- A character pushed or knocked away from the way it faces played its reaction backwards, stuck on the first frame, until the movement ended: the walk's backpedal reversal was applied to whatever clip was playing. It now applies only while the walk owns the body.
+
 - ZUI `ZuiAdsr` is compact (62 px per stage, 46 px graph, stage sliders 15 px tall with 10 pt text set on those sliders only, `ZuiAdsr.SliderFontSize`/`SliderHeight`/`SliderTextInset`; an ADSR is 248 × 78 px, 30% of its old area): a filled envelope shape, no stage captions in the graph, and one slider per stage under its lane with musical steps (`ZuiAdsr.SnapSeconds`, `SnapLevel`, `FormatTime`: 1 ms below 100 ms, 10 ms to 1 s, 0.05 s above, seconds shown from 1 s; whole percent sustain). `ZuiMicroSlider.SetSteps(snap, format, trackExponent)` gives any MicroSlider caller-owned steps, readout and a power-curve track that still reaches zero; a Shift-fine drag now accumulates its own unsnapped position, so coarse steps can never freeze it.
 
 - AssetKit `ZuiAssetWindow`: a tool can add its own controls to the asset toolbar row (`BuildToolbarExtras`), fix up a fresh Duplicate (`InitializeDuplicate`, e.g. a new internal identity) and react to a Rename (`OnRenamed`); the toolbar's asset field is named `lau-asset-field`; the library filter is shown only while the library grid is (it filters nothing while an asset is being edited). ZUI `ZuiMenu.ChipItem`: a menu item led by a coloured id chip, matched by search together with its label (ZTracker's Alt+B menus use it to show commands in their colours).

@@ -168,7 +168,10 @@ namespace Laubrary.ZoetropeLaunimator
             _hasFacing = true;
 
             if (_flippable != null) _flippable.FlipX = res.FlipX;
-            _view?.SetPlaybackReversed(ShouldBackpedal());
+            // Reversal belongs to the walk clip only. While a reaction holds the body (a push, a hit) the view is
+            // playing THAT clip, and a body sliding away from what it faces would otherwise play it backwards,
+            // stuck on its first frame until the slide ends.
+            _view?.SetPlaybackReversed(ShouldBackpedal() && (Arbiter == null || Arbiter.HasControl(this)));
             // World rotation, never local: a composite part's transform is parented under its owner (see
             // CompositeZonedPlayer), and local rotation would compound with a rotating parent's own facing.
             transform.rotation = Quaternion.Euler(0f, 0f, -res.RotationDeg);

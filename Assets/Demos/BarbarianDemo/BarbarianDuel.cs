@@ -6,8 +6,9 @@ namespace Laubrary.Demos.BarbarianDemo
 {
     /// <summary>
     /// The rules between the player's Barbarian and the CPU Barbarian: when their drawn sprites touch they stop,
-    /// the two sprites are left highlighted, hanging in the air, for a moment, and both play the "pushed back"
-    /// animation while sliding apart, as if each shoved the other.
+    /// the pixels where the two sprites overlap are left highlighted, hanging in the air, for a moment, and both play the "pushed back"
+    /// animation while sliding apart, as if each shoved the other. When the touch comes from the player's own attack
+    /// the same push happens, but the CPU Barbarian is knocked down (its "Hit" reaction: it falls and gets up).
     ///
     /// The touch is pixel exact (a drawn pixel of one over a drawn pixel of the other), not a box test, so a
     /// raised sword touches before two empty corners would. This is game code: the library supplies the test
@@ -19,12 +20,14 @@ namespace Laubrary.Demos.BarbarianDemo
         public GameObject player;
         [Tooltip("The CPU character.")]
         public GameObject enemy;
-        [Tooltip("How long the highlighted sprites and the marker stay after a touch, in seconds.")]
+        [Tooltip("How long the highlighted overlap pixels stay after a touch, in seconds.")]
         public float highlightSeconds = 0.7f;
-        [Tooltip("Colour of the highlight laid over the touching sprites.")]
+        [Tooltip("Colour of the highlight laid over the pixels the sprites share.")]
         public Color highlightColor = new Color(1f, 0.92f, 0.3f, 0.85f);
         [Tooltip("Pixels this far above the feet line (art pixels) and lower do not count as touching: the ground shadow drawn into the sprite is not the body.")]
         public float ignoreBelowFeetPixels = 7f;
+        [Tooltip("A pixel counts as drawn above this alpha (0..1). Pixel art is fully opaque or clear, so stray faint pixels in the sheet do not count.")]
+        [Range(0f, 1f)] public float solidAlpha = 0.5f;
         [Tooltip("How far each body is pushed away from the other by a touch, in world units.")]
         public float pushDistance = 0.9f;
         [Tooltip("How long that push takes, in seconds.")]
@@ -35,9 +38,10 @@ namespace Laubrary.Demos.BarbarianDemo
         SpriteRenderer _playerSprite, _enemySprite;
         Rigidbody2D _playerBody, _enemyBody;
         Vector2 _playerClear, _enemyClear;
-        float _cooldownUntil;
+        float _cooldownUntil, _playerReactingUntil;
         readonly List<GameObject> _highlights = new List<GameObject>();
-        static Sprite s_ring;
+        /// The pixels the two sprites shared at the latest touch.
+        public SpriteContact LastContact { get; private set; }
 
         /// Raised once per touch with the middle of the shared pixels.
         public event System.Action<Vector2> Touched;
@@ -48,11 +52,15 @@ namespace Laubrary.Demos.BarbarianDemo
             Touched += OnTouched;
         }
 
-        // A touch with nobody attacking: each pushes the other back (both show the same pushed-back reaction).
+        // A touch. Both are pushed back and show the pushed-back reaction; but when the touch comes from the player's own
+        // attack (the player is in the middle of a move, not in a reaction we caused), the CPU is knocked down instead.
         void OnTouched(Vector2 point)
         {
+            var playerReactions = player.GetComponent<ReactionFxPlayer>();
+            bool attacking = playerReactions != null && playerReactions.HoldingStill && Time.time >= _playerReactingUntil;
             PushBack(player, enemy, ZoeStates.BarbarianStates.PushedBackwards);
-            PushBack(enemy, player, ZoeStates.BarbarianStates.PushedBackwards);
+            _playerReactingUntil = Time.time + pushSeconds + 0.4f;
+            PushBack(enemy, player, attacking ? ZoeStates.BarbarianStates.Hit : ZoeStates.BarbarianStates.PushedBackwards);
         }
 
         // Plays the named reaction on a body and slides it away from the other body.
@@ -78,7 +86,7 @@ namespace Laubrary.Demos.BarbarianDemo
         {
             if (_playerSprite == null || _enemySprite == null) { Resolve(); return; }
 
-            bool touching = SpriteAlphaHitFilter.Overlap(_playerSprite, _enemySprite, out Vector2 centre, out int pixels, 0.1f, FeetY() + ignoreBelowFeetPixels / Mathf.Max(1f, _playerSprite.sprite.pixelsPerUnit));
+            bool touching = SpriteAlphaHitFilter.Overlap(_playerSprite, _enemySprite, out SpriteContact contact, solidAlpha, FeetY() + ignoreBelowFeetPixels / Mathf.Max(1f, _playerSprite.sprite.pixelsPerUnit));
             if (!touching)
             {
                 _playerClear = player.transform.position;
@@ -95,8 +103,9 @@ namespace Laubrary.Demos.BarbarianDemo
 
             if (Time.time < _cooldownUntil) return;
             _cooldownUntil = Time.time + contactCooldown;
-            Highlight(centre);
-            Touched?.Invoke(centre);
+            LastContact = contact;
+            Highlight(contact);
+            Touched?.Invoke(contact.Centre);
         }
 
         // The characters stand on one line; the body's own position is its feet.
@@ -108,38 +117,19 @@ namespace Laubrary.Demos.BarbarianDemo
             if (rb != null) rb.position = at;
         }
 
-        // ── the highlight: a copy of each touching sprite in a bright tint, and a ring on the touch point ──
+        // ── the highlight: only the pixels the two sprites share, drawn where they are ──
 
-        void Highlight(Vector2 centre)
+        void Highlight(SpriteContact contact)
         {
             ClearHighlights();
-            _highlights.Add(Ghost(_playerSprite));
-            _highlights.Add(Ghost(_enemySprite));
-            _highlights.Add(Ring(centre));
-        }
-
-        GameObject Ghost(SpriteRenderer source)
-        {
             var go = new GameObject("Touch highlight");
-            go.transform.SetPositionAndRotation(source.transform.position, source.transform.rotation);
-            go.transform.localScale = source.transform.lossyScale;
+            go.transform.position = new Vector3(contact.Origin.x, contact.Origin.y, player.transform.position.z);
             var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = source.sprite; sr.flipX = source.flipX; sr.flipY = source.flipY;
-            sr.sortingLayerID = source.sortingLayerID; sr.sortingOrder = source.sortingOrder + 1;
+            sr.sprite = contact.ToSprite(Color.white);
+            sr.sortingLayerID = _playerSprite.sortingLayerID; sr.sortingOrder = Mathf.Max(_playerSprite.sortingOrder, _enemySprite.sortingOrder) + 1;
             sr.color = highlightColor;
             go.AddComponent<Fade>().Begin(highlightSeconds, highlightColor);
-            return go;
-        }
-
-        GameObject Ring(Vector2 centre)
-        {
-            var go = new GameObject("Touch marker");
-            go.transform.position = new Vector3(centre.x, centre.y, player.transform.position.z);
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = RingSprite(); sr.sortingLayerID = _playerSprite.sortingLayerID; sr.sortingOrder = _playerSprite.sortingOrder + 2;
-            go.transform.localScale = Vector3.one * 0.8f;
-            go.AddComponent<Fade>().Begin(highlightSeconds, Color.white);
-            return go;
+            _highlights.Add(go);
         }
 
         void ClearHighlights()
@@ -149,24 +139,6 @@ namespace Laubrary.Demos.BarbarianDemo
         }
 
         void OnDestroy() => ClearHighlights();
-
-        static Sprite RingSprite()
-        {
-            if (s_ring != null) return s_ring;
-            const int n = 32;
-            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, hideFlags = HideFlags.HideAndDontSave };
-            var px = new Color32[n * n];
-            for (int y = 0; y < n; y++)
-                for (int x = 0; x < n; x++)
-                {
-                    float d = Vector2.Distance(new Vector2(x + .5f, y + .5f), new Vector2(n / 2f, n / 2f));
-                    px[y * n + x] = d > 12f && d < 15.5f ? new Color32(255, 255, 255, 255) : new Color32(0, 0, 0, 0);
-                }
-            tex.SetPixels32(px); tex.Apply();
-            s_ring = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(.5f, .5f), 16f);
-            s_ring.hideFlags = HideFlags.HideAndDontSave;
-            return s_ring;
-        }
 
         /// Moves a body along the line, quickly at first and settling, then stops. Used for the push of a touch.
         sealed class Slide : MonoBehaviour
@@ -197,6 +169,8 @@ namespace Laubrary.Demos.BarbarianDemo
         {
             float _life, _t; Color _color; SpriteRenderer _sr;
             public void Begin(float seconds, Color color) { _life = Mathf.Max(0.05f, seconds); _color = color; _sr = GetComponent<SpriteRenderer>(); }
+            // The highlight owns the sprite and texture built for it.
+            void OnDestroy() { if (_sr != null && _sr.sprite != null) { Destroy(_sr.sprite.texture); Destroy(_sr.sprite); } }
             void Update()
             {
                 _t += Time.unscaledDeltaTime;

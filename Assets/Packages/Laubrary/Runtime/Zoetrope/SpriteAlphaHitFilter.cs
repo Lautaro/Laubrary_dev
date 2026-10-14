@@ -94,26 +94,29 @@ namespace Laubrary.Zoetrope
 
         /// Do two drawn sprites touch: is there a point where both have a drawn pixel? Walks the rectangle the two
         /// bounds share at the finer of the two pixel sizes, so cost follows the overlap, not the sprites. On a touch,
-        /// <paramref name="centre"/> is the middle of the shared pixels and <paramref name="pixels"/> how many there were. Pixels below <paramref name="ignoreBelowWorldY"/> are not looked at (a ground shadow drawn into the sprite is not a body).
-        public static bool Overlap(SpriteRenderer a, SpriteRenderer b, out Vector2 centre, out int pixels, float alphaThreshold = 0.1f, float ignoreBelowWorldY = float.NegativeInfinity)
+        /// <paramref name="contact"/> carries exactly the shared pixels (see <see cref="SpriteContact"/>: where they are, how many, the middle, and a sprite of just them). Pixels below <paramref name="ignoreBelowWorldY"/> are not looked at (a ground shadow drawn into the sprite is not a body).
+        public static bool Overlap(SpriteRenderer a, SpriteRenderer b, out SpriteContact contact, float alphaThreshold = 0.1f, float ignoreBelowWorldY = float.NegativeInfinity)
         {
-            centre = default; pixels = 0;
+            contact = null;
             if (a == null || b == null || a.sprite == null || b.sprite == null) return false;
             Bounds ba = a.bounds, bb = b.bounds;
-            float minX = Mathf.Max(ba.min.x, bb.min.x), maxX = Mathf.Min(ba.max.x, bb.max.x);
-            float minY = Mathf.Max(Mathf.Max(ba.min.y, bb.min.y), ignoreBelowWorldY), maxY = Mathf.Min(ba.max.y, bb.max.y);
-            if (minX >= maxX || minY >= maxY) return false;
             float step = Mathf.Min(PixelWorld(a), PixelWorld(b));
-            Vector2 sum = Vector2.zero;
-            for (float y = minY + step * .5f; y < maxY; y += step)
-                for (float x = minX + step * .5f; x < maxX; x += step)
+            // The grid sits on whole art pixels of the world, so the shared pixels read as pixels when drawn.
+            float minX = Mathf.Floor(Mathf.Max(ba.min.x, bb.min.x) / step) * step, maxX = Mathf.Min(ba.max.x, bb.max.x);
+            float minY = Mathf.Floor(Mathf.Max(Mathf.Max(ba.min.y, bb.min.y), ignoreBelowWorldY) / step) * step, maxY = Mathf.Min(ba.max.y, bb.max.y);
+            if (minX >= maxX || minY >= maxY) return false;
+            int w = Mathf.Max(1, Mathf.CeilToInt((maxX - minX) / step)), h = Mathf.Max(1, Mathf.CeilToInt((maxY - minY) / step));
+            var shared = new bool[w * h];
+            Vector2 sum = Vector2.zero; int pixels = 0;
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
                 {
-                    var p = new Vector2(x, y);
+                    var p = new Vector2(minX + (x + .5f) * step, minY + (y + .5f) * step);
                     if (!IsSolidAt(a, p, alphaThreshold) || !IsSolidAt(b, p, alphaThreshold)) continue;
-                    sum += p; pixels++;
+                    shared[y * w + x] = true; sum += p; pixels++;
                 }
             if (pixels == 0) return false;
-            centre = sum / pixels;
+            contact = new SpriteContact(new Vector2(minX, minY), step, w, h, shared, sum / pixels, pixels);
             return true;
         }
 

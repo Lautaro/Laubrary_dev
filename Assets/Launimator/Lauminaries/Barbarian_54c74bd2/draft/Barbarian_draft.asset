@@ -2124,7 +2124,7 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: 150
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
@@ -2141,7 +2141,7 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: 150
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
