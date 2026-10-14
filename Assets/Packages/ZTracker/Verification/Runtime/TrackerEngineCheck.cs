@@ -19,6 +19,8 @@ namespace Laubrary.ZTracker.Engine
             s.tracks.Add(new TrackData{id="notes",visibleNoteColumns=columns,visibleEffectColumns=1});s.tracks.Add(new TrackData{id="master",kind=TrackKind.Master,visibleNoteColumns=0});
             var p=new PatternData{id="pattern",lineCount=lines};p.tracks.Add(new PatternTrack{trackId="notes"});p.tracks.Add(new PatternTrack{trackId="master"});s.patterns.Add(p);s.sequence.Add(new SequenceSlot{id="slot",patternId="pattern"});return s;
         }
+        /// <summary>A fixture song on the one-instrument-column rule (T-0648), for window checks that edit it after the window has read it.</summary>
+        public static SongData FixtureSongNew(ZTrackerInstrument instrument,int columns=1,int lines=8,double bpm=120){var s=FixtureSong(instrument,columns,lines,bpm);s.instrumentColumnVersion=ZTrackerTrackInstruments.CurrentVersion;return s;}
         public static ZTrackerInstrument FixtureInstrument(AudioClip clip)
         {
             var a=ScriptableObject.CreateInstance<ZTrackerInstrument>();a.sampleClip=clip;a.attack=0;a.decay=0;a.sustain=1;a.release=1;

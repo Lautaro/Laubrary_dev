@@ -34,7 +34,7 @@ namespace Laubrary.ZTracker.Editor
         }
         static ZTrackerSong ColdSong(ZTrackerInstrument instrument)
         {
-            var song = CreateInstance<ZTrackerSong>(); song.schemaVersion = 1; song.model = TrackerEngineCheck.FixtureSong(instrument);
+            var song = CreateInstance<ZTrackerSong>(); song.schemaVersion = 1; song.model = TrackerEngineCheck.FixtureSongNew(instrument);
             song.model.patterns[0].tracks[0].WriteLine(new PatternLine { line = 0, notes = new List<NoteCell> { TrackerEngineCheck.Note(69) } });
             return song;
         }

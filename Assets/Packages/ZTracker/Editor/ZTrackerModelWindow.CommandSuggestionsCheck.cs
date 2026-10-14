@@ -45,7 +45,7 @@ namespace Laubrary.ZTracker.Editor
             DynamicParameterData Define(DynamicScope scope,ParameterTarget target,string id,string name){var p=ZTrackerCommandRegistry.Define(song.model,scope,target,id,name,0,1,out var error);if(p==null)throw new InvalidOperationException("Fixture "+id+": "+error);return p;}
             try
             {
-                song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSong(lead,lines:32);song.model.instruments.Add(bass);
+                song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSongNew(lead,lines:32);song.model.instruments.Add(bass);
                 song.model.tracks[0].name="Lead";song.model.tracks[1].name="Master";
                 song.model.tracks.Insert(1,new TrackData{id="other",name="Other",visibleNoteColumns=1,visibleEffectColumns=1});song.model.patterns[0].tracks.Add(new PatternTrack{trackId="other"});
                 song.model.tracks[0].devices.nodes.Add(new AudioEffectNodeData{type=ZoundEffectType.Gain,uid="lead-gain",p=new float[]{1}});

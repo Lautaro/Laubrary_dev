@@ -37,7 +37,7 @@ namespace Laubrary.ZTracker.Editor
             var inst = TrackerEngineCheck.FixtureInstrument(clip); inst.name = "Check sine";
             // A synth needs no sample data, so the audio restart of the buffer step cannot invalidate the fixture.
             inst.model.family = InstrumentFamily.Synth;
-            var asset = CreateInstance<ZTrackerSong>(); asset.schemaVersion = 1; asset.model = TrackerEngineCheck.FixtureSong(inst, 3, 16); asset.model.voiceCapacity = 64; asset.model.tracks[0].name = "Lead";
+            var asset = CreateInstance<ZTrackerSong>(); asset.schemaVersion = 1; asset.model = TrackerEngineCheck.FixtureSongNew(inst, 3, 16); asset.model.voiceCapacity = 64; asset.model.tracks[0].name = "Lead";
             asset.model.patterns[0].tracks[0].WriteLine(new PatternLine { line = 0, notes = new List<NoteCell> { TrackerEngineCheck.Note(48, 2) } });
             var window = CreateInstance<ZTrackerModelWindow>(); window.song = asset; window.titleContent = new GUIContent("ZTracker MIDI check"); window.midiSimulatedOnly = true; window.midiPersistPreferences = false; window.Show(); window.position = new Rect(120, 120, 1100, 760); window.CreateGUI();
             var sim = ZTrackerMidiSimulated.Shared; sim.Unplugged = false; sim.SimulateInUse = false;

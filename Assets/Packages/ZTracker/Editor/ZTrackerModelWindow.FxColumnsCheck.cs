@@ -40,7 +40,7 @@ namespace Laubrary.ZTracker.Editor
             float[] Render(SongData data){using(var e=new TrackerOffline(TrackerPreparedSong.Prepare(data))){e.SendCommand(TrackerCommand.Play());e.Render(l,r,24000,512);}return l.ToArray().Concat(r.ToArray()).ToArray();}
             try
             {
-                song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSong(instrument,lines:24);song.model.tracks[0].name="Lead";song.model.tracks[1].name="Master";
+                song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSongNew(instrument,lines:24);song.model.tracks[0].name="Lead";song.model.tracks[1].name="Master";
                 window.song=song;window.instrument=instrument;window.pane=0;window.editMode=true;window.Show();window.position=new Rect(60,60,1200,820);window.CreateGUI();Rebuild();
 
                 Check("header − and + set the track's shown FX columns, keep the cursor on its track, and Undo",()=>{

@@ -43,7 +43,7 @@ namespace Laubrary.ZTracker.Editor
             CloseOverhaulWalk();
             var instrument=CreateInstance<ZTrackerInstrument>();instrument.schemaVersion=1;instrument.model=NewInstrumentData();instrument.model.name="Overhaul proof synth";overhaulFixtures.Add(instrument);
             var kit=CreateInstance<ZTrackerInstrument>();kit.schemaVersion=1;kit.model=NewInstrumentData();kit.model.family=InstrumentFamily.DrumKit;kit.model.name="Overhaul proof kit";kit.model.drumKit.mappings.Add(new DrumMapping{id="proof-kick",name="Synth kick",tag="BD",noteMin=36,noteMax=36,baseNote=36,synth=instrument});overhaulFixtures.Add(kit);
-            var song=CreateInstance<ZTrackerSong>();song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSong(instrument,3,16);song.model.name="Overhaul walk";song.model.patterns[0].name="Verse";song.model.tracks[0].name="Synth";song.model.tracks[song.model.tracks.Count-1].name="Master";song.model.instruments.Add(kit);overhaulFixtures.Add(song);
+            var song=CreateInstance<ZTrackerSong>();song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSongNew(instrument,3,16);song.model.name="Overhaul walk";song.model.patterns[0].name="Verse";song.model.tracks[0].name="Synth";song.model.tracks[song.model.tracks.Count-1].name="Master";song.model.instruments.Add(kit);overhaulFixtures.Add(song);
             var second=new TrackData{id="proof-track-2",name="Drums",kind=TrackKind.Sequencer};song.model.tracks.Insert(1,second);foreach(var pattern in song.model.patterns)pattern.tracks.Add(new PatternTrack{trackId=second.id});
             overhaulWalk=CreateInstance<ZTrackerModelWindow>();overhaulWalk.titleContent=new GUIContent("ZTracker overhaul check");overhaulWalk.song=song;overhaulWalk.instrument=family==2?kit:instrument;overhaulWalk.entryInstrument=family==2?1:0;overhaulWalk.pane=workspace;overhaulWalk.position=new Rect(80,90,1250,800);overhaulWalk.Show();overhaulWalk.CreateGUI();overhaulWalk.Focus();
             return "Temporary in-memory walk open; user assets unchanged";
@@ -52,7 +52,7 @@ namespace Laubrary.ZTracker.Editor
         {
             if(DrumTags.Category("Kicks")!=DrumCategory.Kick||DrumTags.Category("Snares")!=DrumCategory.Snare)throw new Exception("Plural parent folder aliases");
             var asset=CreateInstance<ZTrackerInstrument>();asset.schemaVersion=1;asset.model=NewInstrumentData();asset.model.family=InstrumentFamily.DrumKit;
-            var song=CreateInstance<ZTrackerSong>();song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSong(asset);
+            var song=CreateInstance<ZTrackerSong>();song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSongNew(asset);
             var window=CreateInstance<ZTrackerModelWindow>();
             try
             {

@@ -23,9 +23,9 @@ namespace Laubrary.ZTracker.Editor
         {
             var report=new StringBuilder();int passed=0,failed=0;
             var w=CreateInstance<ZTrackerModelWindow>();var asset=CreateInstance<ZTrackerSong>();var inst=CreateInstance<ZTrackerInstrument>();
-            asset.schemaVersion=inst.schemaVersion=1;inst.model=NewInstrumentData();asset.model=TrackerEngineCheck.FixtureSong(inst);w.song=asset;w.instrument=inst;w.pane=1;w.Show();w.CreateGUI();
+            asset.schemaVersion=inst.schemaVersion=1;inst.model=NewInstrumentData();asset.model=TrackerEngineCheck.FixtureSongNew(inst);w.song=asset;w.instrument=inst;w.pane=1;w.Show();w.CreateGUI();
             void Need(bool ok,string why){if(!ok)throw new Exception(why);}
-            void Fresh(){w.StopPreview();Undo.ClearUndo(asset);Undo.ClearUndo(inst);asset.serializedNulls=inst.serializedNulls=null;inst.model=NewInstrumentData();asset.model=TrackerEngineCheck.FixtureSong(inst);w.track=0;w.pane=1;w.mixerTab=0;w.BuildPane();}
+            void Fresh(){w.StopPreview();Undo.ClearUndo(asset);Undo.ClearUndo(inst);asset.serializedNulls=inst.serializedNulls=null;inst.model=NewInstrumentData();asset.model=TrackerEngineCheck.FixtureSongNew(inst);w.track=0;w.pane=1;w.mixerTab=0;w.BuildPane();}
             void Check(string name,Action run){try{Fresh();run();passed++;report.AppendLine("PASS "+name);}catch(Exception e){failed++;report.AppendLine("FAIL "+name+": "+(e.InnerException??e).Message);}}
             void Click(string name){var button=w.rootVisualElement.Q<Button>(name);Need(button!=null,"Missing "+name);typeof(Clickable).GetMethod("SimulateSingleClick",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic).Invoke(button.clickable,new object[]{null,0});}
             void Malformed()

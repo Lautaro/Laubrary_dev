@@ -36,7 +36,7 @@ namespace Laubrary.ZTracker.Editor
                 instrument.model.name = "Lead";
                 var chain = new AudioEffectChainData(); chain.nodes.Add(new AudioEffectNodeData { type = Laubrary.Zounds.ZoundEffectType.Gain, uid = "inst-gain", p = new[] { 1f } });
                 instrument.model.fxChains.Add(chain); instrument.model.sampler.samples[0].fxChain = 0;
-                song.schemaVersion = 1; song.model = TrackerEngineCheck.FixtureSong(instrument, 1, 16);
+                song.schemaVersion = 1; song.model = TrackerEngineCheck.FixtureSongNew(instrument, 1, 16);
                 song.model.tracks.Insert(1, new TrackData { id = "notes2", name = "Second", visibleNoteColumns = 1, visibleEffectColumns = 1 });
                 song.model.patterns[0].tracks.Insert(1, new PatternTrack { trackId = "notes2" });
                 song.model.tracks[0].name = "First";

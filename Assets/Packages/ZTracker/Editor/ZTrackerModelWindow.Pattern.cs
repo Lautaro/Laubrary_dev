@@ -50,7 +50,7 @@ namespace Laubrary.ZTracker.Editor
             for(int ti=0;ti<Data.tracks.Count;ti++){
                 var t=Data.tracks[ti];if(t.kind==TrackKind.Event){AddField(header,ti,0,FieldKind.Event,"Event");}
                 if(t.kind==TrackKind.Sequencer)for(int c=0;c<t.visibleNoteColumns;c++){
-                    var v=c<t.columns.Count?t.columns[c]:new ColumnVisibility();AddField(header,ti,c,FieldKind.Note,t.visibleNoteColumns>1?(c+1).ToString():"N");AddField(header,ti,c,FieldKind.Instrument,"I");if(v.volume)AddField(header,ti,c,FieldKind.Volume,"V");if(v.pan)AddField(header,ti,c,FieldKind.Pan,"P");if(v.delay)AddField(header,ti,c,FieldKind.Delay,"D");if(v.sampleFx){AddField(header,ti,c,FieldKind.LocalId,"FX");AddField(header,ti,c,FieldKind.LocalValue,"");}}
+                    var v=c<t.columns.Count?t.columns[c]:new ColumnVisibility();AddField(header,ti,c,FieldKind.Note,t.visibleNoteColumns>1?(c+1).ToString():"N");if(c==0||!ZTrackerTrackInstruments.Applies(Data))AddField(header,ti,c,FieldKind.Instrument,"I");if(v.volume)AddField(header,ti,c,FieldKind.Volume,"V");if(v.pan)AddField(header,ti,c,FieldKind.Pan,"P");if(v.delay)AddField(header,ti,c,FieldKind.Delay,"D");if(v.sampleFx){AddField(header,ti,c,FieldKind.LocalId,"FX");AddField(header,ti,c,FieldKind.LocalValue,"");}}
                 for(int c=0;c<t.visibleEffectColumns;c++){AddField(header,ti,c,FieldKind.EffectId,"FX"+(c+1));AddField(header,ti,c,FieldKind.EffectValue,"");}
                 if(t.kind!=TrackKind.Event&&t.envelopeColumns!=null)for(int c=0;c<t.envelopeColumns.Count;c++)AddField(header,ti,c,FieldKind.Envelope,"ENV"+(c+1));
             }
@@ -114,11 +114,19 @@ namespace Laubrary.ZTracker.Editor
         void RefreshCells(){if(Pattern==null)return;RefreshLookDefinitions();foreach(var pair in labels){var p=pair.Key;if(p.y>=fields.Count||p.x>=Pattern.lineCount)continue;RefreshNoteDisplay(pair.Value,p.x,fields[p.y]);bool picked=p.x==row&&p.y==sub,selected=anchorRow>=0&&p.x>=Math.Min(row,anchorRow)&&p.x<=Math.Max(row,anchorRow)&&p.y>=Math.Min(sub,anchorSub)&&p.y<=Math.Max(sub,anchorSub);pair.Value.EnableInClassList("tracker-picked",picked);pair.Value.EnableInClassList("tracker-playing",p.x==playingRow);pair.Value.EnableInClassList("tracker-selected",selected);ColourCell(pair.Value,p.x,fields[p.y],picked,selected);}ShowPendingInCell();RefreshHelp();}
         internal DrumMapping ResolveDrumMapping(int line,int trackIndex,int column,int pitch)
         {
-            if(Pattern==null||trackIndex<0||trackIndex>=Data.tracks.Count)return null;
-            int instrument=-1;
+            int instrument=TrackInstrumentAt(trackIndex,line,column);
+            if(instrument<0||instrument>=Data.instruments.Count)return null;
+            var data=ReadInstrument(Data.instruments[instrument]);
+            return data?.family==InstrumentFamily.DrumKit?data.drumKit?.Find(pitch):null;
+        }
+        // The instrument a track plays at a row: its one instrument column (or, in a song from before that rule, the note column's own memory),
+        // searched back through the selected sequence occurrence and the ones before it. -1 when none was named.
+        internal int TrackInstrumentAt(int trackIndex,int line,int column=0)
+        {
+            if(Pattern==null||trackIndex<0||trackIndex>=Data.tracks.Count)return -1;
+            int instrument=-1,ic=ZTrackerTrackInstruments.Applies(Data)?0:column;
             string trackId=Data.tracks[trackIndex].id;
             int selectedOrder=Mathf.Clamp(order,0,Data.sequence.Count-1);
-            // Instrument memory belongs to a column and survives ordinary pattern boundaries.
             // Search the selected sequence occurrence, not just the reusable pattern asset.
             for(int slot=selectedOrder;slot>=0&&instrument<0;slot--)
             {
@@ -129,14 +137,20 @@ namespace Laubrary.ZTracker.Editor
                 foreach(var entry in records.lines)
                 {
                     if(entry==null||entry.line<0||entry.line>limit||entry.line<latest)continue;
-                    var note=entry.notes?.Find(n=>n!=null&&!n.inactive&&n.column==column&&n.instrumentPresent);
+                    var note=entry.notes?.Find(n=>n!=null&&!n.inactive&&n.column==ic&&n.instrumentPresent);
                     if(note==null||note.instrument<0||note.instrument>=Data.instruments.Count||Data.instruments[note.instrument]==null)continue;
                     latest=entry.line;instrument=note.instrument;
                 }
             }
-            if(instrument<0||instrument>=Data.instruments.Count)return null;
-            var data=ReadInstrument(Data.instruments[instrument]);
-            return data?.family==InstrumentFamily.DrumKit?data.drumKit?.Find(pitch):null;
+            return instrument;
+        }
+        // Entering a note: the track's instrument column gets the selected instrument unless it already is the one in effect.
+        void SetNoteInstrument(int r,FieldSlot f)
+        {
+            if(Data.instruments.Count==0)return;
+            bool one=ZTrackerTrackInstruments.Applies(Data);
+            if(one&&TrackInstrumentAt(f.track,r)==entryInstrument)return;
+            EditField(r,one?new FieldSlot(f.track,0,FieldKind.Instrument):f,(c,x,v)=>{c.instrumentPresent=true;c.instrument=entryInstrument;});
         }
         void RefreshNoteDisplay(Label label,int line,FieldSlot field)
         {
@@ -191,7 +205,7 @@ namespace Laubrary.ZTracker.Editor
                 case KeyCode.Backspace:if(editMode&&fields[sub].kind==FieldKind.Note){var f=fields[sub];SongEdit("note off",()=>EditField(row,f,(n,x,v)=>n.note=NoteKind.Off));Advance();}break;
                 default:
                     var slot=fields[sub];int piano=PianoOffset(e.keyCode);
-                    if(slot.kind==FieldKind.Note&&piano>=0){int pitch=Mathf.Clamp(octave*12+piano,0,119);Audition(pitch);if(editMode){SongEdit("enter note",()=>EditField(row,slot,(n,x,v)=>{n.note=NoteKind.Note;n.pitch=pitch;n.instrumentPresent=Data.instruments.Count>0;n.instrument=entryInstrument;}));Advance();}}
+                    if(slot.kind==FieldKind.Note&&piano>=0){int pitch=Mathf.Clamp(octave*12+piano,0,119);Audition(pitch);if(editMode){SongEdit("enter note",()=>{EditField(row,slot,(n,x,v)=>{n.note=NoteKind.Note;n.pitch=pitch;});SetNoteInstrument(row,slot);});Advance();}}
                     else if(editMode&&e.character!=0)handled=EnterCharacter(char.ToUpperInvariant(e.character));else handled=false;break;
             }
             if(handled){e.StopPropagation();e.PreventDefault();}
@@ -277,7 +291,7 @@ namespace Laubrary.ZTracker.Editor
             if(cellDetails==null||fields.Count==0)return;Vector2 offset=controlScroll.scrollOffset;cellDetails.Clear();var f=fields[sub];
             if(f.kind==FieldKind.Envelope)AddEnvelopeCellDetails(f);
             else if(f.kind==FieldKind.Event)cellDetails.Add(Z.Field("Event","Event payload at this row.",Named(Z.TextInput(EventUnderCursor(),"Enter this row's event payload; empty removes it.",SetEvent,210),"event-payload")));
-            else if(f.kind==FieldKind.Note||f.kind==FieldKind.Instrument){var n=Note(row,f);int ii=n.instrumentPresent?n.instrument:entryInstrument;var asset=ii>=0&&ii<Data.instruments.Count?Data.instruments[ii]:null;
+            else if(f.kind==FieldKind.Note||f.kind==FieldKind.Instrument){var n=Note(row,f);int ii=n.instrumentPresent?n.instrument:TrackInstrumentAt(f.track,row,f.column);if(ii<0)ii=entryInstrument;var asset=ii>=0&&ii<Data.instruments.Count?Data.instruments[ii]:null;
                 var view=ReadInstrument(asset);
                 if(view!=null){var sets=ZTrackerMigration.ResolveParameterSets(view);var names=new List<string>{"Base"};names.AddRange(view.parameters.presets.Select(p=>p.name));int selected=sets.FindIndex(s=>s.id==n.parameterSetId);cellDetails.Add(Z.MiniRadio(Math.Max(0,selected),names.ToArray(),"Choose the instrument variation used by this note column.",v=>SongEdit("note variation",()=>EditField(row,f,(note,e,ev)=>note.parameterSetId=v==0?"":sets[v].id)),wrap:true));}}
             else if(f.kind==FieldKind.EffectId||f.kind==FieldKind.EffectValue||f.kind==FieldKind.LocalId||f.kind==FieldKind.LocalValue||f.kind==FieldKind.Volume||f.kind==FieldKind.Pan){var cmd=CommandAt(row,f);

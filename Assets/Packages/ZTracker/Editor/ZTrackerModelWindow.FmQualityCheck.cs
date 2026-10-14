@@ -157,7 +157,7 @@ namespace Laubrary.ZTracker.Editor
             var report = new StringBuilder(); int passed = 0, failed = 0;
             var window = CreateInstance<ZTrackerModelWindow>(); var songAsset = CreateInstance<ZTrackerSong>(); var inst = CreateInstance<ZTrackerInstrument>();
             inst.schemaVersion = songAsset.schemaVersion = 1;
-            void Fresh() { inst.model = NewInstrumentData(); inst.model.synthMode = SynthMode.FM; inst.model.parameters.type = InstrumentType.FM; songAsset.model = TrackerEngineCheck.FixtureSong(inst); }
+            void Fresh() { inst.model = NewInstrumentData(); inst.model.synthMode = SynthMode.FM; inst.model.parameters.type = InstrumentType.FM; songAsset.model = TrackerEngineCheck.FixtureSongNew(inst); }
             Fresh(); window.song = songAsset; window.instrument = inst; window.pane = 3; window.instrumentTab = 0;
             window.Show(); window.position = new Rect(160, 120, 1120, 760); window.CreateGUI();
             const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;

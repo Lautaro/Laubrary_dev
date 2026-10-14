@@ -221,7 +221,7 @@ namespace Laubrary.ZTracker.Editor
                     Need(ZTrackerMigration.Upgrade(clone, out var error) && clone.schemaVersion == 1 && clone.model != null && clone.model.family == view.family && clone.legacyArchive != null, path + " upgrade failed: " + error);
                     float[] Play(ZTrackerInstrument inst)
                     {
-                        var song = Temp(CreateInstance<ZTrackerSong>()); song.schemaVersion = 1; song.model = TrackerEngineCheck.FixtureSong(inst, 1, 16);
+                        var song = Temp(CreateInstance<ZTrackerSong>()); song.schemaVersion = 1; song.model = TrackerEngineCheck.FixtureSongNew(inst, 1, 16);
                         song.model.patterns[0].tracks[0].WriteLine(new PatternLine { line = 0, notes = new List<NoteCell> { TrackerEngineCheck.Note(60) } });
                         using var snapshot = PlaybackSnapshot.Create(song, null, -1);
                         return RenderOffline(snapshot.Data, 24);

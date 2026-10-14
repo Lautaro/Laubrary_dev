@@ -407,7 +407,15 @@ namespace Laubrary.ZTracker.Editor
             {
                 var pt = pattern.tracks.Find(x => x.trackId == trackId); if (pt == null) { pt = new PatternTrack { trackId = trackId }; pattern.tracks.Add(pt); }
                 var pl = Clone(pt.ReadLine(line)); pl.notes.RemoveAll(x => x.column == column);
-                pl.notes.Add(new NoteCell { column = column, note = NoteKind.Note, pitch = pitch, instrumentPresent = true, instrument = instrumentIndex, volume = new ColumnValue { kind = ValueKind.Value, value = volume } });
+                bool one = ZTrackerTrackInstruments.Applies(Data);
+                pl.notes.Add(new NoteCell { column = column, note = NoteKind.Note, pitch = pitch, instrumentPresent = !one, instrument = instrumentIndex, volume = new ColumnValue { kind = ValueKind.Value, value = volume } });
+                // One instrument column per track: the key's instrument goes on column 0, only when it is not the one already in effect.
+                if (one && ZTrackerTrackInstruments.InstrumentAt(pt, line - 1) != instrumentIndex)
+                {
+                    var zero = pl.notes.Find(x => x.column == 0);
+                    if (zero == null) { zero = new NoteCell { column = 0 }; pl.notes.Insert(0, zero); }
+                    zero.instrumentPresent = true; zero.instrument = instrumentIndex;
+                }
                 pt.WriteLine(pl);
             });
         }

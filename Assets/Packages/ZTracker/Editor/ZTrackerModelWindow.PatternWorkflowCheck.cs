@@ -28,7 +28,7 @@ namespace Laubrary.ZTracker.Editor
             }
             try
             {
-                instrument.schemaVersion=1;instrument.model=NewInstrumentData();song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSong(instrument);
+                instrument.schemaVersion=1;instrument.model=NewInstrumentData();song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSongNew(instrument);
                 window.song=song;window.instrument=instrument;window.pane=0;window.Show();window.position=new Rect(60,60,1300,820);window.CreateGUI();
                 Check("pattern counts and selected track settings exist",()=>{Need(window.rootVisualElement.Q("pattern-length")!=null,"Missing pattern length");Need(window.rootVisualElement.Q("pattern-track-name")!=null,"Missing track name");Need(window.rootVisualElement.Q("pattern-note-columns")!=null,"Missing note count");Need(window.rootVisualElement.Q("pattern-fx-columns")!=null,"Missing FX count");});
                 Check("Tab advances by Step; Escape toggles Edit; text input keeps shortcuts",()=>{

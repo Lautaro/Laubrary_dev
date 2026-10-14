@@ -216,7 +216,7 @@ namespace Laubrary.ZTracker.Editor
             var songAsset = CreateInstance<ZTrackerSong>();
             var inst = CreateInstance<ZTrackerInstrument>();
             inst.schemaVersion = songAsset.schemaVersion = 1;
-            inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+            inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
             window.song = songAsset; window.instrument = inst; window.pane = 3; window.instrumentTab = 0;
             window.Show(); window.position = new Rect(160, 120, 1120, 760); window.CreateGUI();
             const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
@@ -227,7 +227,7 @@ namespace Laubrary.ZTracker.Editor
             {
                 try
                 {
-                    window.StopPreview(); Undo.ClearUndo(inst); inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+                    window.StopPreview(); Undo.ClearUndo(inst); inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
                     window.pane = 3; window.instrumentTab = 0; Rebuild(); action(); passed++; report.AppendLine("PASS " + name);
                 }
                 catch (Exception ex) { failed++; report.AppendLine("FAIL " + name + ": " + (ex.InnerException ?? ex).Message); }

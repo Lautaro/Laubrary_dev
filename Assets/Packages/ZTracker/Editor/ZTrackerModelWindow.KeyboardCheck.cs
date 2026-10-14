@@ -18,7 +18,7 @@ namespace Laubrary.ZTracker.Editor
             var song=CreateInstance<ZTrackerSong>();var instrument=CreateInstance<ZTrackerInstrument>();
             try
             {
-                instrument.schemaVersion=1;instrument.model=NewInstrumentData();song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSong(instrument);
+                instrument.schemaVersion=1;instrument.model=NewInstrumentData();song.schemaVersion=1;song.model=TrackerEngineCheck.FixtureSongNew(instrument);
                 window.song=song;window.instrument=instrument;window.entryInstrument=0;window.pane=3;window.Show();window.CreateGUI();
                 void Need(bool ok,string why){if(!ok)throw new Exception(why);}
                 void Key(VisualElement target,KeyCode code,bool down){using(var e=down?(EventBase)KeyDownEvent.GetPooled(new Event{type=EventType.KeyDown,keyCode=code}):KeyUpEvent.GetPooled(new Event{type=EventType.KeyUp,keyCode=code})){target.SendEvent(e);}}

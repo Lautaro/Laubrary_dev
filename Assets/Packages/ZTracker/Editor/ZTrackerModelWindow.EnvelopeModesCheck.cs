@@ -25,7 +25,7 @@ namespace Laubrary.ZTracker.Editor
             var songAsset = CreateInstance<ZTrackerSong>();
             var inst = CreateInstance<ZTrackerInstrument>();
             inst.schemaVersion = songAsset.schemaVersion = 1;
-            inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+            inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
             window.song = songAsset; window.instrument = inst; window.pane = 3; window.instrumentTab = 0;
             window.Show(); window.position = new Rect(160, 120, 1120, 760); window.CreateGUI();
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -35,7 +35,7 @@ namespace Laubrary.ZTracker.Editor
             void Fresh(bool fm = false)
             {
                 window.StopPreview(); Undo.ClearUndo(inst); Undo.ClearUndo(songAsset);
-                inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+                inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
                 if (fm) { inst.model.synthMode = SynthMode.FM; inst.model.parameters.type = InstrumentType.FM; inst.model.parameters.fmAlgorithm = TrackerFmSetups.Base + 4; }
                 window.pane = 3; window.instrumentTab = 0; window.modSetId = window.modDeviceId = "";
                 Rebuild();

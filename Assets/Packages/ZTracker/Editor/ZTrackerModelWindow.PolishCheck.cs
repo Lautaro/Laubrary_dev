@@ -32,7 +32,7 @@ namespace Laubrary.ZTracker.Editor
                 d.sampler.samples.Add(new SampleData { id = "proof-sample", name = "Proof sample" });
                 d.sampler.zones.Add(new Keyzone { id = "proof-zone", sample = 0, noteMin = 48, noteMax = 83 });
                 w.song = CreateInstance<ZTrackerSong>(); w.song.name = "T0016 transient song"; w.song.schemaVersion = 1;
-                w.song.model = TrackerEngineCheck.FixtureSong(w.instrument); w.song.model.tracks[0].name = "Track 1"; w.song.model.tracks[1].name = "Master";
+                w.song.model = TrackerEngineCheck.FixtureSongNew(w.instrument); w.song.model.tracks[0].name = "Track 1"; w.song.model.tracks[1].name = "Master";
                 var nodes = w.song.model.tracks[0].devices.nodes;
                 foreach (var type in new[] { ZoundEffectType.Gain, ZoundEffectType.Delay, ZoundEffectType.LowPass }) nodes.Add(new AudioEffectNodeData { uid = Id(), type = type });
                 w.pane = 3; w.instrumentTab = 1;

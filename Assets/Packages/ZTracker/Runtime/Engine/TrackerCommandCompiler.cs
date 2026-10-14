@@ -357,9 +357,28 @@ namespace Laubrary.ZTracker.Engine
                             }
                         }
 
-                        foreach (var n in src.notes.OrderBy(n => n.column))
+                        // One instrument column per track (T-0648): a value on note column 0 is the instrument of every column of the
+                        // track from this row on, so it becomes the per-column selection the engine already keeps.
+                        var ordered = src.notes.Where(n => !n.inactive).OrderBy(n => n.column).ToList();
+                        bool oneColumn = ZTrackerTrackInstruments.Applies(song), trackChange = false;
+                        int trackInstrument = 0;
+                        if (oneColumn)
+                        {
+                            var zero = ordered.Find(n => n.column == 0 && n.instrumentPresent);
+                            if (zero != null)
+                            {
+                                trackChange = true; trackInstrument = zero.instrument;
+                                int visible = song.tracks.Find(t => t.id == pt.trackId)?.visibleNoteColumns ?? 1;
+                                for (int c = 1; c < visible; c++)
+                                    if (!ordered.Exists(n => n.column == c)) ordered.Add(new NoteCell { column = c });
+                                ordered = ordered.OrderBy(n => n.column).ToList();
+                            }
+                        }
+                        foreach (var n in ordered)
                             if (!n.inactive)
                             {
+                                bool nIns = oneColumn ? trackChange : n.instrumentPresent;
+                                int nInst = oneColumn ? trackInstrument : n.instrument;
                                 if (n.column >= state.tracks[ti].columnCount)
                                     throw new ArgumentException("Note column exceeds visible capacity");
                                 var cell = new TrackerCell
@@ -367,8 +386,8 @@ namespace Laubrary.ZTracker.Engine
                                     track = ti,
                                     column = n.column,
                                     note = n.note == NoteKind.Note ? n.pitch : n.note == NoteKind.Off ? -2 : -1,
-                                    instrument = n.instrument,
-                                    instrumentPresent = n.instrumentPresent,
+                                    instrument = nInst,
+                                    instrumentPresent = nIns,
                                     volume = n.volume.kind == ValueKind.Value && n.volume.value <= 128 ? n.volume.value : -1,
                                     pan = n.pan.kind == ValueKind.Value && n.pan.value <= 128 ? n.pan.value : -1,
                                     delay = n.delayPresent ? n.delay : 0,
@@ -377,8 +396,8 @@ namespace Laubrary.ZTracker.Engine
                                 };
                                 if (n.volume.kind == ValueKind.Value && n.volume.value > 128 || n.pan.kind == ValueKind.Value && n.pan.value > 128)
                                     diagnostics.Add("INVALID_COLUMN_NUMERIC " + address + " column=" + n.column);
-                                if (n.instrumentPresent && (n.instrument < 0 || n.instrument >= song.instruments.Count || song.instruments[n.instrument] == null))
-                                    diagnostics.Add("INSTRUMENT_UNRESOLVED " + address + " column=" + n.column + " instrument=" + n.instrument);
+                                if (nIns && (nInst < 0 || nInst >= song.instruments.Count || song.instruments[nInst] == null))
+                                    diagnostics.Add("INSTRUMENT_UNRESOLVED " + address + " column=" + n.column + " instrument=" + nInst);
                                 CommandData[] cmd =
                                 {
                                     n.sampleFx,

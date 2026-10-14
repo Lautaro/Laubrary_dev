@@ -30,7 +30,8 @@ namespace Laubrary.ZTracker.Editor
         bool playing;
         bool pendingLive;
         PlaybackSnapshot playbackSnapshot;
-        SongData legacyView;
+        SongData legacyView,columnView;
+        SongData columnViewSource;
         ZTrackerSong legacyViewSource;
         readonly Dictionary<ZTrackerInstrument,InstrumentData> legacyInstrumentViews=new Dictionary<ZTrackerInstrument,InstrumentData>();
         string lastError;
@@ -43,9 +44,9 @@ namespace Laubrary.ZTracker.Editor
             get
             {
                 if(song==null)return null;
-                if(song.schemaVersion==1)return song.model;
+                if(song.schemaVersion==1){var model=song.model;if(model==null||model.instrumentColumnVersion>=ZTrackerTrackInstruments.CurrentVersion)return model;if(columnViewSource!=model||columnView==null){columnView=ZTrackerTrackInstruments.ViewOf(model);columnViewSource=model;}return columnView;}
                 if(song.schemaVersion!=0)return null;
-                if(legacyViewSource!=song||legacyView==null){legacyView=ZTrackerMigration.Convert(ZTrackerMigration.Capture(song));legacyViewSource=song;}
+                if(legacyViewSource!=song||legacyView==null){legacyView=ZTrackerMigration.Convert(ZTrackerMigration.Capture(song));legacyViewSource=song;ZTrackerTrackInstruments.Migrate(legacyView);}
                 return legacyView;
             }
         }
@@ -120,7 +121,7 @@ namespace Laubrary.ZTracker.Editor
             {
                 var view=s==song?Data:null;
                 if(!ZTrackerMigration.Upgrade(s,out var error))throw new InvalidOperationException(error);
-                if(view!=null&&s==legacyViewSource)s.model=view;
+                if(view!=null&&s==legacyViewSource)s.model=view;else if(view!=null&&view==columnView&&s.model==columnViewSource)s.model=view;
             }
             if(target is ZTrackerInstrument i)
             {
@@ -207,7 +208,7 @@ namespace Laubrary.ZTracker.Editor
         }
         void RefreshTransport(){RefreshLiveReadout();}
         protected override void OnEnable(){if(asset==null&&legacySong!=null)asset=legacySong;legacySong=null;if(asset!=null)viewRestored=true;base.OnEnable();EditorApplication.quitting-=OnViewQuitting;EditorApplication.quitting+=OnViewQuitting;Undo.undoRedoPerformed-=OnUndo;Undo.undoRedoPerformed+=OnUndo;Upgrade();}
-        void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();RefreshLive();BuildPane();}
+        void OnUndo(){columnView=null;columnViewSource=null;legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();RefreshLive();BuildPane();}
         protected override void OnDisable(){EditorApplication.quitting-=OnViewQuitting;SaveViewState();LauAssetGridGUI.ClearCache(chipThumbs);CaptureWorkspace();ReleaseInstrumentKeys();pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;DisposeDrumPreview();MidiShutdown();StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
         // ZuiWindow may rebuild on domain reload/view changes; it must not stop a healthy graph.
         protected override void OnBeforeRebuild(){CaptureWorkspace();displayedWorkspace=null;pumpSchedule?.Pause();pumpSchedule=null;}
@@ -223,7 +224,7 @@ namespace Laubrary.ZTracker.Editor
         /// <summary>A new song: version 1, one note track and the master, one empty pattern in the sequence.</summary>
         internal static void SeedSong(ZTrackerSong target)
         {
-            target.schemaVersion=1;target.model=new SongData{id=Id(),name="Untitled"};
+            target.schemaVersion=1;target.model=new SongData{id=Id(),name="Untitled",instrumentColumnVersion=ZTrackerTrackInstruments.CurrentVersion};
             target.model.tracks.Add(new TrackData{id=Id(),name="Track 1",columns=new List<ColumnVisibility>{new ColumnVisibility{volume=true,pan=true,delay=true,sampleFx=true}}});target.model.tracks.Add(new TrackData{id=Id(),name="Master",kind=TrackKind.Master,visibleNoteColumns=0});
             var pattern=NewPattern(target.model,"Pattern 1");target.model.patterns.Add(pattern);target.model.sequence.Add(new SequenceSlot{id=Id(),patternId=pattern.id});
         }

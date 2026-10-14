@@ -37,7 +37,7 @@ namespace Laubrary.ZTracker.Editor
                 legacyKit.type = InstrumentType.Kit;
                 legacyKit.kitEntries = new[] { new ZTrackerInstrument.KitEntry { midiNote = 24, displayName = "BD" }, new ZTrackerInstrument.KitEntry { midiNote = 48, displayName = "" } };
                 song.schemaVersion = 1;
-                song.model = new SongData { id = "display-check", instruments = new List<ZTrackerInstrument> { synth, kit, null, unresolved } };
+                song.model = new SongData { id = "display-check", instrumentColumnVersion = ZTrackerTrackInstruments.CurrentVersion, instruments = new List<ZTrackerInstrument> { synth, kit, null, unresolved } };
                 var trackData = new TrackData { id = "track", name = "Display", visibleNoteColumns = 12 };
                 song.model.tracks.Add(trackData);
                 var record = new PatternTrack { trackId = trackData.id };
@@ -60,7 +60,10 @@ namespace Laubrary.ZTracker.Editor
                     trackData.kind = kind; trackData.drumTrack = drums;
                     record.lines.Clear();
                     var cell = new NoteCell { column = column, note = NoteKind.Note, pitch = pitches[p], instrumentPresent = true, instrument = instrumentIndex, inactive = inactive };
-                    record.lines.Add(new PatternLine { line = 0, notes = new List<NoteCell> { cell } });
+                    // One instrument column per track: the instrument lives on column 0's cell and applies to every column.
+                    var line = new PatternLine { line = 0, notes = new List<NoteCell> { cell } };
+                    if (column != 0) { cell.instrumentPresent = false; line.notes.Insert(0, new NoteCell { column = 0, instrumentPresent = true, instrument = instrumentIndex }); }
+                    record.lines.Add(line);
                     var field = new FieldSlot(0, column, FieldKind.Note);
                     window.RefreshNoteDisplay(label, 0, field);
                     string context = kind + "/drums=" + drums + "/inactive=" + inactive + "/instrument=" + instrumentIndex + "/column=" + column + "/pitch=" + pitches[p];

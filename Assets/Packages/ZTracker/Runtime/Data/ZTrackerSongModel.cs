@@ -237,6 +237,8 @@ namespace Laubrary.ZTracker.Model
         public List<string> diagnostics = new List<string>();
         // No initializer on purpose: a song saved before the command model reads as version 0.
         public int commandModelVersion;
+        // 0: every note column has its own instrument cell; 1: one instrument column per track, stored on note column 0 (T-0648).
+        public int instrumentColumnVersion;
         public List<DynamicParameterData> dynamicParameters = new List<DynamicParameterData>();
     }
 

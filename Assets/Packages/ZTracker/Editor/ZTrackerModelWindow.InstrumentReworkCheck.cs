@@ -21,7 +21,7 @@ namespace Laubrary.ZTracker.Editor
             var songAsset = CreateInstance<ZTrackerSong>();
             var inst = CreateInstance<ZTrackerInstrument>();
             inst.schemaVersion = songAsset.schemaVersion = 1;
-            inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+            inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
             window.song = songAsset; window.instrument = inst; window.pane = 3; window.instrumentTab = 0;
             // Size the window after Show: Show applies the size Unity last remembered for this window type, which
             // earlier (narrow) windows change, and the click targets below must lie inside the panel.
@@ -41,7 +41,7 @@ namespace Laubrary.ZTracker.Editor
                 window.StopPreview(); Undo.ClearUndo(inst); Undo.ClearUndo(songAsset);
                 inst.schemaVersion = songAsset.schemaVersion = 1; window.legacyInstrumentViews.Clear();
                 inst.serializedNulls = songAsset.serializedNulls = null;
-                inst.model = NewInstrumentData(); inst.model.parameters.instFilterEnabled = true; inst.model.parameters.vibratoDepth = 1; inst.model.parameters.waveA = 3; songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+                inst.model = NewInstrumentData(); inst.model.parameters.instFilterEnabled = true; inst.model.parameters.vibratoDepth = 1; inst.model.parameters.waveA = 3; songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
                 window.instrumentTab = 0; window.modSetId = window.modDeviceId = ""; window.BuildPane(); ZuiAudit.ExpandAll(window); Layout();
             }
             void Check(string name, Action action)

@@ -20,14 +20,14 @@ namespace Laubrary.ZTracker.Editor
         {
             var report = new StringBuilder(); int pass = 0, fail = 0;
             var window = CreateInstance<ZTrackerModelWindow>(); var songAsset = CreateInstance<ZTrackerSong>(); var inst = CreateInstance<ZTrackerInstrument>();
-            inst.schemaVersion = 1; inst.model = NewInstrumentData(); songAsset.schemaVersion = 1; songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+            inst.schemaVersion = 1; inst.model = NewInstrumentData(); songAsset.schemaVersion = 1; songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
             var clip = AudioClip.Create("P6 instrument PCM", 48000, 1, 48000, false); var pcm = Enumerable.Repeat(.4f, 48000).ToArray(); clip.SetData(pcm, 0);
             window.song = songAsset; window.instrument = inst; window.entryInstrument = 0; window.pane = 3; window.Show(); window.CreateGUI();
             void Need(bool condition, string message) { if (!condition) throw new Exception(message); }
             void Fresh()
             {
                 window.StopPreview(); Undo.ClearUndo(inst); Undo.ClearUndo(songAsset); inst.serializedNulls = null; songAsset.serializedNulls = null;
-                inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+                inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
                 window.sampleId = window.zoneId = window.modSetId = window.modDeviceId = ""; window.macroIndex = window.instrumentChain = window.sampleSort = 0; window.presetIndex = -1; window.instrumentTab = 0; window.BuildPane();
             }
             void SamplerFixture(int count)
@@ -64,7 +64,7 @@ namespace Laubrary.ZTracker.Editor
             // This fixture starts from fresh modern authored data. Named UI callbacks perform
             // the edits and Unity performs Undo/Redo; the real preserving renderer consumes each restored state.
             Undo.ClearUndo(inst); inst.model = NewInstrumentData(); window.macroIndex = 0; var q = inst.model.parameters; q.waveA = 3; q.waveB = 0; q.blend = 0; q.attack = q.decay = 0; q.sustain = 1; q.release = 1; q.volume = 1;
-            songAsset.model = TrackerEngineCheck.FixtureSong(inst); var macro = inst.model.macros[0]; macro.mappings.Add(new Mapping { target = new ParameterTarget { kind = ParameterKind.Synth, parameter = "volume", units = "linear gain", instrumentId = inst.model.id }, min = 1, max = .25f });
+            songAsset.model = TrackerEngineCheck.FixtureSongNew(inst); var macro = inst.model.macros[0]; macro.mappings.Add(new Mapping { target = new ParameterTarget { kind = ParameterKind.Synth, parameter = "volume", units = "linear gain", instrumentId = inst.model.id }, min = 1, max = .25f });
             var l = new NativeArray<float>(256, Allocator.TempJob); var r = new NativeArray<float>(256, Allocator.TempJob);
             try
             {
@@ -75,7 +75,7 @@ namespace Laubrary.ZTracker.Editor
                     void Refresh() { long frame = engine.Snapshot.samplePosition, age = engine.Snapshot.voices[0].age; var next = TrackerPreparedSong.Prepare(songAsset.model); if (!engine.RefreshPrepared(next, out var reason)) { next.Dispose(); throw new Exception(reason); } Need(engine.Snapshot.samplePosition == frame && engine.Snapshot.voices[0].age == age, "Live change restarted held note or transport"); Need(Math.Abs(engine.Snapshot.parameterDirect[(int)TrackerParameter.Pan] + .3f) < .00001f, "Unrelated game pan override wiped"); }
                     float baseline = Level(); Tab(4); DialValue("macro-value", 1); Refresh(); float changed = Level(); Need(Math.Abs(changed / baseline - .25f) < .0001f, "Macro edit not audible"); Undo.PerformUndo(); Refresh(); Need(Math.Abs(Level() / baseline - 1) < .0001f, "Macro Undo UI restored but held sound did not"); Undo.PerformRedo(); Refresh(); Need(Math.Abs(Level() / baseline - .25f) < .0001f, "Macro Redo not audible");
                 }
-                Undo.ClearUndo(inst); inst.model = NewInstrumentData(); q = inst.model.parameters; q.waveA = 3; q.attack = q.decay = 0; q.sustain = 1; q.volume = 1; songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+                Undo.ClearUndo(inst); inst.model = NewInstrumentData(); q = inst.model.parameters; q.waveA = 3; q.attack = q.decay = 0; q.sustain = 1; q.volume = 1; songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
                 using (var engine = new TrackerOffline(TrackerPreparedSong.Prepare(songAsset.model)))
                 {
                     engine.SendCommand(TrackerCommand.Audition(0, 60)); engine.SendCommand(TrackerCommand.SetParameter(0, TrackerParameter.Pan, -.3f)); engine.Render(l, r, 256);
@@ -94,7 +94,7 @@ namespace Laubrary.ZTracker.Editor
             var a = CreateInstance<ZTrackerInstrument>(); var b = CreateInstance<ZTrackerInstrument>(); var song = CreateInstance<ZTrackerSong>();
             try
             {
-                AssetDatabase.CreateFolder("Assets", folder.Substring(7)); a.schemaVersion = b.schemaVersion = song.schemaVersion = 1; a.model = NewInstrumentData(); b.model = NewInstrumentData(); a.model.family = InstrumentFamily.Sampler; a.model.parameters.type = InstrumentType.Sample; song.model = TrackerEngineCheck.FixtureSong(a); song.model.instruments.Add(b);
+                AssetDatabase.CreateFolder("Assets", folder.Substring(7)); a.schemaVersion = b.schemaVersion = song.schemaVersion = 1; a.model = NewInstrumentData(); b.model = NewInstrumentData(); a.model.family = InstrumentFamily.Sampler; a.model.parameters.type = InstrumentType.Sample; song.model = TrackerEngineCheck.FixtureSongNew(a); song.model.instruments.Add(b);
                 AssetDatabase.CreateAsset(a, folder + "/Sampler.asset"); AssetDatabase.CreateAsset(b, folder + "/Synth.asset"); AssetDatabase.CreateAsset(song, folder + "/Song.asset"); AssetDatabase.SaveAssetIfDirty(a); AssetDatabase.SaveAssetIfDirty(b); AssetDatabase.SaveAssetIfDirty(song);
                 window.song = song; window.instrument = b; a.model.name = "Saved sampler marker"; b.model.name = "Saved synth marker"; EditorUtility.SetDirty(a); EditorUtility.SetDirty(b); window.Save();
                 Need(System.IO.File.ReadAllText(folder + "/Sampler.asset").Contains("Saved sampler marker"), "Save omitted previously edited sampler"); Need(System.IO.File.ReadAllText(folder + "/Synth.asset").Contains("Saved synth marker"), "Save omitted selected synth");

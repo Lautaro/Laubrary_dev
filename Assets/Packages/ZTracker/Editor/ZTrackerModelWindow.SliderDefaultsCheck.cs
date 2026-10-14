@@ -38,7 +38,7 @@ namespace Laubrary.ZTracker.Editor
             }
             try
             {
-                asset.schemaVersion=songAsset.schemaVersion=1;asset.model=NewInstrumentData();songAsset.model=TrackerEngineCheck.FixtureSong(asset);
+                asset.schemaVersion=songAsset.schemaVersion=1;asset.model=NewInstrumentData();songAsset.model=TrackerEngineCheck.FixtureSongNew(asset);
                 window.song=songAsset;window.instrument=asset;window.pane=3;window.Show();window.CreateGUI();
                 foreach(var mode in new[]{SynthMode.Subtractive,SynthMode.FM})
                 {

@@ -29,7 +29,7 @@ namespace Laubrary.ZTracker.Editor
 
             instrumentAsset.schemaVersion = songAsset.schemaVersion = 1;
             instrumentAsset.model = NewInstrumentData();
-            songAsset.model = TrackerEngineCheck.FixtureSong(instrumentAsset);
+            songAsset.model = TrackerEngineCheck.FixtureSongNew(instrumentAsset);
             window.song = songAsset; window.instrument = instrumentAsset; window.pane = 3;
             window.midiSimulatedOnly = true;
             window.position = new Rect(120, 120, 1250, 800);

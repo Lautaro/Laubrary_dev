@@ -23,7 +23,7 @@ namespace Laubrary.ZTracker.Editor
         {
             var report=new StringBuilder();int passed=0,failed=0;
             var window=CreateInstance<ZTrackerModelWindow>();var asset=CreateInstance<ZTrackerSong>();asset.schemaVersion=1;var inst=CreateInstance<ZTrackerInstrument>();ZTrackerMigration.Upgrade(inst,out _);
-            asset.model=TrackerEngineCheck.FixtureSong(inst);window.song=asset;window.pane=1;window.Show();window.CreateGUI();
+            asset.model=TrackerEngineCheck.FixtureSongNew(inst);window.song=asset;window.pane=1;window.Show();window.CreateGUI();
             void Need(bool condition,string message){if(!condition)throw new Exception(message);}
             void Check(string label,Action run){try{run();passed++;report.AppendLine("PASS "+label);}catch(Exception e){failed++;report.AppendLine("FAIL "+label+": "+e.Message);}}
             void Click(string name){LayoutChain(window);var button=window.rootVisualElement.Q<Button>(name);Need(button!=null,"Missing action "+name);var invoke=typeof(Clickable).GetMethod("SimulateSingleClick",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public);Need(invoke!=null,"Clickable simulator unavailable");invoke.Invoke(button.clickable,new object[]{null,0});}

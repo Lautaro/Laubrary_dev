@@ -32,7 +32,7 @@ namespace Laubrary.ZTracker.Editor
                 instrumentAsset.model = NewInstrumentData();
                 instrumentAsset.model.synthMode = SynthMode.FM;
                 instrumentAsset.model.parameters.type = InstrumentType.FM;
-                songAsset.model = TrackerEngineCheck.FixtureSong(instrumentAsset);
+                songAsset.model = TrackerEngineCheck.FixtureSongNew(instrumentAsset);
                 window.song = songAsset; window.instrument = instrumentAsset; window.pane = 3;
                 window.Show(); window.position = new Rect(160, 120, 1100, 760); window.CreateGUI();
                 void Layout()

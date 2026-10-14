@@ -29,7 +29,7 @@ namespace Laubrary.ZTracker.Editor
             var inst = CreateInstance<ZTrackerInstrument>();
             var clip = AudioClip.Create("ADSR probe", 4800, 1, 48000, false);
             inst.schemaVersion = songAsset.schemaVersion = 1;
-            inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+            inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
             window.song = songAsset; window.instrument = inst; window.pane = 3; window.instrumentTab = 0;
             window.Show(); window.position = new Rect(160, 120, 1120, 760); window.CreateGUI();
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -39,7 +39,7 @@ namespace Laubrary.ZTracker.Editor
             void Fresh(float width)
             {
                 window.StopPreview(); Undo.ClearUndo(inst); Undo.ClearUndo(songAsset);
-                inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+                inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
                 window.position = new Rect(160, 120, width, 760); window.pane = 3; window.instrumentTab = 0; window.modSetId = window.modDeviceId = "";
                 window.BuildPane(); ZuiAudit.ExpandAll(window); Layout();
             }

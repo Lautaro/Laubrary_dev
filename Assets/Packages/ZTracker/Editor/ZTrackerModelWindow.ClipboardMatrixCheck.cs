@@ -68,7 +68,7 @@ namespace Laubrary.ZTracker.Editor
             string Name(int c) { var f = window.fields[c]; return FieldName(f.kind) + (f.kind == FieldKind.EffectId || f.kind == FieldKind.EffectValue ? " FX" + (f.column + 1) + (window.BoundId(f) != null ? " (bound, bars)" : "") : f.kind == FieldKind.Envelope ? " ENV" + (f.column + 1) : ""); }
             try
             {
-                song.schemaVersion = 1; song.model = TrackerEngineCheck.FixtureSong(instrument, lines: 32);
+                song.schemaVersion = 1; song.model = TrackerEngineCheck.FixtureSongNew(instrument, lines: 32);
                 var lead = song.model.tracks[0]; lead.name = "Lead";
                 lead.columns = new List<ColumnVisibility> { new ColumnVisibility { volume = true, pan = true, delay = true, sampleFx = true } };
                 lead.visibleEffectColumns = 2; lead.effectColumnViews.Add(new EffectColumnView { column = 1, command = "0M", bar = true });

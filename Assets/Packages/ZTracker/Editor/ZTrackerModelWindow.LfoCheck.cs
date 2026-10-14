@@ -188,7 +188,7 @@ namespace Laubrary.ZTracker.Editor
             var songAsset = CreateInstance<ZTrackerSong>();
             var inst = CreateInstance<ZTrackerInstrument>();
             inst.schemaVersion = songAsset.schemaVersion = 1;
-            inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+            inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
             window.song = songAsset; window.instrument = inst; window.pane = 3; window.instrumentTab = 0;
             window.Show(); window.position = new Rect(160, 120, 1120, 760); window.CreateGUI();
             const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
@@ -199,7 +199,7 @@ namespace Laubrary.ZTracker.Editor
             void Fresh()
             {
                 window.StopPreview(); CloseMenus(); Undo.ClearUndo(inst); Undo.ClearUndo(songAsset);
-                inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSong(inst);
+                inst.model = NewInstrumentData(); songAsset.model = TrackerEngineCheck.FixtureSongNew(inst);
                 window.pane = 3; window.instrumentTab = 0; window.modSetId = window.modDeviceId = ""; Rebuild();
             }
             void Check(string name, Action action)
