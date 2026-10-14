@@ -80,6 +80,45 @@ namespace Laubrary.Zoetrope
             return true;
         }
 
+        /// True when a point of the world lies on a pixel that is actually drawn by this renderer's current sprite.
+        public static bool IsSolidAt(SpriteRenderer sr, Vector2 worldPoint, float alphaThreshold = 0.1f)
+        {
+            var sprite = sr != null ? sr.sprite : null;
+            if (sprite == null || !TryPixel(sprite, sr, worldPoint, out int x, out int y)) return false;
+            var alpha = AlphaOf(sprite);
+            if (alpha == null) return false;
+            var size = s_size[sprite.GetInstanceID()];
+            int i = y * size.x + x;
+            return i >= 0 && i < alpha.Length && alpha[i] >= Mathf.RoundToInt(alphaThreshold * 255f);
+        }
+
+        /// Do two drawn sprites touch: is there a point where both have a drawn pixel? Walks the rectangle the two
+        /// bounds share at the finer of the two pixel sizes, so cost follows the overlap, not the sprites. On a touch,
+        /// <paramref name="centre"/> is the middle of the shared pixels and <paramref name="pixels"/> how many there were. Pixels below <paramref name="ignoreBelowWorldY"/> are not looked at (a ground shadow drawn into the sprite is not a body).
+        public static bool Overlap(SpriteRenderer a, SpriteRenderer b, out Vector2 centre, out int pixels, float alphaThreshold = 0.1f, float ignoreBelowWorldY = float.NegativeInfinity)
+        {
+            centre = default; pixels = 0;
+            if (a == null || b == null || a.sprite == null || b.sprite == null) return false;
+            Bounds ba = a.bounds, bb = b.bounds;
+            float minX = Mathf.Max(ba.min.x, bb.min.x), maxX = Mathf.Min(ba.max.x, bb.max.x);
+            float minY = Mathf.Max(Mathf.Max(ba.min.y, bb.min.y), ignoreBelowWorldY), maxY = Mathf.Min(ba.max.y, bb.max.y);
+            if (minX >= maxX || minY >= maxY) return false;
+            float step = Mathf.Min(PixelWorld(a), PixelWorld(b));
+            Vector2 sum = Vector2.zero;
+            for (float y = minY + step * .5f; y < maxY; y += step)
+                for (float x = minX + step * .5f; x < maxX; x += step)
+                {
+                    var p = new Vector2(x, y);
+                    if (!IsSolidAt(a, p, alphaThreshold) || !IsSolidAt(b, p, alphaThreshold)) continue;
+                    sum += p; pixels++;
+                }
+            if (pixels == 0) return false;
+            centre = sum / pixels;
+            return true;
+        }
+
+        static float PixelWorld(SpriteRenderer sr) => Mathf.Max(1e-3f, Mathf.Abs(sr.transform.lossyScale.x) / Mathf.Max(1f, sr.sprite.pixelsPerUnit));
+
         static byte[] AlphaOf(Sprite sprite)
         {
             int id = sprite.GetInstanceID();

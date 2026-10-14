@@ -266,6 +266,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.BarbarianDemo.BarbarianDemo
   zoeDef: {fileID: 11400000, guid: 56592c4a5e02bcf4398fb0de5ce78640, type: 2}
+  enemyDef: {fileID: 11400000, guid: dc978d48a6ee5514e9f955fef81598b9, type: 2}
+  enemyOffset: {x: 3.5, y: 0}
+  enemyTint: {r: 1, g: 0.62, b: 0.6, a: 1}
 --- !u!4 &1252363921
 Transform:
   m_ObjectHideFlags: 0
